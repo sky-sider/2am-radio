@@ -158,3 +158,53 @@ html { scroll-behavior: auto; overflow-anchor: none; }
     font-family: "Meiryo", "Yu Gothic", "Hiragino Kaku Gothic ProN", system-ui, sans-serif;
   }
 }
+
+
+/* v3.6 — スタジオの灯り。CSSだけで描く軽量な状態表示。 */
+.studio { isolation:isolate; }
+.studio-clock{position:absolute;left:22px;bottom:49px;z-index:3;color:#e7d1ac;letter-spacing:.13em;font-size:12px;font-variant-numeric:tabular-nums;text-shadow:0 1px 5px #0b1320}
+.studio .onair{z-index:4;display:flex;align-items:center;gap:8px;min-width:95px;justify-content:center;border-color:#556177;color:#c4ceda;background:#263246e8}
+.studio .onair-light{width:7px;height:7px;border-radius:50%;background:#617285;flex:none;box-shadow:none}
+.studio-phase-opening .onair,.studio-phase-speaking .onair,.studio-phase-bridging .onair,.studio-phase-silent .onair,.studio-phase-music .onair{border-color:#ad6d69;color:#ffe0ce;background:#4a2931e8}
+.studio-phase-opening .onair-light,.studio-phase-speaking .onair-light,.studio-phase-bridging .onair-light,.studio-phase-silent .onair-light,.studio-phase-music .onair-light{background:#e89e89;box-shadow:0 0 8px #e78e7180}
+.studio-level{position:absolute;left:calc(44% + 44px);bottom:45px;z-index:3;display:flex;align-items:end;gap:3px;height:32px;padding:4px 5px;border:1px solid #64758a55;border-radius:6px;background:#122033a6;pointer-events:none}
+.studio-level-bar{display:block;width:3px;height:var(--bar-height);background:#cab38f;border-radius:3px;transform-origin:bottom;transform:scaleY(.18);opacity:.75}
+.studio-phase-opening .studio-level-bar,.studio-phase-speaking .studio-level-bar,.studio-phase-bridging .studio-level-bar,.studio-phase-music .studio-level-bar{animation:studio-meter 2.1s ease-in-out infinite alternate;animation-delay:calc(var(--bar) * -.23s)}
+.studio-phase-bridging .studio-level-bar{animation-duration:3.2s}
+.studio-phase-silent .studio-level-bar{transform:scaleY(.1);opacity:.45}
+.studio-motion-reduced .studio-level-bar{animation-duration:4.8s!important;animation-iteration-count:2!important}
+.studio-motion-off .studio-level-bar{animation:none!important;transform:scaleY(.45)}
+.studio-motion-off.studio-phase-silent .studio-level-bar{transform:scaleY(.12)}
+@keyframes studio-meter{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(.88)}}
+.studio-phase-finished .lamp{filter:drop-shadow(0 0 6px #cfa77d50);opacity:.8}
+.studio-phase-finished .mic{filter:brightness(.75)}
+.studio-prelude,.studio-silent-bridge,.studio-after-quiet{border-left:2px solid #bda37d;border-radius:0 10px 10px 0;background:#253349;padding:13px 16px;margin:12px 0 20px;line-height:1.9;color:#e8e1d4}
+.studio-prelude{border-color:#8a9cb0}
+.studio-prelude p,.studio-silent-bridge p,.studio-after-quiet p{margin:0 0 6px;white-space:normal}
+.studio-prelude .small{font-size:.8rem;margin:0;color:#b9c7d8}
+.studio-silent-bridge{border-color:#968778;background:linear-gradient(110deg,#253046,#1c293a);animation:studio-still .45s ease-out both}
+.studio-silent-bridge>span,.studio-after-quiet>span{color:#bac8d7;font-size:.83rem}
+.studio-after-quiet{background:#172337;border-color:#a68d6e;margin:0 0 16px;border-radius:10px}
+@keyframes studio-still{from{opacity:.75}to{opacity:1}}
+.studio-setting{display:flex;align-items:center;gap:10px;min-height:44px;margin-top:12px;cursor:pointer}
+.studio-setting input,.studio-setting-modes input{accent-color:#e5bf83;width:18px;height:18px;flex:none}
+.studio-setting-modes{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px;padding:10px 0 14px}
+.studio-setting-modes label{display:flex;align-items:center;gap:7px;cursor:pointer;min-height:36px;font-size:.88rem}
+/* ガイドをゲーム本体の外側へ置き、Androidでも常に最前面のダイアログとして表示する。 */
+#guide-portal{position:relative;z-index:100}
+#guide-portal:empty{display:none}
+#guide-portal .guide-overlay{position:fixed;inset:0;inset:0 0 0 0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;min-height:100dvh;max-height:100dvh;overscroll-behavior:contain}
+#guide-portal .guide-dialog{max-height:calc(100dvh - 32px);min-width:0;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+body.guide-open{overflow:hidden}
+@media(max-width:760px){
+ .studio-clock{left:12px;bottom:44px;font-size:11px}
+ .studio-level{left:calc(44% + 33px);bottom:39px;height:24px;gap:2px;padding:3px 4px}
+ .studio-level-bar{width:2px;max-height:19px}
+ .studio .onair{right:11px;bottom:43px;padding:4px 7px;font-size:10px;min-width:79px;letter-spacing:.08em}
+ .studio-prelude,.studio-silent-bridge,.studio-after-quiet{padding:11px 13px;font-size:.92rem}
+ #guide-portal .guide-overlay{padding:12px}
+ #guide-portal .guide-dialog{max-height:calc(100dvh - 24px)}
+}
+@media(prefers-reduced-motion:reduce){
+ .studio-level-bar,.studio-silent-bridge{animation:none!important;transition:none!important}
+}
