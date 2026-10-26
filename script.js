@@ -4,10 +4,12 @@ let s=load();
 if(!s.simState)s.simState=createSimulationState();
 if(!s.microWorld)s.microWorld=createMicroWorldState();
 if(!s.regular)s.regular=createRegularState();
+if(!s.special)s.special=createSpecialState();
 function migrateState(data){
   if(!data||data.version!==1||!data.listeners||!data.flags)return null;
   const defaults=defaultState();
-  data.contentVersion=10;
+  data.contentVersion=11;
+  migrateSpecial(data);
   migrateRegular(data);
   migrateChapter2(data);
   migrateMicroWorld(data);
@@ -55,13 +57,14 @@ function nightLetters(n){
   else if(n===2)fresh=['driver2',s.flags.catRead?'cat2':'cat2unread',s.flags.clockRead&&s.flags.clockPast?'clock2':'clock2generic',s.flags.moonQuestion?'sugar2':'moon2'];
   else if(n===3)fresh=['fish3','clock3',s.flags.driverRead?'driver3':'driver3first','bread3','moon3'];
   else if(n>=15&&n<=28)fresh=chapter2Letters(n);
-  else if(n>=29)fresh=createRegularLetters(n);
+  else if(n>=29)fresh=specialActive(n)?specialCreateLetters(n):createRegularLetters(n);
   else fresh=createNightLetters(n);
   const carried=n>=5?(s.pending||[]).filter(x=>x.until>=n).map(x=>x.id):[];
   // 前夜までに実際に起きた出来事をもとに書かれた新しいお便り。
   // 最大1通のみ。既存の主要な物語の枠は奪わない。
   const echoes=n>=2?(s.microWorld?.queued?.[n]||[]):[];
-  const picked=[...new Set([...fresh,...echoes,...carried])].filter(id=>letterDB[id]||s.regular?.letterArchive?.[id]);
+  const aftermath=n>=29?(s.special?.followups?.[n]||[]):[];
+  const picked=[...new Set([...fresh,...aftermath,...echoes,...carried])].filter(id=>letterDB[id]||s.regular?.letterArchive?.[id]);
   s.letterSets[n]=picked.slice(0,8);
   save();
   return s.letterSets[n];
@@ -71,7 +74,7 @@ function selectLetter(id){let i=s.chosen.indexOf(id);if(i>=0)s.chosen.splice(i,1
 function startNight(){s.phase='prepare';s.tab='studio';nightLetters(s.night);save();render()}
 function beginBroadcast(){if(!s.chosen.length||s.opening===null)return;recordOpening();s.phase='broadcast';s.cursor=0;save();render()}
 function chooseReply(i){let l=letter(s.current);let c=l.choices[i];applyReply(l,c[2],c[1])}
-function finishBroadcast(){if(s.song===null)return;s.phase='after';log('曲',`「${songs[s.song][0]}」を流した。`);applySongMood();const omitted=nightLetters(s.night).filter(id=>!s.chosen.includes(id));log('未紹介',omitted.length?omitted.map(id=>NAMES[letter(id).who]).join('、')+'のお便りは放送で紹介されなかった。':'今夜届いたお便りはすべて紹介した。');updatePendingLetters();if(s.night<=14)advanceWorld();simulateDailyLives(s.night);if(s.night<=14){lifeAfterDaily(s.night);simulateMicroWorld(s.night)}else {regularAfterWorld(s.night);chapter2AfterWorld(s.night)}save();render()}
+function finishBroadcast(){if(s.song===null)return;s.phase='after';log('曲',`「${songs[s.song][0]}」を流した。`);applySongMood();const omitted=nightLetters(s.night).filter(id=>!s.chosen.includes(id));log('未紹介',omitted.length?omitted.map(id=>NAMES[letter(id).who]).join('、')+'のお便りは放送で紹介されなかった。':'今夜届いたお便りはすべて紹介した。');updatePendingLetters();if(s.night<=14)advanceWorld();if(s.night>=29)specialBeginAnnouncement(s.night);simulateDailyLives(s.night);if(s.night<=14){lifeAfterDaily(s.night);simulateMicroWorld(s.night)}else {regularAfterWorld(s.night);chapter2AfterWorld(s.night);specialProcessNight(s.night)}save();render()}
 function nextNight(){
   if(s.night===28&&s.chapter2?.legacyThrough<28){s.phase='chapter2_complete';save();render();return}
   if(s.night===14){s.phase='complete';save();render();return}
@@ -104,11 +107,11 @@ function importSave(input){
 }
 const dayTitles=['','はじめましての夜','誰かが聴いている','言えなかった言葉',
   '終点のひとつ前','いつもの道の途中','言いそびれた返事','ひとり分の余白','返事をしない自由','描かれなかった余白','窓の明かり','木曜日の駅','自分の声','返ってこない約束','それぞれの朝'];
-function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete';return `<header class="header"><div><div class="brand">MIDNIGHT LETTERS / A RADIO STORY</div><h1>午前2時のラジオ局</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':`第${s.night}夜　${regularDayTitle(s.night)}`}</div></div><div class="chip">${s.phase==='broadcast'||s.phase==='reply'?'● ON AIR':'◌ OFF AIR'}</div></header><div class="studio" role="img" aria-label="月明かりの差す深夜のラジオスタジオ。机にマイクとランプが置かれている"><div class="studio-caption">02:00 AM · YOUR VOICE, SOMEWHERE</div><div class="moon"></div><div class="lamp"></div><div class="mic"></div><div class="desk"></div><div class="onair">${s.phase==='broadcast'||s.phase==='reply'?'ON AIR':'STANDBY'}</div></div><div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}</div><div class="panel"><div class="overline">${s.night>=15&&s.night<=28?'第2章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー"><button class="${s.tab==='studio'?'active':''}" onclick="setTab('studio')"><span>◉</span>放送</button><button class="${s.tab==='letters'?'active':''}" onclick="setTab('letters')"><span>✉</span>お便り</button><button class="${s.tab==='journal'?'active':''}" onclick="setTab('journal')"><span>▤</span>記録</button><button class="${s.tab==='listeners'?'active':''}" onclick="setTab('listeners')"><span>♧</span>リスナー</button><button class="${s.tab==='settings'?'active':''}" onclick="setTab('settings')"><span>⚙</span>設定</button></nav><div class="footer">『午前2時のラジオ局』v2.0 · 第1章／第2章・継続放送 · オフライン対応</div>`}
+function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete',sp=specialActive(s.night);return `<header class="header"><div><div class="brand">MIDNIGHT LETTERS / A RADIO STORY</div><h1>午前2時のラジオ局</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':`第${s.night}夜　${regularDayTitle(s.night)}`}</div></div><div class="chip">${s.phase==='broadcast'||s.phase==='reply'?'● ON AIR':'◌ OFF AIR'}</div></header><div class="studio ${sp?'studio-special':''}" role="img" aria-label="月明かりの差す深夜のラジオスタジオ。机にマイクとランプが置かれている"><div class="studio-caption">${sp?'SPECIAL PROGRAM · '+esc(SPECIAL_THEMES[sp.themeId].short):'02:00 AM · YOUR VOICE, SOMEWHERE'}</div><div class="moon"></div><div class="lamp"></div><div class="mic"></div><div class="desk"></div><div class="onair">${s.phase==='broadcast'||s.phase==='reply'?'ON AIR':'STANDBY'}</div></div><div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}</div><div class="panel"><div class="overline">${sp?'特別放送':s.night>=15&&s.night<=28?'第2章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー"><button class="${s.tab==='studio'?'active':''}" onclick="setTab('studio')"><span>◉</span>放送</button><button class="${s.tab==='letters'?'active':''}" onclick="setTab('letters')"><span>✉</span>お便り</button><button class="${s.tab==='journal'?'active':''}" onclick="setTab('journal')"><span>▤</span>記録</button><button class="${s.tab==='listeners'?'active':''}" onclick="setTab('listeners')"><span>♧</span>リスナー</button><button class="${s.tab==='settings'?'active':''}" onclick="setTab('settings')"><span>⚙</span>設定</button></nav><div class="footer">『午前2時のラジオ局』v2.1 · 第1章／第2章・通常放送／特別放送 · オフライン対応</div>`}
 function navButtons(){return [['studio','◉ 放送'],['letters','✉ お便り'],['journal','▤ 放送日誌'],['listeners','♧ リスナー'],['settings','⚙ 設定・セーブ']].map(([id,t])=>`<button class="navbtn ${s.tab===id?'active':''}" onclick="setTab('${id}')">${t}</button>`).join('')}
 function intro(){
   if(s.night>=15&&s.night<=28)return chapter2Intro();
-  if(s.night>=29)return regularIntro();
+  if(s.night>=29)return specialActive(s.night)?specialIntro():regularIntro();
   const t=s.night;
   const texts={
     1:'雨が、窓を叩いている。\n\n机の上には、冷めかけたコーヒーと、何通かのお便り。\n\n壁の時計が、小さな音を立てて進んでいる。\n\n今夜から、この番組を担当することになった。\n\n午前2時からの1時間。\n\n眠れない誰かに、声を届ける仕事だ。',
@@ -129,8 +132,8 @@ function intro(){
   const times=['','01:48','01:42','01:36','01:43','01:45','01:39','01:41','01:44','01:40','01:46','01:38','01:43','01:37','01:49'];
   return `<section class="panel"><div class="overline">${times[t]} / STUDIO</div><h2>${dayTitles[t]}</h2><p>${fmt(texts[t])}</p><div class="actions"><button class="btn" onclick="startNight()">お便りを確認する →</button></div></section>`;
 }
-function prepare(){let ids=nightLetters(s.night);return `<section class="panel"><div class="overline">BEFORE BROADCAST / 01:48</div><h2>今夜のお便り</h2>${s.night>=15?`<div class="notice">${s.night<=28?'第2章：'+esc(CH2_NIGHTS[s.night][0]):'今夜のテーマ：'+esc(regularTheme(s.night)[0])+' · '+esc(regularTheme(s.night)[1])}</div>`:""}<p class="muted">最大3通を紹介できます。読まなかったお便りの送り主も、明日を生きていきます。まずお便りを選びましょう。</p>${ids.map(id=>{let l=letter(id),selected=s.chosen.includes(id);return `<div class="letter"><div class="letter-top"><span class="letter-title">${esc(NAMES[l.who])}</span><span class="tag">${l.special?'特別返答':''}</span></div><div class="small">${esc(l.subject)}</div><hr class="divider"><div class="letter-text">${fmt(l.body)}</div><div class="actions"><button class="btn ${selected?'secondary':'ghost'}" onclick="selectLetter('${id}')" ${!selected&&s.chosen.length>=3?'disabled':''}>${selected?'✓ 紹介する予定':'＋ このお便りを紹介'}</button></div></div>`}).join('')}<div class="notice">紹介予定：${s.chosen.length} / 3通　${s.chosen.map(id=>NAMES[letter(id).who]).join('・')||'まだ選んでいません'}</div><h3>オープニングの言葉</h3>${opening.map((o,i)=>`<button class="choice ${s.opening===i?'selected':''}" onclick="s.opening=${i};save();render()"><strong>${'ABC'[i]}.</strong> ${esc(o)}</button>`).join('')}<div class="actions"><button class="btn" ${s.chosen.length===0||s.opening===null?'disabled':''} onclick="beginBroadcast()">午前2時、放送を始める →</button></div></section>`}
-function broadcast(){if(s.cursor>=s.chosen.length){return `<section class="panel"><div class="overline">02:53 / ENDING</div><h2>今夜の最後の一曲</h2><p>お便りを読み終えた。マイクの向こうでは、まだ誰かが聴いている。</p>${songs.map((a,i)=>`<button class="choice ${s.song===i?'selected':''}" onclick="s.song=${i};save();render()"><strong>♪ ${esc(a[0])}</strong><br><span class="small">${esc(a[1])}</span></button>`).join('')}<div class="actions"><button class="btn" ${s.song===null?'disabled':''} onclick="finishBroadcast()">エンディングを放送する →</button></div></section>`}let id=s.chosen[s.cursor],l=letter(id);return `<section class="panel"><div class="overline">${['02:08','02:23','02:39'][s.cursor]} / ON AIR · LETTER ${s.cursor+1} / ${s.chosen.length}</div><h2>お便りを紹介する</h2><div class="letter"><div class="letter-title">${esc(NAMES[l.who])}</div><div class="small">${esc(l.subject)}</div><hr class="divider"><div class="letter-text">${fmt(l.body)}</div></div><div class="actions"><button class="btn" onclick="s.current='${id}';s.phase='reply';save();render()">このお便りに返答する →</button></div></section>`}
+function prepare(){let ids=nightLetters(s.night);return `<section class="panel"><div class="overline">BEFORE BROADCAST / 01:48</div><h2>今夜のお便り</h2>${s.night>=15?`<div class="notice">${s.night<=28?'第2章：'+esc(CH2_NIGHTS[s.night][0]):specialActive(s.night)?'特別放送：'+esc(SPECIAL_THEMES[s.special.planned.themeId].title):'今夜のテーマ：'+esc(regularTheme(s.night)[0])+' · '+esc(regularTheme(s.night)[1])}</div>`:""}<p class="muted">最大3通を紹介できます。読まなかったお便りの送り主も、明日を生きていきます。まずお便りを選びましょう。</p>${ids.map(id=>{let l=letter(id),selected=s.chosen.includes(id);return `<div class="letter"><div class="letter-top"><span class="letter-title">${esc(NAMES[l.who])}</span><span class="tag">${l.special?'特別返答':''}</span></div><div class="small">${esc(l.subject)}</div><hr class="divider"><div class="letter-text">${fmt(l.body)}</div><div class="actions"><button class="btn ${selected?'secondary':'ghost'}" onclick="selectLetter('${id}')" ${!selected&&s.chosen.length>=3?'disabled':''}>${selected?'✓ 紹介する予定':'＋ このお便りを紹介'}</button></div></div>`}).join('')}<div class="notice">紹介予定：${s.chosen.length} / 3通　${s.chosen.map(id=>NAMES[letter(id).who]).join('・')||'まだ選んでいません'}</div>${specialActive(s.night)?`<div class="notice">${esc(SPECIAL_THEMES[s.special.planned.themeId].opening)}<br><span class="small">この言葉は特別放送の冒頭で紹介します。</span></div>`:''}<h3>オープニングの言葉</h3>${opening.map((o,i)=>`<button class="choice ${s.opening===i?'selected':''}" onclick="s.opening=${i};save();render()"><strong>${'ABC'[i]}.</strong> ${esc(o)}</button>`).join('')}<div class="actions"><button class="btn" ${s.chosen.length===0||s.opening===null?'disabled':''} onclick="beginBroadcast()">午前2時、放送を始める →</button></div></section>`}
+function broadcast(){if(s.cursor>=s.chosen.length){return `<section class="panel"><div class="overline">02:53 / ENDING</div><h2>今夜の最後の一曲</h2><p>お便りを読み終えた。マイクの向こうでは、まだ誰かが聴いている。</p>${songs.map((a,i)=>`<button class="choice ${s.song===i?'selected':''}" onclick="s.song=${i};save();render()"><strong>♪ ${esc(a[0])}</strong><br><span class="small">${esc(a[1])}</span></button>`).join('')}<div class="actions"><button class="btn" ${s.song===null?'disabled':''} onclick="finishBroadcast()">エンディングを放送する →</button></div></section>`}let id=s.chosen[s.cursor],l=letter(id);return `<section class="panel"><div class="overline">${['02:08','02:23','02:39'][s.cursor]} / ON AIR · LETTER ${s.cursor+1} / ${s.chosen.length}</div><h2>お便りを紹介する</h2>${s.cursor===0&&specialActive(s.night)?`<div class="special-opening">${esc(SPECIAL_THEMES[s.special.planned.themeId].opening)}</div>`:''}<div class="letter"><div class="letter-title">${esc(NAMES[l.who])}</div><div class="small">${esc(l.subject)}</div><hr class="divider"><div class="letter-text">${fmt(l.body)}</div></div><div class="actions"><button class="btn" onclick="s.current='${id}';s.phase='reply';save();render()">このお便りに返答する →</button></div></section>`}
 function reply(){
   const l=letter(s.current);
   if(!l){s.phase='broadcast';return broadcast()}
@@ -152,7 +155,7 @@ function confirmSpecial(){
 }
 function after(){
   if(s.night>=15&&s.night<=28)return chapter2After();
-  if(s.night>=29)return regularAfter();
+  if(s.night>=29)return specialActive(s.night)?specialAfter():regularAfter();
   const n=s.night;
   const scenes={
     1:'マイクの赤いランプが消えた。\n\nスタジオには、雨の音だけが残っている。\n\n今夜、あなたの言葉を聴いた人がいる。\n\nその人が明日、どんな朝を迎えるのか。\n\nまだ、誰にもわからない。',
@@ -200,16 +203,35 @@ function journal(){
   return `<section class="panel"><div class="overline">BROADCAST JOURNAL</div><h2>放送日誌</h2><p class="muted">放送で伝えた言葉を記録しています。生活の秘密や内部数値は表示されません。</p><div class="actions"><button class="btn secondary" ${s.journalPage>=maxPage?'disabled':''} onclick="s.journalPage++;save();render()">← 前の10夜</button><button class="btn secondary" ${s.journalPage===0?'disabled':''} onclick="s.journalPage--;save();render()">新しい10夜 →</button></div><p class="small">第${oldest}〜${latest}夜を表示（全${n}夜）</p>${content}<h3>あなたが届けた言葉</h3>${replies.length?replies.map(x=>`<div class="letter"><div class="small">第${x.night}夜 · ${esc(NAMES[x.who])}</div><b>${esc(x.subject)}</b><div class="quote">${fmt(x.response)}</div></div>`).join(''):'<p class="muted">この期間には返答の記録がありません。</p>'}</section>`;
 }
 function listeners(){let bios={cat:'会社員。仕事と創作への気持ちの間で揺れている。',clock:'元時計修理職人。古い時計と日々の思い出を大切にしている。',bread:'パン屋で働く。新しいパン作りに挑戦している。',moon:'少し変わった空想を投稿するリスナー。',driver:'夜間配送ドライバー。駐車場の猫を「主任」と呼んでいる。',fish:'大学生。友人との関係で、自分の気持ちを伝えられずにいる。',terminal:'木曜日、終点のひとつ前の駅を訪れる。待つ理由はまだわからない。',anon:'以前から番組を聴いている静かなリスナー。'};return `<section class="panel"><div class="overline">LISTENER ARCHIVE</div><h2>リスナーの記録</h2><p class="muted">放送やお便りでわかったことだけが記録されます。</p>${Object.keys(bios).map(id=>{let o=s.listeners[id],seen=s.played.some(x=>x.who===id)||o.known;return `<div class="listener"><b>${seen?esc(NAMES[id]):'まだよく知らないリスナー'}</b><div class="small">${seen?esc(bios[id]):'これからお便りが届くかもしれません。'}</div>${seen&&o.memories.length?`<hr class="divider"><div class="small">これまでにわかったこと</div>${o.memories.map(m=>`<div class="small">・${esc(m)}</div>`).join('')}`:''}</div>`}).join('')}</section>`}
-function settings(){return `<section class="panel"><div class="overline">SETTINGS</div><h2>設定・セーブデータ</h2><p>進行状況は、この端末のブラウザ内に自動保存されます。別の端末に引き継ぐ場合は、バックアップを書き出してください。</p><div class="actions"><button class="btn" onclick="downloadSave()">バックアップを保存</button><label class="btn secondary" style="cursor:pointer">バックアップを読み込む<input class="screen-reader" type="file" accept=".json,application/json" onchange="importSave(this)"></label></div><hr class="divider"><h3>最初から遊ぶ</h3><p class="small">現在のセーブデータを消して、第1夜からやり直します。必要なら先にバックアップしてください。</p><button class="btn secondary" onclick="resetGame()">進行状況をリセット</button><hr class="divider"><p class="small">バージョン 2.0 · 第1章14夜＋第2章14夜＋第29夜以降の継続放送。音楽は文章演出のみで、音声は再生されません。画像・外部ライブラリを使用せず、オフラインで遊べます。</p></section>`}
+function settings(){return `<section class="panel"><div class="overline">SETTINGS</div><h2>設定・セーブデータ</h2><p>進行状況は、この端末のブラウザ内に自動保存されます。別の端末に引き継ぐ場合は、バックアップを書き出してください。</p><div class="actions"><button class="btn" onclick="downloadSave()">バックアップを保存</button><label class="btn secondary" style="cursor:pointer">バックアップを読み込む<input class="screen-reader" type="file" accept=".json,application/json" onchange="importSave(this)"></label></div><hr class="divider"><h3>最初から遊ぶ</h3><p class="small">現在のセーブデータを消して、第1夜からやり直します。必要なら先にバックアップしてください。</p><button class="btn secondary" onclick="resetGame()">進行状況をリセット</button><hr class="divider"><p class="small">バージョン 2.1 · 第1章14夜＋第2章14夜＋第29夜以降の継続放送・特別放送。音楽は文章演出のみで、音声は再生されません。画像・外部ライブラリを使用せず、オフラインで遊べます。</p></section>`}
+function specialPlanningPanel(){
+ const n=s.night;
+ const p=s.special?.planned;
+ if(p&&p.status==='announced'&&p.announceNight===n){
+  const t=SPECIAL_THEMES[p.themeId];
+  return `<div class="special-planning"><div class="overline">NEXT SPECIAL / 予告</div><h3>${esc(t.title)}</h3><p>今夜の放送の終わりに募集を告知し、第${p.night}夜に特別放送を行います。今夜の通常のお便りも、いつもどおり紹介できます。</p><div class="actions"><button class="btn secondary" onclick="specialCancel()">企画を取り消す</button></div></div>`;
+ }
+ const choices=specialAvailable(n);
+ if(!choices.length)return '';
+ return `<div class="special-planning"><div class="overline">SPECIAL PROGRAM / 企画の相談</div><h3>次の夜、特別な放送をしてみませんか？</h3><p class="muted">企画しないまま、いつもの放送を続けても大丈夫です。募集は今夜、本番は翌夜です。</p>${choices.map(id=>{const t=SPECIAL_THEMES[id];return `<button class="choice" onclick="specialPlan('${id}')"><strong>${esc(t.title)}</strong><br><span class="small">${esc(t.invitation)}</span></button>`}).join('')}</div>`;
+}
+function specialIntro(){
+ const p=s.special.planned,t=SPECIAL_THEMES[p.themeId];
+ return `<section class="panel special-panel"><div class="overline">SPECIAL PROGRAM / 第${s.night}夜 · 01:46</div><h2>${esc(t.title)}</h2><p>${fmt('昨日の放送の終わりに、小さな企画を告知した。\n\n届いた手紙には、書いた人の一日がある。\n送らずに聴いていた人にも、一日があった。\n\n今夜はいつもより少しだけ、机の灯りが明るい。')}</p><div class="notice">${esc(t.invitation)}<br>通常のお便りも届いています。最大3通を選んで放送しましょう。</div><div class="actions"><button class="btn" onclick="startNight()">特別放送のお便りを確認する →</button></div></section>`;
+}
+function specialAfter(){
+ const p=s.special.planned,t=SPECIAL_THEMES[p.themeId];
+ return `<section class="panel end special-panel"><div class="overline">03:00 / SPECIAL PROGRAM END</div><h2>${esc(t.title)}</h2><p>${fmt(t.closing+'\n\n声を出さなかった人にも、この時間は流れていた。\n\nマイクの赤いランプが消える。')}</p><hr class="divider"><div class="small">紹介したお便り：${s.played.filter(x=>x.night===s.night).length}通</div><div class="small">募集に応じて届いたお便り：${p.submissions.length}通</div><p class="small">聴いた人の記憶や、明日届くかもしれない感想は、放送後の世界に残ります。</p><div class="actions"><button class="btn" onclick="nextNight()">次の夜へ進む →</button></div></section>`;
+}
 function regularIntro(){
  const n=s.night,theme=regularTheme(n),day=['月','火','水','木','金','土','日'][(n-1)%7];
  const intro=['手紙の束に新しい宛名を見つけた。','窓の外に、帰りの遅い人の灯りが見える。','昨夜の放送から、街ではまた一日が過ぎた。','スタジオに湯気の立つカップが置かれている。'][simHash(`reg:scene:${n}`)%4];
- return `<section class="panel"><div class="overline">REGULAR BROADCAST / 第${n}夜・${day}曜日</div><h2>今日も、午前2時</h2><p>${fmt(intro+'\n\n第2章も一区切りを迎えた。でも、ラジオはまだ続いている。\n\n今夜の小さなテーマは「'+theme[0]+'」。\n'+theme[1]+'。\n\n読む手紙は、まだ決まっていない。')}</p><div class="notice">通常放送では、これまでの人生分岐・感情・自律生活からお便りが届きます。季節などの特別放送は今後追加する予定です。</div><div class="actions"><button class="btn" onclick="startNight()">今夜のお便りを確認する →</button></div></section>`;
+ return `<section class="panel"><div class="overline">REGULAR BROADCAST / 第${n}夜・${day}曜日</div><h2>今日も、午前2時</h2><p>${fmt(intro+'\n\n第2章も一区切りを迎えた。でも、ラジオはまだ続いている。\n\n今夜の小さなテーマは「'+theme[0]+'」。\n'+theme[1]+'。\n\n読む手紙は、まだ決まっていない。')}</p><div class="notice">通常放送では、これまでの人生分岐・感情・自律生活からお便りが届きます。</div>${specialPlanningPanel()}<div class="actions"><button class="btn" onclick="startNight()">今夜のお便りを確認する →</button></div></section>`;
 }
 function regularAfter(){
  const messages=['放送が終わったあと、スタジオには時計の音が残った。','曲が止み、誰かの街の夜はまだ続いている。','机の上には、読み上げなかった便箋も残っている。','マイクの向こうに、今夜もいくつかの生活があった。'];
  const text=messages[simHash(`reg:after:${s.night}`)%messages.length];
- return `<section class="panel end"><div class="overline">03:00 / OFF AIR · 通常放送</div><h2>また明日の午前2時に</h2><p>${fmt(text+'\n\n声が届いた人も、届かなかった人もいる。\n\n放送の外では、今日もそれぞれの暮らしが続いている。')}</p><hr class="divider"><div class="small">今夜紹介したお便り：${s.played.filter(x=>x.night===s.night).length}通</div><div class="small">次の夜には、今日の出来事から別のお便りが届くかもしれません。</div><div class="actions"><button class="btn" onclick="nextNight()">次の夜へ進む →</button></div></section>`;
+ return `<section class="panel end"><div class="overline">03:00 / OFF AIR · 通常放送</div><h2>また明日の午前2時に</h2><p>${fmt(text+'\n\n声が届いた人も、届かなかった人もいる。\n\n放送の外では、今日もそれぞれの暮らしが続いている。')}</p>${s.special?.planned?.announceNight===s.night&&s.special.planned.status==='ready'?`<div class="special-planning"><div class="overline">SPECIAL PROGRAM · 募集の告知</div><h3>${esc(SPECIAL_THEMES[s.special.planned.themeId].title)}</h3><p>${esc(SPECIAL_THEMES[s.special.planned.themeId].invitation)}</p><p class="small">第${s.special.planned.night}夜に放送します。</p></div>`:''}<hr class="divider"><div class="small">今夜紹介したお便り：${s.played.filter(x=>x.night===s.night).length}通</div><div class="small">次の夜には、今日の出来事から別のお便りが届くかもしれません。</div><div class="actions"><button class="btn" onclick="nextNight()">次の夜へ進む →</button></div></section>`;
 }
 
 function chapter2Intro(){

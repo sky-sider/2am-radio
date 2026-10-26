@@ -3,3 +3,6 @@
 
 /* 操作後も閲覧位置を維持し、不要な画面ジャンプを防止 */
 html { scroll-behavior: auto; overflow-anchor: none; }
+
+/* v2.1 特別放送。既存の控えめなラジオUIを保ち、文字を読みやすくする。 */
+.special-planning{border:1px solid #7e6b51;border-radius:13px;background:linear-gradient(155deg,#293649,#252d3d);padding:18px;margin:20px 0}.special-planning h3{color:#f0d4a5}.special-planning p{white-space:pre-line}.special-panel{border-color:#74634e}.special-opening{background:#26354b;border-left:3px solid #e5bf83;padding:13px 16px;margin:12px 0 18px;line-height:1.95}.studio-special{border-color:#a68b61;box-shadow:inset 0 0 22px #bd965220}.studio-special .studio-caption{color:#f4d39d}.special-planning .choice{margin:10px 0}.special-planning .small{font-size:12px;line-height:1.7}@media(max-width:760px){.special-planning{padding:14px}.special-opening{padding:10px 13px}}

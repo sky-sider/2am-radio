@@ -773,7 +773,7 @@ function migrateRegular(data){
  data.regular=r;return data;
 }
 function regularTheme(n){return REGULAR_THEMES[(n-15)%REGULAR_THEMES.length]}
-function regularDayTitle(n){return n<=14?dayTitles[n]:n<=28?CH2_NIGHTS[n][0]:`通常放送 · ${regularTheme(n)[0]}`}
+function regularDayTitle(n){const p=s.special?.planned;return n<=14?dayTitles[n]:n<=28?CH2_NIGHTS[n][0]:p?.night===n&&['ready','completed'].includes(p.status)?SPECIAL_THEMES[p.themeId].title:`通常放送 · ${regularTheme(n)[0]}`}
 function regularFirstSentence(id,n){const a=REGULAR_INTROS[id]||REGULAR_INTROS.anon;return a[simHash(`reg:intro:${n}:${id}`)%a.length]}
 function regularDayAction(id,n){return s.simState?.people?.[id]?.daily?.find(d=>d.night===n-1)||null}
 function regularRoute(id,n){
@@ -1101,4 +1101,187 @@ function chapter2AfterWorld(n){
   }
  }
  c.processedNights.push(n);
+}
+
+
+// =============================================================
+// v2.1 特別放送：企画→翌夜の募集→本番→翌夜への余韻
+// 固定の重要エピソードや本人の秘密を上書きしない。
+// =============================================================
+function createSpecialState(){return {schema:1,planned:null,history:[],lastHeldNight:0,followups:{},promptsShown:[]}}
+function migrateSpecial(data){
+ const raw=data.special&&typeof data.special==='object'?data.special:{};
+ data.special={...createSpecialState(),...raw};
+ const sp=data.special;
+ sp.history=Array.isArray(sp.history)?sp.history:[];
+ sp.followups=sp.followups&&typeof sp.followups==='object'?sp.followups:{};
+ sp.promptsShown=Array.isArray(sp.promptsShown)?sp.promptsShown:[];
+ if(sp.planned&&(!SPECIAL_THEMES[sp.planned.themeId]||!Number.isInteger(sp.planned.night)))sp.planned=null;
+ if(!Number.isInteger(sp.lastHeldNight))sp.lastHeldNight=0;
+ return data;
+}
+function specialActive(n=s.night){
+ const plan=s.special?.planned;
+ return plan&&plan.night===n&&['ready','completed'].includes(plan.status)?plan:null;
+}
+function specialEligible(n=s.night){
+ if(n<29||s.phase!=='intro'||s.special?.planned?.status==='announced')return false;
+ // 50夜目の記念放送だけは、直前に別の特別放送があっても開催を選べる。
+ if(n===49&&!s.special.history.some(h=>h.themeId==='anniversary'))return true;
+ if(s.special?.lastHeldNight && n-s.special.lastHeldNight<7)return false;
+ return true;
+}
+function specialAvailable(n=s.night){
+ if(!specialEligible(n))return [];
+ const basic=['pride','food','words'];
+ if(n===49&&!s.special.history.some(h=>h.themeId==='anniversary'))basic.unshift('anniversary');
+ return basic;
+}
+function specialPlan(themeId){
+ if(!specialAvailable(s.night).includes(themeId))return;
+ s.special.planned={themeId,announceNight:s.night,night:s.night+1,status:'announced',submissions:[],audience:[],createdIds:[],reactions:[]};
+ save();render();
+}
+function specialCancel(){
+ if(s.phase!=='intro'||s.special?.planned?.announceNight!==s.night||s.special.planned.status!=='announced')return;
+ s.special.planned=null;save();render();
+}
+function specialLifeExcerpt(id,n){
+ const yesterday=regularDayAction(id,n);
+ if(!yesterday||!yesterday.activity)return '';
+ const verb=yesterday.activity.replace(/。+$/,'');
+ return '\n\n追伸：昨日は、'+verb+'。そんな一日でした。';
+}
+function specialSubmitBody(themeId,id,n){
+ const theme=SPECIAL_THEMES[themeId],src=theme?.letters?.[id];
+ if(!src)return null;
+ const outcome=s.lifePaths?.outcomes?.[id];
+ let ending='';
+ if(outcome&&REGULAR_MAIN.includes(id)){
+  // 将来の予定として保持している目標を「達成した」とは書かない。
+  const goal=(outcome.nextGoal||'').replace(/[。]+$/,'');
+  if(goal)ending='\n\n最近は、'+goal+'ことも少しずつ考えています。';
+ }
+ let story=src[1];
+ if(themeId==='pride'){
+  // 小さな自慢だけは、実際に昨日行ったことを書く。存在しない成功を捏造しない。
+  const action=regularDayAction(id,n);
+  if(action?.activity){
+   const endings={
+    cat:'大きな変化ではありませんが、今日はそれを大切にしたくなりました。',
+    driver:'猫主任はたぶん褒めてくれませんが、誰かに話したくなりました。',
+    fish:'人と比べたら小さいことでも、自分で覚えておきたいです。',
+    clock:'誰に褒められるでもありませんが、こんな日も悪くありません。',
+    terminal:'書いてしまえば、ずいぶん小さな出来事です。でも、今日は書きます。',
+    bread:'仕事でも暮らしでも、小さな達成は嬉しいものですね。',
+    moon:'月が聞いていたかは知りませんが、自分としては成功です。',
+    sugar:'コーヒーが冷める前に報告したくなりました。',
+    anon:'送信する勇気が出たことも、今夜のもう一つの自慢かもしれません。'
+   };
+   story='昨日、'+action.activity.replace(/。+$/,'')+'。\n\n'+endings[id];
+  }else{
+   story='このお便りを書いて、送るところまでできました。普段は聴いているだけの日も多いので、それを今夜の小さな自慢にします。';
+  }
+ }
+ return {subject:src[0],body:'こんばんは。特別放送の募集を聴いて、お便りします。\n\n'+story+ending};
+}
+function specialBeginAnnouncement(n){
+ const plan=s.special?.planned;
+ if(!plan||plan.announceNight!==n||plan.status!=='announced')return;
+ plan.status='gathering';
+ log('特別放送の告知','「'+SPECIAL_THEMES[plan.themeId].title+'」を募集した。次の夜に放送する。');
+}
+function specialFinalizeAnnouncement(n){
+ const plan=s.special?.planned;
+ if(!plan||plan.announceNight!==n||plan.status!=='gathering')return;
+ const theme=SPECIAL_THEMES[plan.themeId];
+ const audience=[],submissions=[];
+ for(const id of Object.keys(SIM_PROFILES)){
+  const p=s.simState?.people?.[id];if(!p)continue;
+  const traits=SIM_PROFILES[id].traits;
+  const trust=s.listeners[id]?.trust||25;
+  const hearChance=Math.min(91,48+Math.round(trust/4)+Math.round(traits[0]/8));
+  const heard=simHash(`sp:heard:${n}:${id}:${plan.themeId}`)%100<hearChance;
+  if(!heard)continue;
+  const mood=p.emotion||{};
+  const sendChance=Math.min(82,17+Math.round(traits[0]/2.9)+Math.round((mood.hope||30)/8)+Math.round(trust/10));
+  const mail=simHash(`sp:mail:${n}:${id}:${plan.themeId}`)%100<sendChance;
+  audience.push({id,choice:mail?'sent':(simHash(`sp:quiet:${n}:${id}`)%3===0?'draft':'listen')});
+  if(mail)submissions.push(id);
+  // 聴くだけの人も、企画について一度は考えた。そのことは番組側には公開しない。
+  simMemory(p,{night:n,kind:'broadcast',tag:'special_invitation',importance:1,summary:'特別放送「'+theme.title+'」の募集を聴いた'});
+  if(mail){simMemory(p,{night:n,kind:'everyday',tag:'special_letter',importance:2,summary:'特別放送へ自分の言葉でお便りを送った'});}
+ }
+ // 投稿数が少なくても水増ししない。通常のお便りも合わせて放送する。
+ plan.audience=audience;plan.submissions=submissions;plan.status='ready';
+}
+function specialCreateLetters(n){
+ const plan=s.special?.planned;
+ if(!plan||plan.night!==n||plan.status!=='ready')return createRegularLetters(n);
+ const archive=s.regular.letterArchive;
+ const specialIds=[];
+ // 投稿者は前夜に確定済み。ゲーム画面を開き直しても抽選しない。
+ for(const id of plan.submissions){
+  if(!SPECIAL_THEMES[plan.themeId].letters[id])continue;
+  const draft=specialSubmitBody(plan.themeId,id,n);
+  const uid=`special_${n}_${plan.themeId}_${id}`;
+  const highlight=(id===plan.submissions[0]&&(['words','anniversary'].includes(plan.themeId)));
+  archive[uid]={who:id,subject:draft.subject,body:draft.body,regular:true,special:highlight,programSpecial:true,kind:'special',themeId:plan.themeId,choices:SPECIAL_CHOICES.map(x=>[...x])};
+  specialIds.push(uid);
+ }
+ const allRegular=createRegularLetters(n);
+ // 参加型の番組でも普通のお便りは途切れない。原則5〜7通。
+ const maxSpecial=5;
+ const selectedSpecial=specialIds.slice(0,maxSpecial);
+ const fallback=allRegular.filter(uid=>!selectedSpecial.some(sid=>archive[sid]?.who===archive[uid]?.who));
+ const chosen=[...selectedSpecial,...fallback.slice(0,Math.max(2,7-selectedSpecial.length))].slice(0,8);
+ plan.createdIds=[...chosen];
+ return chosen;
+}
+function specialFollowup(n,plan){
+ const next=n+1;
+ // 実際に本番を聴いた人だけが「昨日の放送を聴いた」と書ける。
+ const heard=(plan.actualListeners||[]).filter(id=>!plan.submissions.includes(id));
+ if(!heard.length||simHash(`sp:echo?:${n}`)%100>=70)return;
+ const id=heard[simHash(`sp:echo:${n}`)%heard.length];
+ const title=SPECIAL_THEMES[plan.themeId].title;
+ const suffix={
+  pride:'今夜はいろんな小さな自慢を聴きました。自分には何もないと思っていたのですが、明日の朝にひとつ見つけてみようと思います。',
+  food:'誰かの食べ物の思い出を聴いて、自分の台所の明かりを思い出しました。何の料理だったかは、まだ思い出せません。',
+  words:'知らない人の言葉が、今日も少し残っています。意味をすぐに決めなくていい、そんな気がしました。',
+  anniversary:'五十夜目の放送を聴いていました。お便りを送らない夜も、この番組を聴く自分の夜だったのだと思います。'
+ }[plan.themeId];
+ const uid=`special_echo_${next}_${id}`;
+ s.regular.letterArchive[uid]={who:id,subject:'昨日の特別放送',body:'こんばんは。\n\n昨日の「'+title+'」を聴いていました。\n\n'+suffix,regular:true,kind:'special_echo',choices:REGULAR_CHOICES.map(x=>[...x])};
+ (s.special.followups[next]||=[]).push(uid);
+}
+function specialEndBroadcast(n,plan){
+ if(!plan||plan.status!=='ready')return;
+ const theme=SPECIAL_THEMES[plan.themeId];
+ const read=s.played.filter(x=>x.night===n&&x.id.startsWith(`special_${n}_`));
+ const readSet=new Set(read.map(x=>x.who));
+ plan.actualListeners=[];
+ for(const info of plan.audience){
+  const p=s.simState?.people?.[info.id];if(!p)continue;
+  const listened=simHash(`sp:listened:${n}:${info.id}`)%100 < 73;
+  if(!listened)continue;
+  plan.actualListeners.push(info.id);
+  simMemory(p,{night:n,kind:'broadcast',tag:'special_night',importance:readSet.has(info.id)?3:2,summary:'特別放送「'+theme.title+'」を聴いた'});
+  if(readSet.has(info.id)){
+   simAdjust(p.emotion,'hope',2);simAdjust(p.emotion,'joy',1);
+   remember(info.id,'特別放送で自分のお便りを紹介してもらった');
+  }else if(info.choice==='listen'||info.choice==='draft'){
+   simAdjust(p.emotion,'loneliness',-1);
+  }
+ }
+ const detail={night:n,themeId:plan.themeId,readIds:read.map(x=>x.id),submissions:plan.submissions.length};
+ s.special.history.push(detail);s.special.lastHeldNight=n;plan.status='completed';
+ log('特別放送','「'+theme.title+'」を放送した。');
+ specialFollowup(n,plan);
+}
+function specialProcessNight(n){
+ const plan=s.special?.planned;
+ if(!plan)return;
+ if(plan.announceNight===n&&plan.status==='gathering')specialFinalizeAnnouncement(n);
+ else if(plan.night===n&&plan.status==='ready')specialEndBroadcast(n,plan);
 }
