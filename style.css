@@ -225,3 +225,62 @@ body.guide-open{overflow:hidden}
 .archive-unknown{margin:0;min-width:0;display:flex;align-items:center;gap:9px;background:#1b293c;color:#c1cad5;padding:11px 13px;font-size:.85rem}
 .archive-unknown-mark{color:#beaa89}
 @media(max-width:760px){.archive-unknown-grid{grid-template-columns:1fr}.archive-person-intro{font-size:.9rem}.archive-unknown{padding:10px 12px}}
+
+/* v4.0.2: 新しいタイトルと英語副題の視認性。既存のPC/モバイル文字サイズは維持。 */
+.header .brand{letter-spacing:.18em;font-weight:600;overflow-wrap:anywhere}
+@media(max-width:390px){.header .brand{letter-spacing:.12em}}
+@media(max-width:520px){
+  /* 新しい八文字の作品名を一行で見せ、操作ボタンはその下に逃がす。 */
+  .header{flex-direction:column;align-items:stretch;gap:9px}
+  .header h1{white-space:nowrap}
+  .header-tools{align-self:flex-end}
+}
+
+
+/* v4.0.3 : レイアウト品質調整。文字サイズ・作品の演出・ガイドの金色ボタンは維持。 */
+/* 情報の優先順位：ヘッダー / 物語（主） / 天気（補） / 機能（補）。 */
+.layout > main {min-width:0}
+.header-identity{min-width:0}
+.header-tools{gap:12px}
+/* OFF AIR は操作ではなく状態。ボタンと一見して区別できるように。 */
+.header-tools .chip{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:4px 11px;white-space:nowrap;background:#192637;border:1px solid #566278;letter-spacing:.05em;font-variant-numeric:tabular-nums}
+.header .guide-launch{box-shadow:0 2px 7px #0002}
+/* 重要な本文と、季節の小さな出来事の重さを分ける。 */
+.layout main > .panel{background:#1b2739f2;border-color:#43546a;box-shadow:0 9px 28px #060d1950}
+.layout main > .climate-scene{padding:10px 15px;margin-bottom:12px;border-left-width:2px;background:#18273a;border-color:#46556c;box-shadow:none}
+.layout main > .climate-scene p{margin-top:3px;color:#c7d2df}
+/* お便りが主役。本文内のネストカードはコントラストを控えめに。 */
+.layout main .letter{border-color:#495a72}
+.layout main .panel > p,.layout main .panel > .letter-text,.layout main .letter-text,.layout main .quote,.layout main .station-onair-voice p{max-width:39em;overflow-wrap:anywhere}
+/* 同じ画面内での間隔に規則性を与える。 */
+.layout main .panel > h2{margin-bottom:14px}
+.layout main .panel > .actions:last-child{margin-top:22px}
+.layout main .panel .actions .btn{line-height:1.6}
+.btn:focus-visible,.choice:focus-visible,.bottomnav button:focus-visible,.sidebar .navbtn:focus-visible{outline:2px solid #f0d19a;outline-offset:3px}
+/* 右の操作メニューは選択状態がわかる程度に、落ち着いた印象へ。 */
+.sidebar .panel{background:#1b293be8;border-color:#3e4e65}
+.sidebar .navbtn{min-height:43px;transition:background .12s,border-color .12s;display:block}
+.sidebar .navbtn.active{background:#324055;color:#f0d09b;box-shadow:inset 2px 0 0 #dab77e}
+.sidebar .navbtn:hover{background:#2c3b50;color:#f1e8da}
+/* ユーザーの動作設定に従い、不必要な強い動きは追加しない。 */
+@media(max-width:760px){
+  /* 固定ナビの高さに加えて、スクロール可能な安全余白を残す。 */
+  .app{padding-bottom:calc(124px + env(safe-area-inset-bottom,0px))}
+  .layout main > .panel{padding:17px}
+  .layout main > .climate-scene{padding:10px 13px;margin-bottom:13px}
+  .layout main .panel > p,.layout main .panel > .letter-text,.layout main .letter-text,.layout main .quote,.layout main .station-onair-voice p{max-width:none}
+  /* タイトルを先に、状態と補助ボタンはその下の専用行に。 */
+  .header{flex-direction:column;align-items:stretch;gap:12px;margin-bottom:16px}
+  .header h1{white-space:nowrap}
+  .header-tools{width:100%;display:flex;justify-content:space-between;align-items:center;align-self:stretch;padding-top:10px;border-top:1px solid #37485d;gap:12px}
+  .header-tools .chip{margin-left:auto}
+  /* 触れる範囲は縮めず、5つのタブを均等に。 */
+  .bottomnav{box-sizing:border-box;min-height:75px;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));gap:2px;box-shadow:0 -6px 24px #08101ca8;align-items:stretch}
+  .bottomnav button{flex:1 1 0;min-width:0;min-height:58px;border-radius:9px;line-height:1.45;padding:5px 1px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+  .bottomnav button span{line-height:1.1}
+  .bottomnav button.active{background:#27364c;color:#f1cd91}
+  .bottomnav button:hover{background:#243349}
+  .footer{padding-top:7px}
+}
+@media(max-width:360px){.header-tools{gap:8px}.header-tools .chip{padding:3px 9px}.bottomnav{padding-left:4px;padding-right:4px}}
+@media(prefers-reduced-motion:reduce){.sidebar .navbtn{transition:none}}
