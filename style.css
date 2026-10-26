@@ -53,3 +53,8 @@ html { scroll-behavior: auto; overflow-anchor: none; }
 .story-source{display:block;margin-top:9px;font-size:.79rem;line-height:1.65;opacity:.8}
 .story-origin{border-left:3px solid #c6a47c;padding:11px 13px;margin:14px 0;line-height:1.85;background:rgba(199,166,121,.07);border-radius:0 9px 9px 0;font-size:.9rem}
 @media(max-width:600px){.story-source{font-size:.78rem}.story-origin{font-size:.84rem;padding:10px}}
+
+/* v3.0 第3章は既存のラジオスタジオの世界観を維持して区別する。 */
+.chapter3-panel{border-color:#7c776b;background:linear-gradient(145deg,#202d40,#192437)}
+.chapter3-panel .overline{letter-spacing:.2em}
+.chapter3-panel .listener{background:#223047}
