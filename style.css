@@ -6,3 +6,50 @@ html { scroll-behavior: auto; overflow-anchor: none; }
 
 /* v2.1 特別放送。既存の控えめなラジオUIを保ち、文字を読みやすくする。 */
 .special-planning{border:1px solid #7e6b51;border-radius:13px;background:linear-gradient(155deg,#293649,#252d3d);padding:18px;margin:20px 0}.special-planning h3{color:#f0d4a5}.special-planning p{white-space:pre-line}.special-panel{border-color:#74634e}.special-opening{background:#26354b;border-left:3px solid #e5bf83;padding:13px 16px;margin:12px 0 18px;line-height:1.95}.studio-special{border-color:#a68b61;box-shadow:inset 0 0 22px #bd965220}.studio-special .studio-caption{color:#f4d39d}.special-planning .choice{margin:10px 0}.special-planning .small{font-size:12px;line-height:1.7}@media(max-width:760px){.special-planning{padding:14px}.special-opening{padding:10px 13px}}
+
+/* v2.1.2 特別返答中も元の手紙を参照できる画面。 */
+.special-reply-layout{display:grid;grid-template-columns:minmax(0,.94fr) minmax(0,1.06fr);gap:17px;align-items:start}
+.special-reply-letter{position:sticky;top:14px;border:1px solid #52627a;border-radius:12px;background:#202e41;max-height:calc(100dvh - 28px);overflow-y:auto;scroll-margin-top:12px}
+.special-reply-letter summary{cursor:pointer;padding:13px 15px;color:#f0d5a8;line-height:1.55;list-style-position:inside}
+.special-reply-letter summary:focus-visible,.special-review-link:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.special-letter-summary-title{display:block;font-weight:600;font-size:14px}
+.special-letter-summary-sub{display:block;color:var(--sub);font-size:12px;margin-top:4px;overflow-wrap:anywhere}
+.special-letter-content{padding:0 16px 16px}
+.special-letter-content .letter-text{font-size:14px;line-height:1.95;overflow-wrap:anywhere}
+.special-letter-return{display:none;margin-top:14px;font-size:12px;min-height:40px}
+.special-reply-choices{min-width:0;scroll-margin-top:12px}
+.special-reply-choices .steps{flex-wrap:wrap}
+.special-review-link{display:none;background:#2a394e;border:1px solid #53657c;border-radius:9px;color:#f0d5a8;min-height:42px;padding:9px 12px;text-align:left;margin:5px 0 15px;width:100%;font-size:13px}
+@media(max-width:760px){
+ .special-reply-layout{display:block}
+ .special-reply-letter{position:relative;top:auto;max-height:none;overflow:visible;margin-bottom:19px}
+ .special-reply-letter summary{padding:12px 13px}
+ .special-letter-content{padding:0 13px 14px}
+ .special-letter-content .letter-text{font-size:14px}
+ .special-letter-return,.special-review-link{display:block}
+ .special-reply-choices .steps span{font-size:10px}
+}
+
+
+/* v2.2 天気と季節：CSSのみ。画像・外部通信なし。 */
+.climate-meta{color:#b7c7da;font-size:12px;letter-spacing:.075em;margin-top:4px}
+.climate-studio-label{position:absolute;right:22px;top:17px;color:#e2ceaa;font-size:12px;z-index:2;letter-spacing:.04em}
+.climate-scene{border:1px solid #485975;border-left:3px solid #d9b77e;border-radius:12px;padding:13px 17px;margin-bottom:16px;background:#1c2b3f}
+.climate-scene p{white-space:pre-line;color:#d6dbe2;font-size:13px;line-height:1.85;margin:5px 0 0}
+.climate-heading{color:#e9c894;font-size:13px}
+.studio.weather-rain:after{content:"";position:absolute;inset:0 0 32%;pointer-events:none;background:repeating-linear-gradient(108deg,transparent 0 23px,#c2d8ef18 24px 25px,transparent 26px 38px);opacity:.8}
+.studio.weather-snow:after{content:"";position:absolute;inset:0 0 32%;pointer-events:none;background-image:radial-gradient(circle,#eef4f6aa 1px,transparent 2px),radial-gradient(circle,#eef4f677 1px,transparent 2px);background-size:64px 55px,97px 81px;background-position:12px 4px,55px 24px;opacity:.8}
+.studio.weather-cloudy .moon{opacity:.36;box-shadow:0 0 27px #e2d2b528}
+.studio.season-summer{background:linear-gradient(180deg,#1b2a45,#35425b 63%,#171d2a 64%,#101723)}
+.studio.season-autumn{background:linear-gradient(180deg,#192538,#344054 63%,#181d2a 64%,#101723)}
+.studio.season-winter{background:linear-gradient(180deg,#172b40,#30415a 63%,#171d2a 64%,#101723)}
+@media(max-width:760px){.climate-studio-label{right:12px;top:13px;font-size:11px}.climate-scene{padding:12px 14px}}
+
+
+/* v2.3: 日常から生まれた企画候補。既存UIの余白と操作感を維持 */
+.story-offer-title{margin:18px 0 10px;font-size:.86rem;font-weight:700;color:var(--gold,#cba87d);letter-spacing:.035em}
+.story-proposal{border-left:3px solid #c6a47c!important;text-align:left}
+.story-proposal-kicker{display:block;color:#ae8a64;font-size:.72rem;font-weight:700;letter-spacing:.075em;margin-bottom:5px}
+.story-source{display:block;margin-top:9px;font-size:.79rem;line-height:1.65;opacity:.8}
+.story-origin{border-left:3px solid #c6a47c;padding:11px 13px;margin:14px 0;line-height:1.85;background:rgba(199,166,121,.07);border-radius:0 9px 9px 0;font-size:.9rem}
+@media(max-width:600px){.story-source{font-size:.78rem}.story-origin{font-size:.84rem;padding:10px}}

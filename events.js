@@ -1134,16 +1134,29 @@ function specialEligible(n=s.night){
 function specialAvailable(n=s.night){
  if(!specialEligible(n))return [];
  const basic=['pride','food','words'];
+ // 暮らしから生まれた提案は最大2件。通常企画も常に選べる。
+ basic.unshift(...storyAvailableOffers(n).map(o=>o.themeId));
+ const climate=climateForNight(n);
+ if(climate?.weather==='rain')basic.push('rain');
+ const seasonTheme=`season_${climate?.season}`;
+ if(climate&&climate.dayInSeason<=5&&climate.dayInSeason<28&&
+   !s.special.history.some(h=>h.themeId===seasonTheme&&Math.floor((h.night-1)/112)===Math.floor((n-1)/112)))basic.push(seasonTheme);
  if(n===49&&!s.special.history.some(h=>h.themeId==='anniversary'))basic.unshift('anniversary');
  return basic;
 }
 function specialPlan(themeId){
  if(!specialAvailable(s.night).includes(themeId))return;
- s.special.planned={themeId,announceNight:s.night,night:s.night+1,status:'announced',submissions:[],audience:[],createdIds:[],reactions:[]};
+ const offer=themeId.startsWith('story_')?storyOfferFor(themeId):null;
+ if(themeId.startsWith('story_')&&!offer)return;
+ s.special.planned={themeId,announceNight:s.night,night:s.night+1,status:'announced',submissions:[],audience:[],createdIds:[],reactions:[],storySource:offer?{offerId:offer.id,originNight:offer.originNight,sourceSubject:offer.sourceSubject,sourceWho:offer.sourceWho}:null};
+ if(offer)offer.status='planned';
  save();render();
 }
 function specialCancel(){
  if(s.phase!=='intro'||s.special?.planned?.announceNight!==s.night||s.special.planned.status!=='announced')return;
+ const offerId=s.special.planned.storySource?.offerId;
+ const offer=(s.storyPrograms?.offers||[]).find(x=>x.id===offerId);
+ if(offer)offer.status='open';
  s.special.planned=null;save();render();
 }
 function specialLifeExcerpt(id,n){
@@ -1183,13 +1196,17 @@ function specialSubmitBody(themeId,id,n){
    story='このお便りを書いて、送るところまでできました。普段は聴いているだけの日も多いので、それを今夜の小さな自慢にします。';
   }
  }
+ if(CLIMATE_SPECIAL_INFO[themeId]){
+  const actual=regularDayAction(id,n);
+  if(actual?.activity)ending+='\n\n昨日は、'+actual.activity.replace(/。+$/,'')+'。';
+ }
  return {subject:src[0],body:'こんばんは。特別放送の募集を聴いて、お便りします。\n\n'+story+ending};
 }
 function specialBeginAnnouncement(n){
  const plan=s.special?.planned;
  if(!plan||plan.announceNight!==n||plan.status!=='announced')return;
  plan.status='gathering';
- log('特別放送の告知','「'+SPECIAL_THEMES[plan.themeId].title+'」を募集した。次の夜に放送する。');
+ log('特別放送の告知','「'+SPECIAL_THEMES[plan.themeId].title+'」を募集した。次の夜に放送する。'+(plan.storySource?' 第'+plan.storySource.originNight+'夜の「'+plan.storySource.sourceSubject+'」がきっかけ。':''));
 }
 function specialFinalizeAnnouncement(n){
  const plan=s.special?.planned;
@@ -1225,7 +1242,7 @@ function specialCreateLetters(n){
   if(!SPECIAL_THEMES[plan.themeId].letters[id])continue;
   const draft=specialSubmitBody(plan.themeId,id,n);
   const uid=`special_${n}_${plan.themeId}_${id}`;
-  const highlight=(id===plan.submissions[0]&&(['words','anniversary'].includes(plan.themeId)));
+  const highlight=(id===plan.submissions[0]&&(['words','anniversary','story_unsaid','story_creative'].includes(plan.themeId)));
   archive[uid]={who:id,subject:draft.subject,body:draft.body,regular:true,special:highlight,programSpecial:true,kind:'special',themeId:plan.themeId,choices:SPECIAL_CHOICES.map(x=>[...x])};
   specialIds.push(uid);
  }
@@ -1246,11 +1263,15 @@ function specialFollowup(n,plan){
  const id=heard[simHash(`sp:echo:${n}`)%heard.length];
  const title=SPECIAL_THEMES[plan.themeId].title;
  const suffix={
+  story_creative:'昔好きだったことについての手紙を聴いていました。今日はまだ何も始めていませんが、引き出しの中のものをひとつ思い出しました。',
+  story_unsaid:'言わなかった言葉の話を聴きました。誰にでも言わないでおく理由があると思うと、少しだけ静かな気持ちになりました。',
+  story_taught:'誰かに教わった小さなことの話を聴きました。いつものやり方にも、誰かから受け取ったものがあるのかもしれません。',
+  story_crossing:'街ですれ違った人の話を聴きました。帰り道で誰かと出会っても、その人にはその人の夜があるんですね。',
   pride:'今夜はいろんな小さな自慢を聴きました。自分には何もないと思っていたのですが、明日の朝にひとつ見つけてみようと思います。',
   food:'誰かの食べ物の思い出を聴いて、自分の台所の明かりを思い出しました。何の料理だったかは、まだ思い出せません。',
   words:'知らない人の言葉が、今日も少し残っています。意味をすぐに決めなくていい、そんな気がしました。',
   anniversary:'五十夜目の放送を聴いていました。お便りを送らない夜も、この番組を聴く自分の夜だったのだと思います。'
- }[plan.themeId];
+ }[plan.themeId]||'昨日の放送を聴いて、窓の外に目を向けました。季節の話を聴くと、自分の毎日にも変わるものがあるのだと思います。';
  const uid=`special_echo_${next}_${id}`;
  s.regular.letterArchive[uid]={who:id,subject:'昨日の特別放送',body:'こんばんは。\n\n昨日の「'+title+'」を聴いていました。\n\n'+suffix,regular:true,kind:'special_echo',choices:REGULAR_CHOICES.map(x=>[...x])};
  (s.special.followups[next]||=[]).push(uid);
@@ -1274,7 +1295,14 @@ function specialEndBroadcast(n,plan){
    simAdjust(p.emotion,'loneliness',-1);
   }
  }
- const detail={night:n,themeId:plan.themeId,readIds:read.map(x=>x.id),submissions:plan.submissions.length};
+ if(plan.storySource){
+  const offer=(s.storyPrograms?.offers||[]).find(x=>x.id===plan.storySource.offerId);
+  if(offer)offer.status='held';
+  const used=s.storyPrograms?.used||[];
+  if(!used.some(x=>x.offerId===plan.storySource.offerId))used.push({offerId:plan.storySource.offerId,themeId:plan.themeId,night:n,originNight:plan.storySource.originNight});
+  if(s.storyPrograms)s.storyPrograms.used=used.slice(-48);
+ }
+ const detail={night:n,themeId:plan.themeId,readIds:read.map(x=>x.id),submissions:plan.submissions.length,storySource:plan.storySource||null};
  s.special.history.push(detail);s.special.lastHeldNight=n;plan.status='completed';
  log('特別放送','「'+theme.title+'」を放送した。');
  specialFollowup(n,plan);
@@ -1284,4 +1312,259 @@ function specialProcessNight(n){
  if(!plan)return;
  if(plan.announceNight===n&&plan.status==='gathering')specialFinalizeAnnouncement(n);
  else if(plan.night===n&&plan.status==='ready')specialEndBroadcast(n,plan);
+}
+
+
+// =============================================================
+// v2.2 四季と天候。ゲーム内1夜＝1日、28夜ごとに季節が巡る。
+// 既存の第1〜3夜の天候は固定。以降の天候は安定した決定的シード。
+// 天候は行動の重みを変えるが、本人の決断を直接決めない。
+// =============================================================
+const CLIMATE_SEASONS=[
+ {id:'spring',name:'春',description:'少し柔らかな空気が、街に戻ってきた。'},
+ {id:'summer',name:'夏',description:'夜になっても、昼のぬくもりが残っている。'},
+ {id:'autumn',name:'秋',description:'風に少し、乾いた葉の匂いが混じってきた。'},
+ {id:'winter',name:'冬',description:'窓の向こうの空気が、ひときわ冷たく見える。'}
+];
+const CLIMATE_WEATHER={
+ clear:{name:'晴れ',icon:'☾',scene:'雲が途切れ、夜空の遠くまで見渡せる。'},
+ cloudy:{name:'曇り',icon:'☁',scene:'雲の向こうに月が隠れ、街の明かりが少し近く感じられる。'},
+ rain:{name:'雨',icon:'☂',scene:'窓に雨粒が触れるたび、小さな音がスタジオに残る。'},
+ snow:{name:'雪',icon:'❄',scene:'音を吸い込むように、窓の外で雪が静かに舞っている。'}
+};
+function createClimateState(){return {schema:1,calendar:'fictional',nights:{}}}
+function migrateClimate(data){
+ const old=data.climate&&typeof data.climate==='object'?data.climate:{};
+ data.climate={...createClimateState(),...old,nights:old.nights&&typeof old.nights==='object'?old.nights:{}};
+ return data;
+}
+function climateSeason(n){return CLIMATE_SEASONS[Math.floor((n-1)/28)%4]}
+function climateWeatherRaw(n){
+ if(n===1)return 'rain';
+ if(n===2)return 'cloudy';
+ if(n===3)return 'clear';
+ const season=climateSeason(n).id;
+ const thresholds={spring:[36,66,100,100],summer:[42,70,100,100],autumn:[34,72,100,100],winter:[25,64,75,100]}[season];
+ // 同じ週の天気を順に計算する。セーブの抽選値に依存せず、リロードで変化しない。
+ const block=Math.floor((n-1)/7),offset=(n-1)%7;
+ let weather='cloudy';
+ for(let i=0;i<=offset;i++){
+  const night=block*7+i+1;
+  const r=simHash(`radio:v22:weather:${block}:${i}`)%100;
+  const continuity=(weather==='rain'||weather==='snow')?38:weather==='cloudy'?23:15;
+  if(i&&r<continuity)continue;
+  const q=simHash(`radio:v22:choice:${night}`)%100;
+  weather=q<thresholds[0]?'clear':q<thresholds[1]?'cloudy':q<thresholds[2]?'rain':'snow';
+ }
+ return weather;
+}
+function climateForNight(n=s.night){
+ if(!Number.isInteger(n)||n<1)return null;
+ s.climate ||= createClimateState();
+ if(s.climate.nights[n])return s.climate.nights[n];
+ const season=climateSeason(n),weather=climateWeatherRaw(n);
+ const data={night:n,season:season.id,weather,year:Math.floor((n-1)/112)+1,dayInSeason:(n-1)%28+1};
+ s.climate.nights[n]=data;
+ const keys=Object.keys(s.climate.nights);
+ if(keys.length>170)for(const key of keys)if(Number(key)<n-140)delete s.climate.nights[key];
+ return data;
+}
+function climateCaption(n=s.night){
+ const c=climateForNight(n);return c?`${CLIMATE_SEASONS.find(x=>x.id===c.season).name} · ${CLIMATE_WEATHER[c.weather].name}`:'';
+}
+function climateIntroText(n=s.night){
+ const c=climateForNight(n);if(!c)return '';
+ const weather=CLIMATE_WEATHER[c.weather];
+ const season=CLIMATE_SEASONS.find(x=>x.id===c.season);
+ const beginning=c.dayInSeason===1?'新しい季節が、いつのまにか始まっていた。\n':'';
+ return `<div class="climate-scene" role="status"><span class="climate-heading">${weather.icon} ${season.name}の夜 · ${weather.name}</span><p>${beginning+weather.scene}\n${season.description}</p></div>`;
+}
+// 雨の日に散歩へ出る人はいる。行動を禁止せず、重みだけを調節する。
+function climateActionBias(id,action,n){
+ const c=climateForNight(n),[act,,category]=action;
+ if(!c)return 0;
+ let bias=0;
+ const outdoor=['walk','cafe','bookshop','neighbor','chief','cloud','moon','greet','route','stationplan'].includes(act);
+ if(c.weather==='rain'){if(outdoor)bias-=id==='driver'?4:7;if(category==='rest'&&!outdoor)bias+=3;if(id==='driver'&&category==='duty')bias+=1;}
+ if(c.weather==='snow'){if(outdoor)bias-=10;if(category==='rest'&&!outdoor)bias+=4;if(id==='driver'&&category==='duty')bias-=1;}
+ if(c.weather==='clear'&&outdoor)bias+=3;
+ if(c.season==='summer'&&category==='rest')bias+=1;
+ if(c.season==='autumn'&&category==='creative')bias+=1.5;
+ if(c.season==='winter'&&category==='reflection')bias+=1;
+ return bias;
+}
+function climateLifeEffects(id,person,activity,n){
+ const c=climateForNight(n);if(!c)return;
+ const e=person.emotion,l=person.life;
+ if((c.weather==='rain'||c.weather==='snow')&&id==='driver'&&activity.category==='duty'){
+  simAdjust(e,'anxiety',c.weather==='snow'?2:1);
+  simAdjust(l,'health',-1); // 夜間の配送が少し疲れやすい
+ }
+ if(c.weather==='clear'&&activity.actionId==='walk')simAdjust(e,'joy',1);
+ if(c.weather==='rain'&&['draw','artlook','diary','repair','read','sketch','photo'].includes(activity.actionId))simAdjust(e,'hope',1);
+ if(c.season==='winter'&&activity.category==='rest'&&l.health<55)simAdjust(l,'health',1);
+}
+const CLIMATE_PERSONAL={
+ cat:{rain:'雨が降る日は、部屋で絵を描いていたころのことを思い出します。',clear:'空が明るいと、仕事帰りの道が少し長く感じられます。',snow:'雪の日は、いつもより早く家に帰りたくなります。',season:'季節が変わると、スケッチブックを開く気持ちも少し変わります。'},
+ driver:{rain:'雨の配送は少し気を遣います。夜道では、無事に戻ることが一番の仕事です。',clear:'晴れた夜は、休憩中に窓を開けると空気が気持ちいいです。',snow:'雪の日の配送は、いつも以上に慎重になります。',season:'同じ道路でも、季節が変わると匂いや音が違います。'},
+ fish:{rain:'雨音を聴いていると、日記に何を書こうか考えられる気がします。',clear:'空が明るい日は、一人で遠回りしてみたいと思います。',snow:'雪の降る日に、誰かの誘いを断るのは少し勇気がいります。',season:'服を入れ替えるように、考え方も少しずつ変わっていくのでしょうか。'},
+ clock:{rain:'雨の日は散歩を休んで、古い時計の音を聴くことがあります。',clear:'晴れた日は、散歩道で季節の小さな変化を見つけるのが楽しみです。',snow:'雪を見ると、昔の冬の帰り道を思い出します。',season:'年を重ねても、毎年の季節には新しい顔があるものです。'},
+ terminal:{rain:'雨の日も、駅の明かりは消えずに残っています。',clear:'雲のない夜は、駅の向こう側まで見える気がします。',snow:'雪の駅には、昔と違う静けさがあります。',season:'同じ時刻表でも、季節の風によって違うものに見えます。'},
+ bread:{rain:'雨の日は、お客さんがパンを抱えて走らなくていい袋を考えます。',clear:'晴れた日の店先は、焼きたての匂いが少し遠くまで届く気がします。',snow:'雪の日は、温かいパンがいつもより嬉しく感じます。',season:'季節が変わるたび、試してみたいパンの味が増えます。'},
+ moon:{rain:'雨の日の月は、きっと雲の裏で傘の練習をしているんでしょう。',clear:'晴れた夜の月は、今日もとぼけた顔をしています。',snow:'雪と月が秘密の相談をしている気がします。',season:'季節が変わると、月にも新しいあだ名が必要になります。'},
+ sugar:{rain:'雨を眺めながら飲むコーヒーは、いつもより冷めるのが早い気がします。',clear:'晴れた夜は、コーヒーを飲みながら少しだけ窓を開けます。',snow:'雪の日は、砂糖をいつもより一杯増やしたくなります。',season:'季節によって、同じコーヒーが少し違う味に感じられます。'},
+ anon:{rain:'雨の音に混じって、ラジオの声がよく聞こえる夜があります。',clear:'よく晴れた夜は、眠れない時間も少し静かに感じます。',snow:'窓の外が白くなると、ラジオの声が近く感じられます。',season:'季節が変わっても、毎晩同じ時刻にラジオをつけています。'}
+};
+function climateCreateLetter(n){
+ if(n<29)return null;
+ const c=climateForNight(n);
+ // 主要エピソードと参加型特別放送の枠を守る。ときどき1通だけ差し込む。
+ const chance=simHash(`v22:climate:mail:${n}`)%100;
+ if(chance>=46)return null;
+ const all=['cat','driver','fish','clock','terminal','bread','moon','sugar','anon'];
+ const who=all[simHash(`v22:climate:sender:${n}`)%all.length];
+ const intro=CLIMATE_PERSONAL[who];
+ const kind=c.dayInSeason<=4?'season':c.weather;
+ const subject=kind==='season'?'季節が変わった夜':c.weather==='rain'?'雨音の話':c.weather==='snow'?'雪の夜':c.weather==='cloudy'?'曇り空の下で':'今夜の空';
+ const text=intro[kind]||intro.season;
+ const previous=regularDayAction(who,n);
+ const yesterday=previous?.activity?'\n\n昨日は、'+previous.activity.replace(/。+$/,'')+'。そのことも、少しだけ思い出しています。':'';
+ const id=`climate_${n}_${who}`;
+ s.regular.letterArchive[id]={who,subject,body:'こんばんは。\n\n'+text+yesterday+'\n\n何か大きな事件があったわけではありません。ただ、今夜の空気を誰かに話したくなりました。',regular:true,kind:'climate',tag:`climate-${c.season}-${c.weather}`,choices:REGULAR_CHOICES.map(x=>[...x])};
+ return id;
+}
+
+
+
+// v2.2 季節・天候の特別放送。通常のお便りを消さず、同じ募集方式を使う。
+const CLIMATE_SPECIAL_INFO={
+ rain:{title:'雨音の夜',short:'雨にまつわる話',invitation:'雨の日に思い出すこと、窓辺で考えたこと、雨の日の仕事や暮らしの小さな話を募集します。',opening:'こんばんは。今夜は「雨音の夜」。窓を打つ雨も、別の街の雨も、同じ一時間に寄り添います。',closing:'雨は降ったりやんだりします。今夜の手紙は、雨のあとにも誰かの暮らしに残るのかもしれません。'},
+ season_spring:{title:'春のはじまり',short:'春のお便り',invitation:'春のはじまりに気づいたこと、少し変わった暮らしや、小さな期待を募集します。',opening:'こんばんは。夜の空気にも、ようやく春の匂いが混じり始めました。',closing:'春だから何かを始めなければいけないわけではありません。それでも、季節は少しずつ進んでいきます。'},
+ season_summer:{title:'夏の夜の寄り道',short:'夏の夜',invitation:'夏の夜にだけ思い出すこと、暑い日の工夫、帰り道の景色を募集します。',opening:'こんばんは。今夜は少し長い夏の夜を、みんなで分け合う一時間にしましょう。',closing:'昼の熱が残る街にも、静かに眠っている窓がある。誰かの夏はまた明日も続きます。'},
+ season_autumn:{title:'秋の手紙をひらく夜',short:'秋の思い出',invitation:'秋になって思い出したこと、日々の小さな変化、好きな秋の時間を募集します。',opening:'こんばんは。秋の夜は、言いそびれた話を少し長くしてしまうのかもしれません。',closing:'言葉にした思い出も、まだ胸の内にあるものも。どちらも秋の夜を過ごしています。'},
+ season_winter:{title:'冬の小さな灯り',short:'冬の灯り',invitation:'寒い夜の過ごし方、温かかった言葉や、窓辺の明かりの話を募集します。',opening:'こんばんは。寒い夜に、マイクの灯りをひとつ点けておきます。',closing:'温かくなれなかった夜があっても、朝は来ます。今夜はただ、この灯りを一緒に見ていました。'}
+};
+const CLIMATE_SPECIAL_TOPICS={
+ rain:{cat:'雨の日の机',driver:'フロントガラスの向こう',fish:'雨音と日記',clock:'止まった時計と雨',terminal:'ホームの雨音',bread:'雨の日のパン',moon:'月の傘',sugar:'雨とコーヒー',anon:'雨の日の周波数'},
+ season_spring:{cat:'春のスケッチブック',driver:'春の配送路',fish:'新しいノート',clock:'春の散歩道',terminal:'駅の春',bread:'春に焼くもの',moon:'春の月の顔',sugar:'春の一杯',anon:'春の声'},
+ season_summer:{cat:'夏の帰り道',driver:'冷たい缶コーヒー',fish:'暑い日の選び方',clock:'夏の図書室',terminal:'夏のホーム',bread:'暑い厨房から',moon:'夏の月のお昼寝',sugar:'氷と砂糖',anon:'窓を開けた夜'},
+ season_autumn:{cat:'秋の色',driver:'夜道の落ち葉',fish:'秋の日記',clock:'葉の色と時計',terminal:'一枚の落ち葉',bread:'秋の味',moon:'月に似た栗',sugar:'冷めかけたコーヒー',anon:'秋の窓辺'},
+ season_winter:{cat:'冬の机の灯り',driver:'冬の夜道',fish:'冬のマフラー',clock:'冬のお茶',terminal:'冬の駅',bread:'温かいパン',moon:'月の毛布',sugar:'五杯目ではなく',anon:'冬のラジオ'}
+};
+for(const [themeId,info] of Object.entries(CLIMATE_SPECIAL_INFO)){
+ const theme={...info,mood:'季節の夜',letters:{}};
+ for(const [id,subject] of Object.entries(CLIMATE_SPECIAL_TOPICS[themeId])){
+  const person=CLIMATE_PERSONAL[id];
+  const thought=themeId==='rain'?person.rain:themeId==='season_winter'?(person.snow+'\n\n'+person.season):person.season;
+  theme.letters[id]=[subject,thought+'\n\n今夜の特別放送に、そんな小さな話を送ってみました。'];
+ }
+ SPECIAL_THEMES[themeId]=theme;
+}
+
+
+
+// =============================================================
+// v2.3: 自律生活・実際に読んだお便り → 物語連動の特別企画。
+// 非公開の生活記録は発生条件だけに使う。提案の根拠は、放送で
+// プレイヤー自身が紹介したお便りの件名に限定する。
+// =============================================================
+function createStoryProgramsState(){return {schema:1,offers:[],used:[],lastCheckedNight:0,lastGeneratedNight:0}}
+function migrateStoryPrograms(data){
+ const old=data.storyPrograms&&typeof data.storyPrograms==='object'?data.storyPrograms:{};
+ data.storyPrograms={...createStoryProgramsState(),...old};
+ const sp=data.storyPrograms;
+ sp.offers=Array.isArray(sp.offers)?sp.offers.filter(o=>
+  o&&SPECIAL_THEMES[o.themeId]&&Number.isInteger(o.originNight)&&Number.isInteger(o.expiresNight)&&
+  typeof o.sourceSubject==='string'&&typeof o.sourceWho==='string'&&typeof o.id==='string'
+ ).slice(-12):[];
+ sp.used=Array.isArray(sp.used)?sp.used.filter(o=>o&&typeof o.themeId==='string').slice(-48):[];
+ sp.lastCheckedNight=Number.isInteger(sp.lastCheckedNight)?sp.lastCheckedNight:0;
+ sp.lastGeneratedNight=Number.isInteger(sp.lastGeneratedNight)?sp.lastGeneratedNight:0;
+ // 古いセーブから復帰しても、過去の日々の企画を遡って生成しない。
+ return data;
+}
+function storyOfferFor(id){
+ const n=s.night;
+ return (s.storyPrograms?.offers||[]).find(o=>o.themeId===id&&o.status==='open'&&o.originNight<n&&o.expiresNight>=n)||null;
+}
+function storyAvailableOffers(n=s.night){
+ return (s.storyPrograms?.offers||[]).filter(o=>o.status==='open'&&o.originNight<n&&o.expiresNight>=n)
+   .sort((a,b)=>a.originNight-b.originNight||a.themeId.localeCompare(b.themeId)).slice(0,2);
+}
+function storyRecentBroadcasts(n,who,rx,window=18){
+ return (s.played||[]).filter(x=>x.night<=n&&x.night>=n-window&&x.who===who&&
+  (rx.test(x.subject||'')||rx.test(String(x.id||''))));
+}
+function storyHadDaily(n,who,ids,window=15){
+ const p=s.simState?.people?.[who];
+ return (p?.daily||[]).some(d=>d.night<=n&&d.night>=n-window&&ids.some(id=>id===d.actionId||id===d.action));
+}
+function storyHasSocialContact(n,who,which,window=22){
+ const rel=s.simState?.people?.[who]?.relationships?.[which];
+ return (rel?.history||[]).some(h=>h.night>=n-window&&h.night<=n);
+}
+function storySpecialEvidence(n){
+ // 特別番組が扱うのは公開された出来事を起点とする「テーマ」。
+ // 出来事の全貌を局が知っているわけではない。
+ const results=[];
+ const cat=storyRecentBroadcasts(n,'cat',/絵|描|画|スケッチ|展示|創作|余白|鉛筆|趣味|cat7|cat8draw|cat9drawing/,24);
+ if(cat.length&&(storyHadDaily(n,'cat',['draw','artlook','frienddraft'],20)||
+    s.flags?.catStartedSketch||s.chapter2?.transitions?.cat)){
+  results.push({themeId:'story_creative',source:cat[cat.length-1]});
+ }
+ const fish=storyRecentBroadcasts(n,'fish',/友達|友人|言|声|返|笑|気持|選|fish3|fish6|fish7|fish12/,24);
+ const driver=storyRecentBroadcasts(n,'driver',/妹|家族|返|声|休|言|driver6|driver8|driver11/,24);
+ const term=storyRecentBroadcasts(n,'terminal',/約束|返|手紙|待|言|terminal13/,24);
+ const all=[...fish,...driver,...term].sort((a,b)=>a.night-b.night);
+ // 一人だけの重い相談を勝手に番組企画へ転化せず、複数の声の共通点を使う。
+ if(new Set(all.map(x=>x.who)).size>=2&&(
+    storyHasSocialContact(n,'fish','friend',24)||storyHasSocialContact(n,'driver','sister',24)||
+    !!s.chapter2?.transitions?.fish||!!s.chapter2?.transitions?.driver)){
+  results.push({themeId:'story_unsaid',source:all[all.length-1]});
+ }
+ const clock=storyRecentBroadcasts(n,'clock',/図書|学|教|時計|思い出|clock5|clock7|clock10/,24);
+ if(clock.length&&(storyHadDaily(n,'clock',['library','repair'],21)||storyHasSocialContact(n,'clock','library',21))){
+  results.push({themeId:'story_taught',source:clock[clock.length-1]});
+ }
+ const cross=storyRecentBroadcasts(n,'driver',/時計|街|道|店|echo_driver_clock/,24)
+   .concat(storyRecentBroadcasts(n,'clock',/時計|店|街|道|echo_clock_driver/,24))
+   .filter(x=>/echo_(driver_clock|clock_driver)/.test(x.id)||/時計屋|配送先|街角/.test(x.subject||''));
+ const seenCross=Boolean(s.microWorld?.links?.['old-clock-street']?.greeted)||
+   (s.microWorld?.history||[]).some(x=>x.type==='meeting'&&x.night>=n-40&&x.night<=n);
+ // 実際に会っていなくても、違う立場の二人が同じ街の時間を生きている。
+ // その両者が放送で街の話をした場合も、匿名のまま共通テーマにできる。
+ const driverRoad=storyRecentBroadcasts(n,'driver',/道|街|配送|帰り|休憩|ルート|時計/,25);
+ const clockRoad=storyRecentBroadcasts(n,'clock',/街|道|散歩|図書|店|時計|駅/,25);
+ const sharedStreet=driverRoad.length&&clockRoad.length&&
+  storyHadDaily(n,'driver',['route','chief'],22)&&storyHadDaily(n,'clock',['walk','neighbor'],22);
+ if((seenCross&&cross.length)||sharedStreet){
+  const source=cross[cross.length-1]||[...driverRoad,...clockRoad].sort((a,b)=>a.night-b.night).at(-1);
+  results.push({themeId:'story_crossing',source});
+ }
+ return results;
+}
+function storyProgramsAfterWorld(n){
+ if(n<29)return;
+ s.storyPrograms ||= createStoryProgramsState();
+ const st=s.storyPrograms;
+ if(st.lastCheckedNight>=n)return;
+ st.lastCheckedNight=n;
+ // 開催できないまま長く経った提案は静かに棚から消える。
+ st.offers=st.offers.filter(o=>o.status==='planned'||o.status==='held'||o.expiresNight>=n+1).slice(-12);
+ if(st.lastGeneratedNight&&n-st.lastGeneratedNight<5)return;
+ if(st.offers.filter(o=>o.status==='open').length>=2)return;
+ const evidence=storySpecialEvidence(n);
+ for(const item of evidence){
+  if(st.offers.some(x=>x.themeId===item.themeId&&['open','planned'].includes(x.status)))continue;
+  if(st.used.some(x=>x.themeId===item.themeId&&n-x.night<35))continue;
+  if(!SPECIAL_THEMES[item.themeId])continue;
+  const source=item.source;
+  if(!source||!s.played.some(x=>x.night===source.night&&x.id===source.id))continue;
+  const id=`offer_${item.themeId}_${n}`;
+  st.offers.push({id,themeId:item.themeId,status:'open',originNight:source.night,discoveredNight:n,
+   expiresNight:n+21,sourceLetterId:source.id,sourceSubject:source.subject,sourceWho:source.who});
+  st.lastGeneratedNight=n;
+  // 一晩に一つだけ。ほかの発見は次の放送後に改めて評価。
+  break;
+ }
 }

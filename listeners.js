@@ -1,5 +1,5 @@
 const NAMES={cat:'夜明けの猫',clock:'古時計',bread:'眠れないパン屋',moon:'月の裏側',driver:'午前3時の配達員',fish:'透明な金魚',sugar:'砂糖を三杯',anon:'名前はまだありません',terminal:'終点のひとつ前',station:'番組スタッフ'};
-const defaultState=()=>({version:1,night:1,phase:'intro',tab:'studio',opening:null,chosen:[],played:[],cursor:0,current:null,replyStep:0,replyParts:[null,null,null],song:null,logs:[],events:[],listeners:{cat:{trust:30,reflection:30,agency:25,stress:65,memories:[],known:false},clock:{trust:30,reflection:45,agency:45,stress:25,memories:[],known:false},bread:{trust:30,reflection:40,agency:55,stress:20,memories:[],known:false},moon:{trust:30,reflection:50,agency:50,stress:10,memories:[],known:false},driver:{trust:35,reflection:40,agency:50,stress:35,memories:[],known:false},fish:{trust:20,reflection:40,agency:20,stress:60,memories:[],known:false},terminal:{trust:15,reflection:65,agency:28,stress:43,memories:[],known:false},anon:{trust:25,reflection:45,agency:45,stress:22,memories:[],known:false},sugar:{trust:25,reflection:45,agency:45,stress:18,memories:[],known:false}},flags:{},pending:[],contentVersion:11,special:createSpecialState(),chapter2:createChapter2State(),regular:createRegularState(),microWorld:createMicroWorldState(),lifePaths:createLifePaths(),storyState:initializeStoryState(),privateMemories:{},stationTone:{warmth:0,curiosity:0,quiet:0},letterSets:{},world:[],rng:20261026});
+const defaultState=()=>({version:1,night:1,phase:'intro',tab:'studio',opening:null,chosen:[],played:[],cursor:0,current:null,replyStep:0,replyParts:[null,null,null],song:null,logs:[],events:[],listeners:{cat:{trust:30,reflection:30,agency:25,stress:65,memories:[],known:false},clock:{trust:30,reflection:45,agency:45,stress:25,memories:[],known:false},bread:{trust:30,reflection:40,agency:55,stress:20,memories:[],known:false},moon:{trust:30,reflection:50,agency:50,stress:10,memories:[],known:false},driver:{trust:35,reflection:40,agency:50,stress:35,memories:[],known:false},fish:{trust:20,reflection:40,agency:20,stress:60,memories:[],known:false},terminal:{trust:15,reflection:65,agency:28,stress:43,memories:[],known:false},anon:{trust:25,reflection:45,agency:45,stress:22,memories:[],known:false},sugar:{trust:25,reflection:45,agency:45,stress:18,memories:[],known:false}},flags:{},pending:[],contentVersion:13,climate:createClimateState(),special:createSpecialState(),storyPrograms:createStoryProgramsState(),chapter2:createChapter2State(),regular:createRegularState(),microWorld:createMicroWorldState(),lifePaths:createLifePaths(),storyState:initializeStoryState(),privateMemories:{},stationTone:{warmth:0,curiosity:0,quiet:0},letterSets:{},world:[],rng:20261026});
 
 
 
@@ -234,7 +234,7 @@ function simCategoryWeight(p,action,night){
 }
 function simChooseAction(id,p,night){
  const actions=SIM_PROFILES[id].actions.filter(x=>simEligible(x,night));
- const candidates=actions.map(a=>[a,simCategoryWeight(p,a,night)+lifeDailyActionBias(id,a,night)]);
+ const candidates=actions.map(a=>[a,Math.max(.5,simCategoryWeight(p,a,night)+lifeDailyActionBias(id,a,night)+climateActionBias(id,a,night))]);
  const total=candidates.reduce((sum,x)=>sum+x[1],0);
  const seed=simHash(`${id}:${night}:${JSON.stringify(p.emotion)}:${JSON.stringify(p.life)}:${JSON.stringify(p.signals)}:${JSON.stringify(p.activityCounts)}`);
  let r=(seed/4294967296)*total;
@@ -316,6 +316,7 @@ function simulateDailyLives(n){
   const day=pr.routine[(seed>>>4)%pr.routine.length];
   const action=simChooseAction(id,p,n);
   const activity=simRegisterAction(id,p,action,n);
+  climateLifeEffects(id,p,activity,n);
   // その日がつらかったからといって、必ず翌日にすべて忘れるわけではない。
   if(l.work>70)simAdjust(e,'anxiety',1);
   if(l.health<45)simAdjust(e,'anxiety',2);
@@ -328,7 +329,7 @@ function simulateDailyLives(n){
    p.signals[key]=Math.max(0,p.signals[key]-1);
    if(p.signals[key]===0)delete p.signals[key];
   }
-  p.daily.push({night:n,morning,day,evening:activity.activity,...activity});
+  p.daily.push({night:n,morning,day,evening:activity.activity,...activity,climate:climateForNight(n)?.weather||'clear'});
   p.daily=p.daily.slice(-56);
  }
  simStoryRelationEcho(n);
