@@ -59,7 +59,35 @@ function rand(){s.rng=(Math.imul(s.rng,1664525)+1013904223)>>>0;return s.rng/429
 function clamp(v){return Math.max(0,Math.min(100,v))}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function fmt(v){return esc(v).replace(/\n/g,'<br>')}
-function letter(id){let l=letterDB[id]||s.regular?.letterArchive?.[id];if(!l)return null;if(l.regular)return {...l,id};let body=l.body;if(id==='clock3')body=body.replace('{wife}',s.flags.clockWifeKnown?'妻なら知っていたでしょうが、私は花の名前には疎いもので。':'昔なら、名前を知っている人に聞けたのですが、今は自分で調べるしかありません。');if(id==='echo_driver_clock'&&s.microWorld?.links?.['old-clock-street']?.greeted)body=body.replace('お店は閉まっていました。','お店は閉まっていました。店の前で年配の人とすれ違い、軽く会釈しました。');if(id==='cat2'&&s.flags.catReply==='reflection')body=body.replace('今日、上司と話しました。','昨日、辞めたい理由と辞めたあとにしたいことは別だと言ってくれましたよね。あれから少し考えていました。\n\n今日、上司と話しました。');const late=lateLetterText(id,s);const lifeNote=lifeLetterNote(id,s);return {...l,...(late||{}),id,body:(relationLetterText(id,s)?.body??late?.body??body)+lifeNote+(l.special?'':(simRelationshipPostscript(l.who,s.night)||simLetterPostscript(l.who,s.night)))}}
+function letter(id){
+ let l=letterDB[id]||s.regular?.letterArchive?.[id];
+ if(!l)return null;
+ // 原文はそのままに、本文に依存する既存の追伸・条件付きの話題も適用する。
+ let result;
+ if(l.regular){
+   result={...l,id};
+ }else{
+   let body=l.body;
+   if(id==='clock3')body=body.replace('{wife}',s.flags.clockWifeKnown?'妻なら知っていたでしょうが、私は花の名前には疎いもので。':'昔なら、名前を知っている人に聞けたのですが、今は自分で調べるしかありません。');
+   if(id==='echo_driver_clock'&&s.microWorld?.links?.['old-clock-street']?.greeted)body=body.replace('お店は閉まっていました。','お店は閉まっていました。店の前で年配の人とすれ違い、軽く会釈しました。');
+   if(id==='cat2'&&s.flags.catReply==='reflection')body=body.replace('今日、上司と話しました。','昨日、辞めたい理由と辞めたあとにしたいことは別だと言ってくれましたよね。あれから少し考えていました。\n\n今日、上司と話しました。');
+   const late=lateLetterText(id,s);
+   const lifeNote=lifeLetterNote(id,s);
+   result={...l,...(late||{}),id,body:(relationLetterText(id,s)?.body??late?.body??body)+lifeNote+(l.special?'':(simRelationshipPostscript(l.who,s.night)||simLetterPostscript(l.who,s.night)))};
+ }
+ // 以前の手書き専用返答はそのまま使い、汎用返答だけを内容別の返答へ差し替える。
+ // 既に放送した手紙の返答履歴には手を触れない。
+ if(!result.special && isGenericReplySet(result) && l.replyVersion!==REPLY_CONTENT_VERSION){
+   const choices=replyTopicChoices(result);
+   if(!Array.isArray(choices)||choices.length<3)throw new Error('通常返答の生成に失敗しました: '+id);
+   result.choices=choices;
+   if(s.regular?.letterArchive?.[id]===l){
+     l.choices=choices.map(x=>[...x]);
+     l.replyVersion=REPLY_CONTENT_VERSION;
+   }
+ }
+ return result;
+}
 // v2.1.1: 同じ夜の「眠れないパン屋」は、手作り・日常・特別放送・持ち越しを合計して最大2通。
 // 放送中や放送済みの手紙には触れず、準備中・未開始の便箋だけ整理する。
 const NIGHTLY_LETTER_LIMITS={bread:2,umbrella:1,triangle:1,fridge:1};
@@ -114,12 +142,14 @@ function nightLetters(n){
   const picked=[...new Set([...order,...aftermath,...echoes,...carried,...(climateMail?[climateMail]:[])])].filter(id=>letterDB[id]||s.regular?.letterArchive?.[id]);
   s.letterSets[n]=applyNightlyLetterLimits(n,picked.slice(0,8));
   newListenerOnLettersDelivered(n,s.letterSets[n]);
+  // 便箋が確定した時点で返答候補も確定し、セーブに一緒に保存する。
+  for(const id of s.letterSets[n])letter(id);
   save();
   return s.letterSets[n];
 }
 function setTab(tab){s.tab=tab;save();render()}
 function selectLetter(id){let i=s.chosen.indexOf(id);if(i>=0)s.chosen.splice(i,1);else if(s.chosen.length<3)s.chosen.push(id);save();render()}
-function startNight(){s.phase='prepare';s.tab='studio';nightLetters(s.night);save();render()}
+function startNight(){s.phase='prepare';s.tab='studio';nightLetters(s.night);for(const id of s.letterSets[s.night]||[])letter(id);save();render()}
 function beginBroadcast(){if(!s.chosen.length||s.opening===null)return;recordOpening();s.phase='broadcast';s.cursor=0;save();render()}
 function chooseReply(i){let l=letter(s.current);let c=l.choices[i];applyReply(l,c[2],c[1])}
 function finishBroadcast(){if(s.song===null)return;s.phase='after';log('曲',`「${songs[s.song][0]}」を流した。`);applySongMood();const omitted=nightLetters(s.night).filter(id=>!s.chosen.includes(id));log('未紹介',omitted.length?omitted.map(id=>NAMES[letter(id).who]).join('、')+'のお便りは放送で紹介されなかった。':'今夜届いたお便りはすべて紹介した。');updatePendingLetters();if(s.night<=14)advanceWorld();if(s.night>=29)specialBeginAnnouncement(s.night);simulateDailyLives(s.night);newListenerAfterDaily(s.night);simulateSocialWorld(s.night);if(s.night<=14){lifeAfterDaily(s.night);simulateMicroWorld(s.night)}else {regularAfterWorld(s.night);chapter2AfterWorld(s.night);chapter3AfterWorld(s.night);specialProcessNight(s.night);storyProgramsAfterWorld(s.night)}save();render()}

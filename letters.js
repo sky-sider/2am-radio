@@ -1197,3 +1197,307 @@ function chapter3BuildLetter(id,beat,n){
  if(!CH3_BEATS[id]?.[beat])return null;
  return {who:id,subject:CH3_TITLES[id][beat],body:chapter3LetterBody(id,beat),regular:true,chapter3:true,kind:'chapter3-main',tag:`ch3-${id}-${beat}`,special:CH3_SPECIAL_IDS.has(`${id}:${beat}`)};
 }
+
+// =============================================================
+// v3.1 お便り本文に応じた通常返答。選択肢は「言葉の方向性」だけでなく
+// 手紙に実際に登場する出来事に結びついた、完成済みの発話を保持する。
+// 構文解析AIを使わず、作者が用意した話題別・出来事別の返答を選択する。
+// =============================================================
+const REPLY_CONTENT_VERSION = 31;
+const REPLY_OLD_COMMON = [
+  '今夜の話を聴いて、そんな日も大切な一日なんだと思いました。',
+  '話してくれてありがとうございます。小さな出来事も、こうして誰かに届くと違って聞こえますね。',
+  '何でもない一日のお話を聞かせてもらえて、なんだか嬉しいです。',
+  '簡単に名前がつけられない気持ちも、そのままで大切にしていいと思います。',
+  '深夜に、そんな話を聞けるのはちょっと楽しいですね。'
+];
+const R=(label,text,effect)=>[label,text,effect];
+const replySet=(...rows)=>rows;
+const CONTEXT_TOPICS={
+  art:replySet(
+    R('創作の時間を受け取る','絵を描く時間が、今の暮らしの中にも少しずつ戻ってきているんですね。','empathy'),
+    R('変化を見つける','描けたものだけではなく、机に向かおうと思った時間も残りますね。','reflection'),
+    R('描いたものを尋ねる','今日は、どんな線や色が心に残りましたか。','curiosity'),
+    R('急がせない','人に見せるかどうかは別にして、描きたい気持ちを大切にしてほしいです。','space')),
+  work:replySet(
+    R('仕事の疲れを受け取る','仕事のことを考え続ける日もあるんですね。今夜は少し休めていますか。','empathy'),
+    R('工夫に目を向ける','今日の仕事で、自分なりに試せたことがあったんですね。','reflection'),
+    R('小さな変化を尋ねる','仕事の進め方を変えてみて、何か違いはありましたか。','curiosity'),
+    R('決断を急がせない','明日の働き方を、今夜ひと晩で決めなくてもいいと思います。','space')),
+  family:replySet(
+    R('複雑な気持ちを受け取る','家族に伝える言葉ほど、簡単にはまとまらないことがありますね。','empathy'),
+    R('一言に目を向ける','書き直しても残した言葉には、きっと今の気持ちがあるんでしょうね。','reflection'),
+    R('無理に聞き出さない','返事をするかどうかも、いつするかも、あなたが決めていいと思います。','space'),
+    R('そっと尋ねる','もし話したくなったら、今いちばん伝えたい一言を聞かせてください。','curiosity')),
+  friends:replySet(
+    R('会話を受け止める','親しい人との短い会話でも、あとから考えてしまうことがありますよね。','empathy'),
+    R('相手との距離を考える','いつも同じ気持ちでいられなくても、その関係が大切なことはありますね。','reflection'),
+    R('今日のやりとりを尋ねる','その会話のあと、帰り道ではどんなことを考えましたか。','curiosity'),
+    R('自分の言葉を守る','相手を大切にするのと同じように、自分の気持ちも大切にしていいと思います。','agency')),
+  school:replySet(
+    R('今の関心を受け取る','学校で見つけた興味が、今の自分には新しく感じられるんですね。','empathy'),
+    R('急いで決めない','まだ知らない分野があるなら、答えを一つに絞る前に調べる時間も楽しめそうです。','space'),
+    R('具体的に尋ねる','今日、いちばん気になったことは何でしたか。','curiosity'),
+    R('本人の選択を支える','誰かと違う答えになっても、考えて選んだ時間は残ると思います。','agency')),
+  books:replySet(
+    R('本との出会いを喜ぶ','本や図書室で過ごす時間にも、人との出会いがあるんですね。','empathy'),
+    R('読書の楽しさを尋ねる','その本のどんなところが気になったのでしょう。','curiosity'),
+    R('やりとりに目を向ける','何気ない本の話が、その日の思い出になることもありますね。','reflection'),
+    R('続きを楽しみにする','また面白い本や出来事に出会ったら、聞かせてください。','followup')),
+  bakery:replySet(
+    R('パンの話を喜ぶ','焼き上がりや売り場のことを聞くと、こちらにも香りが届きそうです。','empathy'),
+    R('工夫に目を向ける','一つのパンができるまでにも、いろいろな試し方があるんですね。','reflection'),
+    R('具体的に尋ねる','そのパンは、どんな味や形になったのでしょう。','curiosity'),
+    R('食いしん坊に返す','深夜にパンのお便りを読むのは、空腹との戦いですね。','humor')),
+  mistakes:replySet(
+    R('失敗の悔しさに寄り添う','思いどおりにいかなかった日だったんですね。お疲れさまでした。','empathy'),
+    R('次につながる部分を拾う','うまくいかなかった理由を、もう一度考えていることが伝わります。','reflection'),
+    R('試したことを尋ねる','次に試してみたいことは、もう浮かんでいますか。','curiosity'),
+    R('軽く笑って返す','その失敗をお便りにしてくれたおかげで、ちょっと忘れられない話になりました。','humor')),
+  cooking:replySet(
+    R('食卓の話を受け取る','食べることや作ることにも、その日の気分が出るものですね。','empathy'),
+    R('自分の食事に目を向ける','誰かのためだけでなく、自分の食卓も少し大事にしたくなりますね。','reflection'),
+    R('献立を尋ねる','今日は何を食べて、どんな気持ちになりましたか。','curiosity'),
+    R('休むことを認める','作らずに済ませる日も、ちゃんと自分のための夕食だと思います。','space')),
+  flowers:replySet(
+    R('花の話を受け取る','花を選ぶ時間に、その日ならではの気持ちが重なるんですね。','empathy'),
+    R('色や形を尋ねる','今日、いちばん心に残った花は何色でしたか。','curiosity'),
+    R('日々の手入れを思う','花が咲いている時間だけでなく、手入れをしている時間も大切なんですね。','reflection'),
+    R('休息を願う','お店の花と同じくらい、ご自身も休める時間がありますように。','space')),
+  clock:replySet(
+    R('大切な物を受け取る','時計や昔の道具には、持ち主だけが知っている時間が残るのでしょうね。','empathy'),
+    R('違いに目を向ける','直したいものと、そのまま置いておきたいものがあるんですね。','reflection'),
+    R('詳しく尋ねる','その時計のどんなところが、特に心に残っているのでしょう。','curiosity'),
+    R('時間を急がせない','手を入れる日が来ても、来なくても、大事に思っていることは変わらないですね。','space')),
+  station:replySet(
+    R('駅の風景を受け取る','同じ駅でも、その日の気持ちによって違う景色に見えるのかもしれませんね。','empathy'),
+    R('今いる場所を見つめる','待っている時間の外側にも、今日の暮らしはあるんですね。','reflection'),
+    R('風景を尋ねる','今日の駅では、どんな音が聞こえましたか。','curiosity'),
+    R('静かに締める','今夜の帰り道が、少し穏やかなものでありますように。','space')),
+  memory:replySet(
+    R('思い出を受け取る','忘れずにいる景色や言葉が、今夜また少し近くなったんですね。','empathy'),
+    R('違う時間を重ねる','昔のことを思い出した日にも、今の一日がちゃんとありますね。','reflection'),
+    R('そっと尋ねる','そのころのことを、また話したくなったら聞かせてください。','curiosity'),
+    R('余韻を大切に','思い出を無理に整理しなくても、今夜はそのままにしておきましょう。','space')),
+  moon:replySet(
+    R('想像に乗る','月にも秘密の置き場所があるとしたら、ずいぶん忙しそうですね。','wonder'),
+    R('話をふくらませる','その空想、ほかの人の頭の中ではどう続くのでしょう。','curiosity'),
+    R('楽しさを伝える','真面目な夜に、こんな不思議な話が届くのは嬉しいです。','empathy'),
+    R('少し笑う','月から訂正のお便りが届いたら、ぜひ放送で読みたいですね。','humor')),
+  pudding:replySet(
+    R('家族のやりとりを楽しむ','プリンをめぐる家族会議、なんだか平和でいいですね。','empathy'),
+    R('秘密を尋ねる','その後、プリンの隠し場所は決まったのでしょうか。','curiosity'),
+    R('想像を広げる','月の裏側を冷蔵庫にできたら、ずいぶん便利でしょうね。','wonder'),
+    R('冗談を返す','冷蔵庫のいちばん奥が、いよいよ立入禁止区域になりそうです。','humor')),
+  rest:replySet(
+    R('休んだことを受け取る','何もしない時間を作れたことも、ひとつの大切な出来事ですね。','empathy'),
+    R('体調を気にかける','少し休めたあと、体の具合はいかがですか。','curiosity'),
+    R('違う見方を添える','休んでいるあいだも、明日の準備が少し進んでいるのかもしれません。','reflection'),
+    R('安心を残す','休んだ日を、埋め合わせなくていいと思います。','space')),
+  travel:replySet(
+    R('寄り道を受け取る','いつもと違う道を通るだけで、小さな発見があるものですね。','empathy'),
+    R('見つけたものを尋ねる','その道で、いちばん印象に残ったものは何でしたか。','curiosity'),
+    R('習慣について考える','慣れた景色があるからこそ、新しい道が面白く感じられるんですね。','reflection'),
+    R('次の寄り道を願う','また知らない景色に出会えたら、聞かせてください。','followup')),
+  coffee:replySet(
+    R('休憩の時間を受け取る','一杯の飲み物で、一日の空気が少し変わることがありますよね。','empathy'),
+    R('味を尋ねる','その一杯は、いつもと違う味がしましたか。','curiosity'),
+    R('自分の時間に目を向ける','何でもない休憩が、今日は思い出になったんですね。','reflection'),
+    R('軽く笑う','温かいうちに飲みきるのも、立派な大仕事かもしれません。','humor')),
+  smalljoy:replySet(
+    R('一緒に喜ぶ','お便りを読んでいたら、こちらまで少し嬉しくなりました。','empathy'),
+    R('その場面を尋ねる','いちばん「やった」と思ったのは、どんな瞬間でしたか。','curiosity'),
+    R('小ささを大切に','誰かにとっては小さくても、あなたには大切な出来事だったんですね。','reflection'),
+    R('祝福する','今夜はその嬉しさを、遠慮なく味わってください。','agency')),
+  awkward:replySet(
+    R('気まずさを受け止める','少し気まずさが残ったんですね。話したあとに考えてしまう夜もありますよね。','empathy'),
+    R('急いで結論にしない','一度うまく話せなかったからといって、関係のすべてが決まるわけではありませんね。','space'),
+    R('距離について尋ねる','今はその人と、どんな距離でいたいですか。','reflection'),
+    R('言えたことも見る','気まずくても、実際に言葉を交わしたという出来事は残りますね。','agency')),
+  listen:replySet(
+    R('聴いてくれたことにお礼','あの放送を聴いていてくれたんですね。教えてくれてありがとうございます。','empathy'),
+    R('心に残った部分を尋ねる','昨日の放送の、どんな言葉が残っているのでしょう。','curiosity'),
+    R('知らない人の声を思う','会ったことのない人の言葉が、一日を越えて残ることもあるんですね。','reflection'),
+    R('無理に変化を求めない','何かを始めなくても、聴いていた時間はあなたのものですよ。','space')),
+  ordinary:replySet(
+    R('今日の様子を受け取る','特別な事件のない一日にも、話したくなる場面があったんですね。','empathy'),
+    R('印象を尋ねる','今日の出来事で、いちばん心に残ったのは何でしたか。','curiosity'),
+    R('暮らしに目を向ける','いつもの時間にも、昨日と少し違うものがあるのかもしれませんね。','reflection'),
+    R('またの近況を願う','また何でもない日のことを聞かせてもらえたら嬉しいです。','followup'))
+};
+const WEATHER_REPLIES={
+ rain:replySet(R('雨の日をねぎらう','雨の日の過ごし方には、その人の暮らしが表れますね。','empathy'),R('音に耳を傾ける','今夜の雨は、どんな音で聞こえていますか。','curiosity'),R('季節の景色を思う','雨のあとには、いつもの道の匂いも変わることがありますね。','reflection'),R('そっと願う','濡れた道も、どうぞ気をつけてお過ごしください。','space')),
+ snow:replySet(R('寒さをねぎらう','雪の日は、いつものことをするだけでも少し大変ですね。','empathy'),R('雪景色を尋ねる','窓の外は、どんなふうに見えていますか。','curiosity'),R('静けさを思う','雪の夜は、街の音まで違って聞こえるのでしょうね。','reflection'),R('温かさを願う','帰ったら温かいものを飲んで、ひと息つけますように。','space')),
+ clear:replySet(R('空の話を喜ぶ','晴れた空を見上げた日のことを聞くと、こちらも外を見たくなりますね。','empathy'),R('空の色を尋ねる','今日は、どんな色の空だったのでしょう。','curiosity'),R('景色の違いを思う','晴れた日だからこそ見つかるものもあるんですね。','reflection'),R('またの便りを願う','また空を見上げた日のことも、聞かせてください。','followup')),
+ cloudy:replySet(R('曇り空の話を受け取る','曇りの日にも、その日ならではの景色があるんですね。','empathy'),R('雲を尋ねる','今夜の雲は、どんな形に見えましたか。','curiosity'),R('落ち着いた時間を思う','はっきりしない空の色が、かえって落ち着く日もありますね。','reflection'),R('明日を願う','明日の空にも、小さな楽しみが見つかりますように。','space')),
+ season:replySet(R('季節の変化を喜ぶ','季節が変わったことを、いつもの暮らしの中で感じたんですね。','empathy'),R('変化を尋ねる','いちばん最初に季節の変化を感じたのは、何でしたか。','curiosity'),R('日々の積み重ねを見る','何でもない毎日が続いた先に、次の季節があるんですね。','reflection'),R('次の便りを願う','また季節の小さな発見を、聞かせてください。','followup'))
+};
+const THEME_REPLY_TOPICS=['travel','smalljoy','memory','rain','rest','friends','cooking','ordinary','ordinary','ordinary','travel','smalljoy'];
+const SPECIAL_REPLY_TOPICS={pride:'smalljoy',food:'cooking',words:'memory',anniversary:'listen',rain:'rain',season_spring:'flowers',season_summer:'travel',season_autumn:'memory',season_winter:'rest',story_creative:'art',story_unsaid:'family',story_taught:'books',story_crossing:'travel'};
+const ACTION_REPLY_TOPICS={
+ cat:{work:'work',rest:'rest',artlook:'art',cafe:'coffee',askboss:'work',frienddraft:'family',draw:'art',bakery:'bakery',flowerstop:'flowers'},
+ driver:{route:'work',coffee:'coffee',chief:'smalljoy',coworker:'friends',sleep:'rest',sisterdraft:'family',sisterthink:'family',shoproute:'clock',stationdelivery:'station',conveniencestop:'cooking'},
+ fish:{study:'school',diary:'ordinary',bookshop:'books',friendchat:'friends',brother:'family',practice:'friends',career:'school',libraryvisit:'books'},
+ clock:{walk:'flowers',repair:'clock',library:'books',tea:'coffee',neighbor:'friends',photo:'memory',stationplan:'station',shopfront:'clock',morningmarket:'flowers'},
+ terminal:{timetable:'station',chores:'ordinary',walk:'travel',ticket:'memory',letterdraft:'family',neighbor:'friends',rest:'rest',stationstop:'station'},
+ bread:{bake:'bakery',store:'bakery',boss:'bakery',customer:'bakery',rest:'rest',ingredientmarket:'bakery'},
+ moon:{moon:'moon',pudding:'pudding',family:'pudding',sketch:'moon'},
+ sugar:{coffee:'coffee',cloud:'clear',friend:'friends'},
+ anon:{read:'books',walk:'travel',notes:'ordinary',greet:'friends'},
+ umbrella:{bouquet:'flowers',window:'flowers',flowercustomer:'flowers',market:'flowers',assistanttalk:'work',plantrest:'flowers',neighborchat:'friends'},
+ triangle:{librarystudy:'books',diagram:'art',friends:'friends',future:'school',teacher:'school',rest:'rest'},
+ fridge:{konbini:'cooking',supply:'cooking',rest:'rest',leftovers:'cooking',recipe:'cooking',coworker:'work'}
+};
+const CHAPTER_REPLY_CONTEXT={
+ cat:{start:'work',friction:'art',turn:'art',after:'art',end:'art',side:'art'},
+ driver:{start:'family',friction:'family',turn:'family',after:'friends',end:'rest',side:'smalljoy'},
+ fish:{start:'school',friction:'friends',turn:'school',after:'friends',end:'school',side:'school'},
+ clock:{start:'memory',friction:'memory',turn:'clock',after:'books',end:'memory',side:'books'},
+ terminal:{start:'station',friction:'memory',turn:'station',after:'travel',end:'station',side:'station'},
+ umbrella:{start:'flowers',friction:'work',turn:'flowers',after:'rest',end:'flowers',side:'flowers'},
+ triangle:{start:'school',friction:'school',turn:'school',after:'books',end:'school',side:'school'},
+ fridge:{start:'cooking',friction:'work',turn:'rest',after:'cooking',end:'cooking',side:'cooking'}
+};
+function replyGenreFromText(letter){
+ const b=String(letter.body||''),title=String(letter.subject||'');
+ // 感情に明らかに合わない冗談や祝福を防ぐため、話題より先に気持ちを確認する。
+ if(/気まず|うまく噛み合|言いかけ|飲み込ん|怖くな|疲れてしまった/.test(b)&&/友|会話|知人|上司|同僚|店長|人と/.test(b))return 'awkward';
+ if(/失敗|うまくいか|固くな|焦がし|売れ残/.test(b))return 'mistakes';
+ if(/妹|弟|家族への返信|家族に返|宛てた手紙/.test(b))return 'family';
+ if(/プリン/.test(title+b.slice(-190)))return 'pudding';
+ if(/月の裏側|月に|月の形|空想|月みたい/.test(title+b.slice(-160)))return 'moon';
+ if(/花屋|花束|鉢植え|花市場|花の名前/.test(title+b))return 'flowers';
+ if(/絵|描|スケッチ|画材|展示会/.test(title+b))return 'art';
+ if(/パン|焼きたて|オーブン|試作|配合|あんぱん/.test(title+b))return 'bakery';
+ if(/時計|ねじ巻き/.test(title+b))return 'clock';
+ if(/駅|切符|電車|時刻表/.test(title+b))return 'station';
+ if(/図書|本屋|本を|読書|しおり/.test(title+b))return 'books';
+ if(/進路|大学|学校|授業|先生|講義|分野/.test(title+b))return 'school';
+ if(/友達|友人|同僚|話しかけ|一緒に/.test(title+b))return 'friends';
+ if(/思い出|昔|アルバム|写真|懐かし/.test(title+b))return 'memory';
+ if(/ごはん|料理|夕食|食材|冷蔵庫|食卓/.test(title+b))return 'cooking';
+ if(/仕事|職場|働|配送|休憩所/.test(title+b))return 'work';
+ if(/コーヒー|お茶|カフェ|喫茶店/.test(title+b))return 'coffee';
+ if(/休|眠|仮眠|体調/.test(title+b))return 'rest';
+ if(/寄り道|散歩|帰り道|道を歩|遠回り/.test(title+b))return 'travel';
+ if(/嬉しかった|達成|成功|できた|自慢|良い日/.test(title+b))return 'smalljoy';
+ return 'ordinary';
+}
+function replyContextKey(l){
+ const kind=l.kind||'',tag=l.tag||'',id=l.who||'';
+ if(kind==='special_echo'||kind==='broadcast')return 'listen';
+ if(kind==='climate'){
+  if(/季節が変わった|季節の/.test(l.subject||''))return 'season';
+  if(/climate-[^-]+-rain/.test(tag))return 'rain';
+  if(/climate-[^-]+-snow/.test(tag))return 'snow';
+  if(/climate-[^-]+-clear/.test(tag))return 'clear';
+  return 'cloudy';
+ }
+ if(kind==='special'||l.programSpecial){
+  if(l.themeId==='food'&&/妻|昔|母|学生のころ|家族|友達|忘れられない/.test(l.body||''))return 'memory';
+  return SPECIAL_REPLY_TOPICS[l.themeId]||replyGenreFromText(l);
+ }
+ if(kind==='theme'){
+  const index=Number((tag.match(/theme-(\d+)/)||[])[1]);
+  return THEME_REPLY_TOPICS[index]||replyGenreFromText(l);
+ }
+ if(kind==='contact'||kind==='socialWorld'){
+  if(/awkward|guarded/.test(tag)||/気まず|話しづら|まだ言え/.test(l.body||''))return 'awkward';
+  return /図書室|本の話/.test(l.body||'')?'books':/時計/.test(l.body||'')?'clock':/パン/.test(l.body||'')?'bakery':/花/.test(l.body||'')?'flowers':'friends';
+ }
+ if(kind==='daily'||kind==='new-life'){
+  const actionId=tag.match(/(?:daily-|new-life-)([^-]+)/)?.[1];
+  return ACTION_REPLY_TOPICS[id]?.[actionId]||replyGenreFromText(l);
+ }
+ if(l.chapter3||l.chapter2||kind==='chapter-main'||kind==='chapter3-main'){
+  const beat=(tag.match(/(?:ch2|ch3)-[^-]+-([a-z]+)/)||[])[1];
+  const scenic=replyGenreFromText(l);
+  // 本文中の具体的な出来事を優先。絵・料理・時計等が本当に書かれた時は反映。
+  if(['awkward','mistakes','pudding','art','bakery','flowers','clock','station','books'].includes(scenic))return scenic;
+  return CHAPTER_REPLY_CONTEXT[id]?.[beat]||scenic;
+ }
+ if(kind==='new-arc'||kind==='new-intro')return ({umbrella:'flowers',triangle:'school',fridge:'cooking'})[id]||replyGenreFromText(l);
+ return replyGenreFromText(l);
+}
+function replyTopicChoices(l){
+ if(CURATED_SCENES[l.subject])return CURATED_SCENES[l.subject].map(row=>[...row]);
+ if(l.kind==='socialWorld')return meetingChoices(l);
+ if(l.kind==='contact')return contactReplyChoices(l);
+ const key=replyContextKey(l);
+ let base=WEATHER_REPLIES[key]||CONTEXT_TOPICS[key]||CONTEXT_TOPICS.ordinary;
+ // 毎日届く日常の便りは、実際に行った行動を第1候補で受け止める。
+ if((l.kind==='daily'||l.kind==='new-life')&&/^(?:daily-|new-life-)/.test(l.tag||'')){
+  const activityId=(l.tag||'').replace(/^(?:daily-|new-life-)/,'');
+  const action=SIM_PROFILES[l.who]?.actions?.find(a=>a[0]===activityId);
+  if(action&&action[1]){
+   let phrase=action[1].replace(/[。！!]+$/,'');
+   const first=R('今日したことを受け止める',`${phrase}んですね。そんな一日だったことを、聞かせてくれてありがとうございます。`,'empathy');
+   return [first,...base.slice(1)].map(row=>[...row]);
+  }
+ }
+ // テーマの手紙ではテーマ名にも具体的に触れ、毎日同じ返答に聞こえないようにする。
+ if(l.kind==='theme'){
+  const subject=String(l.subject||'').replace(/のこと$/,'');
+  const first=R('今夜のテーマを受け取る',`「${subject}」というテーマで、あなたが今日思い出したことを聞けて嬉しいです。`,'empathy');
+  return [first,...base.slice(1)].map(row=>[...row]);
+ }
+ // 手作りの章は筋を勝手に決めず、件名を手がかりにして本来の話題に触れる。
+ if(l.chapter2||l.chapter3){
+  const subject=String(l.subject||'');
+  if(subject){
+   const first=R('このお便りを受け止める',`「${subject}」というお便り、今夜も聞かせてくれてありがとうございます。`,'empathy');
+   return [first,...base.slice(1)].map(row=>[...row]);
+  }
+ }
+ return base.map(row=>[...row]);
+}
+function isGenericReplySet(l){
+ if(l.special)return false;
+ const cs=l.choices;
+ if(!Array.isArray(cs)||!cs.length)return true;
+ if(l.regular)return true;
+ return cs.some(c=>REPLY_OLD_COMMON.includes(c?.[1]));
+}
+
+
+// 脇役や短いお便りも、件名だけでなく本文の具体的な出来事に返す。
+// 章・通常放送を問わず共通の文体に塗りつぶさないための個別原稿。
+const CURATED_SCENES={
+ '失敗を食べる':replySet(R('失敗をねぎらう','固くなってしまったパンも、作り直そうとしているんですね。','empathy'),R('店長の言葉に笑う','家具として売れるほどのパン……ちょっと触ってみたくなりました。','humor'),R('次を尋ねる','小さく焼き直したら、今度はどうなりそうでしょう。','curiosity'),R('過程を見る','試作は成功した日だけでなく、こういう日も含めて続いていくんですね。','reflection')),
+ '電球の色':replySet(R('灯りの報告を喜ぶ','新しい電球の色だけで、部屋が少し違って見えるんですね。','empathy'),R('色に目を向ける','黄色い灯りの下で読む本は、どんなふうに見えますか。','curiosity'),R('日常を大切に','相談ではない、こういう暮らしの報告も嬉しいです。','reflection'),R('小さく祝う','今夜は新しい灯りの初日ですね。','humor')),
+ '月の領収書':replySet(R('空想に乗る','「夜の維持費」、月が本当に請求してきたら困りますね。','wonder'),R('詳しく尋ねる','その領収書には、誰の名前が書いてあるのでしょう。','curiosity'),R('家族の話に触れる','プリンが共同購入になったのも、ずいぶん大きな制度改革ですね。','humor'),R('発想を楽しむ','毎晩光る月を見て、そんな書類を想像するのが面白いです。','empathy')),
+ '喫茶店の紙ナプキン':replySet(R('落書きを大切に','紙ナプキンの丸を、捨てずに持ち帰ったんですね。','empathy'),R('描いた形を尋ねる','その丸は、何かに見えたのでしょうか。','curiosity'),R('肩の力を抜く','絵か落書きか決めなくても、描いた時間は残りますね。','reflection'),R('小さな一歩を見る','喫茶店でふと描きたくなったこと、そのまま大事にしたいですね。','agency')),
+ '焼ける音':replySet(R('仕事の感覚を思う','パンの出来が、焼ける音からも伝わってくるんですね。','empathy'),R('普通の難しさに目を向ける','「普通においしい」を作り続けるのは、簡単ではないんですね。','reflection'),R('音を尋ねる','今日はどんな焼ける音が聞こえたのでしょう。','curiosity'),R('少し笑う','パンのほうから「今日は大丈夫」と教えてくれたら便利そうです。','humor')),
+ '主任の昇進試験':replySet(R('主任の判断を想像する','足元であくびとは、猫主任もずいぶん余裕を見せてきましたね。','humor'),R('嬉しさを受け取る','同僚にも話したくなる出来事だったんですね。','empathy'),R('査定を尋ねる','主任の次の査定は、いつごろになりそうでしょう。','curiosity'),R('日常のつながりを喜ぶ','仕事中の小さな出来事を誰かと笑えるのは、いい時間ですね。','reflection')),
+ '名前のない花':replySet(R('教わった時間を喜ぶ','子どもに花の名前を教わる散歩も、いいですね。','empathy'),R('花を尋ねる','名前は忘れても、花はどんな色だったか覚えていますか。','curiosity'),R('大切な部分を見る','名前を覚えることより、「きれい」と思った時間が残ったんですね。','reflection'),R('次の出会いを願う','またその子と花の話ができたら、聞かせてください。','followup')),
+ '途中下車':replySet(R('寄り道を喜ぶ','一駅手前で降りたことで、新しいパン屋に出会えたんですね。','empathy'),R('パンを尋ねる','そのお店では、どんな温かいものを買いましたか。','curiosity'),R('生活の広がりに目を向ける','いつもの駅の話だけではないお便りが届いて、嬉しいです。','reflection'),R('次も急がせない','理由のない途中下車も、いい夜の使い方ですね。','space')),
+ '消しゴム':replySet(R('小さな道具を受け取る','角のなくなった消しゴムには、ずいぶんたくさんの線の記憶がありそうです。','empathy'),R('昔の絵を尋ねる','その消しゴムで、どんな絵を描いていたのでしょう。','curiosity'),R('直した線を思う','消した線にも描いた時間があった、という言葉が残ります。','reflection'),R('新しい線を願う','今の線も昔の線も、どちらもあなたのものですね。','agency')),
+ '青い付箋':replySet(R('付箋を喜ぶ','「やりたいこと」ではなく「気になること」を書いた青い付箋、いいですね。','empathy'),R('今の興味を尋ねる','青い付箋の中で、いちばん気になっていることは何ですか。','curiosity'),R('決めなくていい時間','気になることを集めるだけの日も、ちゃんと進んでいるんですね。','reflection'),R('魚のひれに乗る','そのうち、ノートが泳ぎ出してしまいそうですね。','humor')),
+ '月のかたち':replySet(R('試作を楽しむ','片方だけ膨らんだ月のパン、ちょっと見てみたいです。','empathy'),R('店長に笑って返す','「寝起きの月」という名前、案外人気が出そうですね。','humor'),R('味を尋ねる','形は寝起きでも、お味はいかがでしたか。','curiosity'),R('違いを認める','きれいな丸にならなかったから生まれた形もあるんですね。','reflection')),
+ 'パンの値段と夕暮れ':replySet(R('商売の現実を受け取る','閉店前には、パンの値段や材料費のことも考えるんですね。','empathy'),R('値段への迷いを尋ねる','何度も書き直した値札には、どんな迷いがあったのでしょう。','curiosity'),R('暮らしの視点に目を向ける','誰かの帰り道と、店で働く人の夕方が同じ通りにあるんですね。','reflection'),R('仕事をねぎらう','今夜は粉の値段の計算から、少し離れられますように。','space')),
+ '駅の裏側':replySet(R('空想に乗る','駅の裏側に忘れた傘が集まるなら、ずいぶん大きな傘立てが必要ですね。','wonder'),R('傘の行方を尋ねる','なくした傘は、どんな色だったのでしょう。','curiosity'),R('やさしい想像を喜ぶ','誰かがその傘を使ってくれていたらいい、という気持ちがいいですね。','empathy'),R('少し笑う','傘たちが終電を逃していないか、ちょっと心配です。','humor')),
+ '聴こえなかった話':replySet(R('聴いていた時間を受け取る','途中で眠ってしまっても、ラジオをつけていてくれたんですね。','empathy'),R('眠りをねぎらう','少しでも眠れたなら、それも今夜のいい出来事かもしれません。','space'),R('残った音を尋ねる','目が覚めたとき、どんな音が残っていましたか。','curiosity'),R('静かなつながりを思う','全部を聴いていなくても、あの時間を一緒に過ごしていたんですね。','reflection'))
+};
+function meetingChoices(l){
+ const b=String(l.body||'');
+ if(/気まず|話しづら|言い残/.test(b))return CONTEXT_TOPICS.awkward.map(x=>[...x]);
+ if(/会釈|挨拶/.test(b))return replySet(R('挨拶を受け取る','短い挨拶だけでも、あの場所の景色が少し違って見えますね。','empathy'),R('距離を大切に','まだあまり知らない相手でも、会釈から始まる関係がありますね。','reflection'),R('その場面を尋ねる','その人と目が合ったとき、どんな気持ちでしたか。','curiosity'),R('続きを急がない','また会っても会わなくても、今日の挨拶は残りますね。','space'));
+ if(/見かけ|すれ違/.test(b)&&!/話し|お話/.test(b))return replySet(R('見かけた風景を受け取る','いつもの場所に、少し見覚えのある人がいたんですね。','empathy'),R('距離を守る','名前を知らないまま、顔だけ覚えることもありますよね。','reflection'),R('場所を尋ねる','そのとき、あたりはどんな雰囲気でしたか。','curiosity'),R('そのままを受け取る','話しかけなかった時間も、今日の風景の一部ですね。','space'));
+ return replySet(R('小さな交流を受け取る','思いがけず、いつもの場所で誰かと言葉を交わしたんですね。','empathy'),R('会話の続きを尋ねる','その人と話して、いちばん印象に残ったのは何でしたか。','curiosity'),R('関係の変化を思う','一度の会話ではまだ知らないことも多いけれど、覚えている一言があるんですね。','reflection'),R('距離を大切に','次に会う日も、無理に同じように話す必要はないと思います。','space'));
+}
+function contactReplyChoices(l){
+ const body=String(l.body||'');
+ if(/気まずく|気まずい|言えなかった|言えていない|飲み込ん/.test(body))return CONTEXT_TOPICS.awkward.map(x=>[...x]);
+ const found=body.match(/昨日、([^。\n]{1,32}?)と話しました/);
+ const person=found?found[1]:'その人';
+ if(/自然に話せ|穏やか|ありがたかった|うれしい/.test(body))return replySet(
+  R('和やかな会話を喜ぶ',`${person}と、少し気楽に話せたんですね。`,'empathy'),
+  R('心に残ったことを尋ねる','その短い会話で、いちばん嬉しかったのはどんなところでしたか。','curiosity'),
+  R('関係の小さな変化を見る','大きな変化ではなくても、今日の話しやすさは残りますね。','reflection'),
+  R('次を急がない','次に会うときも、今日と同じように話せるとは限りません。それでいいと思います。','space'));
+ return replySet(
+  R('いつもの会話を受け取る',`${person}と、今日はいつもどおりに言葉を交わしたんですね。`,'empathy'),
+  R('何気ない話を尋ねる','今日はどんな話が印象に残りましたか。','curiosity'),
+  R('日常の関係を見つめる','特別な話題がなくても、同じ相手と会う時間は続いていきますね。','reflection'),
+  R('次の交流を急がない','何かを変えようとしなくても、今日の会話はそれで十分かもしれません。','space'));
+}
