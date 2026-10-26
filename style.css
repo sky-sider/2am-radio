@@ -208,3 +208,20 @@ body.guide-open{overflow:hidden}
 @media(prefers-reduced-motion:reduce){
  .studio-level-bar,.studio-silent-bridge{animation:none!important;transition:none!important}
 }
+
+/* v4.0.1：リスナーの記録。既知・未知を放送履歴だけで分ける。 */
+.archive-known{background:#202e42;border-color:#475a73}
+.archive-person-heading{display:flex;gap:5px 14px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+.archive-person-intro{font-size:.91rem;margin:9px 0 10px!important;line-height:1.85;color:#e0e1df}
+.archive-notes-label{color:#e7ca9d;margin:13px 0 6px}
+.archive-notes{border-left:2px solid #9e8969;padding-left:12px;margin:8px 0 13px}
+.archive-notes .small{margin:3px 0;line-height:1.8}
+.archive-letter{background:#26374c;border-radius:8px;padding:10px 12px;margin:7px 0}
+.archive-excerpt{color:#e8e2d7;font-size:.88rem;line-height:1.85;margin-top:6px;overflow-wrap:anywhere}
+.archive-undiscovered{margin-top:18px;border-top:1px solid var(--line);padding-top:18px}
+.archive-undiscovered h3{color:var(--gold);margin:0 0 5px}
+.archive-undiscovered>p{margin:0 0 13px}
+.archive-unknown-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.archive-unknown{margin:0;min-width:0;display:flex;align-items:center;gap:9px;background:#1b293c;color:#c1cad5;padding:11px 13px;font-size:.85rem}
+.archive-unknown-mark{color:#beaa89}
+@media(max-width:760px){.archive-unknown-grid{grid-template-columns:1fr}.archive-person-intro{font-size:.9rem}.archive-unknown{padding:10px 12px}}

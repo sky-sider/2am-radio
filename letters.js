@@ -1455,6 +1455,17 @@ const QUIET_REPLY_34={
 
 
 function replyTopicChoices(l){
+ if(l.kind==='variety'&&Array.isArray(l.choices)&&l.choices.length>=3)return l.choices.map(x=>[...x]);
+ if(l.kind==='culture'&&l.culture){
+  const top=RADIO_CULTURE_TOPICS[l.culture.topic],name=top?.name||'あの話題';
+  const intro=l.culture.stage==='callback';
+  return [
+   R('届いた声を喜ぶ',intro?'以前のお便りを覚えてくれていた人がいたんですね。続きの声を聞けて嬉しいです。':`「${name}」の話が、ラジオの向こうでも続いているんですね。`, 'empathy'),
+   R('言葉のつながりを感じる',intro?'前に送った話に、別の人の言葉が重なって、新しい一通になったんですね。':'同じ放送を聴いていても、人によって思い浮かぶことは違うんですね。','reflection'),
+   R('続きを聞く',intro?'そのお便りを聴いたとき、どんな気持ちになりましたか。':`「${name}」の話から、ほかに思い出したことはありますか。`,'curiosity'),
+   R('ささやかな時間を大切に',intro?'すぐ返事をしなくてもよかったのに、言葉を届けてくれたんですね。':'誰かの話を少し覚えている。それだけのことも、いい夜の出来事ですね。','space')
+  ];
+ }
  if(l.kind==='return'||l.absenceReturn)return (QUIET_REPLY_34[l.who]||QUIET_REPLY_34.cat).map(row=>[...row]);
  if(CURATED_SCENES[l.subject])return CURATED_SCENES[l.subject].map(row=>[...row]);
  if(l.kind==='socialWorld')return meetingChoices(l);
