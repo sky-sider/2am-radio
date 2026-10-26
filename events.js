@@ -773,7 +773,7 @@ function migrateRegular(data){
  data.regular=r;return data;
 }
 function regularTheme(n){return REGULAR_THEMES[(n-15)%REGULAR_THEMES.length]}
-function regularDayTitle(n){return n<=14?dayTitles[n]:`通常放送 · ${regularTheme(n)[0]}`}
+function regularDayTitle(n){return n<=14?dayTitles[n]:n<=28?CH2_NIGHTS[n][0]:`通常放送 · ${regularTheme(n)[0]}`}
 function regularFirstSentence(id,n){const a=REGULAR_INTROS[id]||REGULAR_INTROS.anon;return a[simHash(`reg:intro:${n}:${id}`)%a.length]}
 function regularDayAction(id,n){return s.simState?.people?.[id]?.daily?.find(d=>d.night===n-1)||null}
 function regularRoute(id,n){
@@ -938,7 +938,7 @@ function regularReplyRecorded(l,choice){
   const impact={};
   for(let k=0;k<3;k++){
    const ix=s.replyParts[k];if(!Number.isInteger(ix)||!REGULAR_REPLY_PARTS[k]?.options[ix])continue;
-   const effects=REGULAR_REPLY_PARTS[k].options[ix][2];
+   const effects=(l.chapter2?CH2_REPLY_PARTS[l.who]:REGULAR_REPLY_PARTS)[k].options[ix][2];
    for(const [key,val] of Object.entries(effects))impact[key]=(impact[key]||0)+val;
   }
   affect(l.who,{trust:impact.trust||0,reflection:impact.reflection||0,agency:impact.agency||0});
@@ -947,4 +947,158 @@ function regularReplyRecorded(l,choice){
  }
  simMemory(p,{night:s.night,kind:'broadcast',tag:'regular',importance:2,summary:'ラジオで近況を読んでもらい、'+category+'の言葉を受け取った'});
  s.regular.latestThemes[l.who]={night:s.night,category,subject:l.subject};
+}
+
+// =============================================================
+// 第二章：状態・自律的な二度目の小さな決断・便箋の因果。
+// 初期の人生分岐を引き直さず、未紹介の人物も進行させる。
+// =============================================================
+const CH2_DECISION_TEXT={
+ cat:{
+  reach:{label:'友人へ絵の写真を一枚送った',hint:'見せたことが嬉しいのか怖いのか、まだはっきりしません。',post:'先日、古い友人に一枚だけ写真を送りました。返事の内容より、送信したあと自分がほっとしたことに驚いています。',emotion:{hope:2,anxiety:2},relation:'artFriend'},
+  rest:{label:'絵を見せずに、自分だけのために続きを描いた',hint:'もう少し自分だけで眺めたい気持ちがあります。',post:'絵はまだ誰にも見せていません。最近は、それを秘密にしているというより、自分だけの時間を持っているように感じます。',emotion:{joy:2,anxiety:-1}},
+  adjust:{label:'創作のために予定表を一つ組み直した',hint:'何日か描けない日もあっていいと思っています。',post:'無理なく描ける日を手帳に印しました。予定どおりにならない日もありますが、何度でも書き直せます。',emotion:{hope:2,anxiety:-1},life:{leisure:1}}
+ },
+ driver:{
+  reach:{label:'配送仲間に疲れていることを話した',hint:'家族の話とは別に、仕事場でも少し話せる相手がいます。',post:'仕事仲間に、最近あまり眠れていないと話しました。家族の事情は話していません。それでも、休憩を気にかけてもらえるようになりました。',emotion:{loneliness:-2,anxiety:-1},relation:'coworker'},
+  rest:{label:'連絡について考えずに休みを取った',hint:'休んでいるあいだは、スマホを伏せています。',post:'半日だけ、返事のことを考えずに過ごしました。何も決めなかった時間が、思っていたより必要だったようです。',emotion:{anxiety:-2,joy:1},life:{health:2}},
+  adjust:{label:'妹に伝えたいことを送信せず、短く書き直した',hint:'送るつもりのない文章でも、書くと少し整理できます。',post:'妹への文章を一度短くしました。送信はしていません。伝えたいことが、以前と同じではなくなってきたようです。',emotion:{hope:1,anxiety:1}}
+ },
+ fish:{
+  reach:{label:'友人に自分の希望が少し違うと伝えた',hint:'友人の反応は、まだうまく受け止められていません。',post:'友人に、私は別の道も見たいと伝えました。少し驚かれました。嫌われたかどうかはわかりません。でも、そのとき自分がそう言えたことは覚えています。',emotion:{hope:2,anxiety:2},relation:'friend'},
+  rest:{label:'進路を一日考えずに、好きな本を読んだ',hint:'考え続けることだけが、前に進むことではなさそうです。',post:'進路の資料を閉じて、本を読みました。明日も迷うかもしれませんが、好きな文章に出会えた今日のことを覚えておきたいです。',emotion:{joy:2,anxiety:-1}},
+  adjust:{label:'自分の興味を三つに整理した',hint:'ひとつに絞れなくても、今日はこれでいいと思います。',post:'好きなことを三つ書き出しました。仕事につながるかどうかは別として、全部自分が気になっているものです。',emotion:{hope:2,anxiety:1}}
+ },
+ clock:{
+  reach:{label:'図書室の人に、近いうち一緒に本を選ぼうと声をかけた',hint:'次に読む本が決まるのを、少し楽しみにしています。',post:'図書室の人と、次に読む本の話をしました。以前なら妻に真っ先に話していたでしょう。今は話す相手がまた一人増えたようです。',emotion:{joy:2,loneliness:-2},relation:'library'},
+  rest:{label:'遠出を見送って、散歩とお茶を楽しんだ',hint:'出かけることだけが約束ではない気がしています。',post:'今日は遠出をしませんでした。朝のお茶がとてもおいしく感じられました。それだけの報告で失礼します。',emotion:{joy:1,anxiety:-1},life:{health:2}},
+  adjust:{label:'妻との思い出を短い文章にして書き残した',hint:'思い出を並べると、忘れていた笑い話が見つかります。',post:'妻と出かけた日のことを、一枚の紙に書きました。まだ誰にも見せていませんが、少し笑いながら書くことができました。',emotion:{hope:2,loneliness:1}}
+ },
+ terminal:{
+  reach:{label:'帰り道で、いつも会う近所の人に挨拶した',hint:'駅のことを話さなくても、話せることはあるようです。',post:'帰り道、顔だけ知っている人と挨拶しました。短い言葉でしたが、駅のことを考えずに歩けた数分がありました。',emotion:{loneliness:-2,hope:1},relation:'neighbor'},
+  rest:{label:'木曜日に、駅へ行く代わりに近所を歩いた',hint:'同じ曜日を少し違う形で過ごしました。',post:'木曜日に駅へは行きませんでした。そう決めたときも、少し迷いました。歩いた道には、小さな花が咲いていました。',emotion:{anxiety:1,hope:2}},
+  adjust:{label:'送らないままの便箋を一枚書き直した',hint:'まだ書き足せることがあります。',post:'手紙を書き直しました。まだ投函していません。送ることと、書くことは別々の選択なのだと考えています。',emotion:{hope:1,anxiety:1}}
+ }
+};
+function createChapter2State(){return {schema:1,started:false,legacyThrough:14,processedNights:[],transitions:{},transitionNights:{},replies:{},lettersRead:{},milestones:[],finished:false}}
+function migrateChapter2(data){
+ if(data.chapter2&&typeof data.chapter2==='object'){
+  const c=data.chapter2;data.chapter2={...createChapter2State(),...c};
+  for(const key of ['processedNights','milestones'])if(!Array.isArray(data.chapter2[key]))data.chapter2[key]=[];
+  for(const key of ['transitions','transitionNights','replies','lettersRead'])if(!data.chapter2[key]||typeof data.chapter2[key]!=='object')data.chapter2[key]={};
+  return data;
+ }
+ const completed=data.night>=15?data.night-(data.phase==='after'||data.phase==='chapter2_complete'?0:1):14;
+ // v1.9の途中セーブを読み込んでも、過去の夜を新しいイベントで再実行しない。
+ data.chapter2={...createChapter2State(),legacyThrough:Math.max(14,completed),started:data.night>=15,finished:data.night>28};
+ return data;
+}
+
+function chapter2EndingSenders(){
+ const ranked=Object.keys(CH2_TITLES).map(id=>{
+  const person=s.simState?.people?.[id];
+  const score=(s.listeners[id]?.trust||25)*.45+(s.chapter2?.replies?.[id]||0)*1.4+
+    (person?.traits?.sociability||45)*.13+(simHash(`ch2:end:${id}:${s.rng}`)%27);
+  return {id,score};
+ }).sort((a,b)=>b.score-a.score);
+ const keep=ranked.slice(0,3).map(x=>x.id);
+ if(ranked[3].score>=ranked[2].score-6)keep.push(ranked[3].id);
+ return keep;
+}
+
+function chapter2Letters(n){
+ if(s.letterSets[n])return s.letterSets[n];
+ const chapter=s.chapter2|| (s.chapter2=createChapter2State());
+ const oldMailed={...s.regular.lastMailed};
+ const oldHistory=s.regular.mailHistory.length;
+ const standard=createRegularLetters(n);
+ const scheduled=n===28?(CH2_SCHEDULE[n]||[]).filter(([id])=>chapter2EndingSenders().includes(id)):(CH2_SCHEDULE[n]||[]);
+ const usedSenders=new Set(scheduled.map(([id,stage])=>stage==='side'?CH2_SIDE[n]?.[0]:id));
+ // 第28夜は全員から必ず投稿が来るわけではない。便りのない人も自分の朝を迎える。
+ if(n===28)for(const id of Object.keys(CH2_TITLES))usedSenders.add(id);
+ const remaining=standard.filter(id=>!usedSenders.has(s.regular.letterArchive[id]?.who));
+ // 28夜は全5人から章末の近況が届く。通常の声はサブリスナーのみ。
+ const cap=n===28?2:4;
+ const chosen=remaining.slice(0,cap);
+ const chosenSet=new Set(chosen);
+ // 候補から外れた便箋は配達扱いにしない（セーブの無駄も抑える）。
+ for(const id of standard){if(!chosenSet.has(id))delete s.regular.letterArchive[id]}
+ s.regular.mailHistory=s.regular.mailHistory.slice(0,oldHistory).concat(s.regular.mailHistory.slice(oldHistory).filter(x=>chosenSet.has(`regular_${n}_${x.who}`)));
+ s.regular.lastMailed={...oldMailed};
+ for(const id of chosen)s.regular.lastMailed[s.regular.letterArchive[id].who]=n;
+ const crafted=[];
+ for(const [who,stage] of scheduled){
+  const info=chapter2BuildLetter(who,stage,n);
+  if(!info)continue;
+  const id=`chapter2_${n}_${info.who}`;
+  // 本文は生成時に固定し、再表示やロードで差し替わらない。
+  s.regular.letterArchive[id]={...info,regular:true,chapter2:true,choices:(CH2_CHOICES[info.who]||REGULAR_CHOICES).map(x=>[...x])};
+  crafted.push(id);
+ }
+ // 物語を優先する一方、通常放送から自然発生した手紙も毎晩残す。
+ return [...crafted,...chosen];
+}
+function chapter2ReplyRecorded(l,choice){
+ if(!l?.chapter2)return;
+ const c=s.chapter2|| (s.chapter2=createChapter2State());
+ const id=l.who;
+ c.lettersRead[l.id]=s.night;
+ if(!['cat','driver','fish','clock','terminal'].includes(id))return;
+ const impact=choice==='agency'?2:choice==='reflection'?1:choice==='curiosity'?1:choice==='special'?2:choice==='empathy'?1:0;
+ c.replies[id]=Math.min(20,(c.replies[id]||0)+impact);
+ const p=s.simState?.people?.[id];
+ if(p)simMemory(p,{night:s.night,kind:'broadcast',tag:'chapter2',importance:3,summary:'ラジオから「'+l.subject+'」について言葉を受け取った'});
+}
+const CH2_TRANSITION_NIGHTS={cat:25,driver:23,fish:26,clock:25,terminal:26};
+function chapter2SecondaryDecision(id,n){
+ const c=s.chapter2,p=s.simState?.people?.[id];if(!p||c.transitions[id])return;
+ const traits=p.traits,e=p.emotion,l=p.life,rel=p.relationships;
+ const relName={cat:'artFriend',driver:'coworker',fish:'friend',clock:'library',terminal:'neighbor'}[id];
+ const r=rel[relName]||{trust:45,tension:30};
+ const social=Math.max(1,20+(traits.sociability-45)*.12+(r.trust-r.tension)*.25+(e.hope-e.anxiety)*.14+(c.replies[id]||0));
+ const rest=Math.max(1,18+(100-l.health)*.20+(e.anxiety-35)*.17+(traits.caution-50)*.06);
+ const adjust=Math.max(1,22+(traits.independence-45)*.13+(p.rhythms.reflection||0)*.6+(l.leisure<35?5:0));
+ const options=[['reach',social],['rest',rest],['adjust',adjust]];
+ const sum=options.reduce((t,x)=>t+x[1],0);
+ // 決断は人格・生活状態・会話履歴・放送の小さな影響を合わせた確定的な抽選。
+ const seed=simHash(`${id}:chapter2:${n}:${traits.independence}:${e.anxiety}:${r.trust}:${r.tension}:${p.rhythms.reflection||0}:${c.replies[id]||0}`);
+ let roll=seed/4294967296*sum,choice='adjust';
+ for(const [key,value] of options){roll-=value;if(roll<0){choice=key;break}}
+ const detail=CH2_DECISION_TEXT[id][choice];
+ c.transitions[id]=choice;c.transitionNights[id]=n;
+ for(const [key,val] of Object.entries(detail.emotion||{}))simAdjust(p.emotion,key,val);
+ for(const [key,val] of Object.entries(detail.life||{}))simAdjust(p.life,key,val);
+ if(detail.relation)simMeet(p,detail.relation,n,`chapter2-${id}-${choice}`);
+ simMemory(p,{night:n,kind:'turning_point',tag:'chapter2',importance:4,summary:detail.label});
+ privateRemember(id,detail.label);
+ c.milestones.push({night:n,id,kind:'choice',choice,summary:detail.label});
+}
+function chapter2AfterWorld(n){
+ if(n<15||n>28)return;
+ const c=s.chapter2|| (s.chapter2=createChapter2State());
+ if(n<=c.legacyThrough||c.processedNights.includes(n))return;
+ c.started=true;
+ for(const [id,stage] of CH2_SCHEDULE[n]||[]){
+  if(stage==='side'){
+   const info=CH2_SIDE[n];const person=s.simState?.people?.[info?.[0]];
+   if(person){simMemory(person,{night:n,kind:'life',tag:'chapter2',importance:2,summary:'「'+info[1]+'」に関わる小さな出来事があった'});privateRemember(info[0],'「'+info[1]+'」という近況を送った')}
+   continue;
+  }
+  const p=s.simState?.people?.[id];if(!p)continue;
+  const label=CH2_TITLES[id][stage];
+  // 投稿の有無ではなく本人の日常に記憶が残る。
+  simMemory(p,{night:n,kind:'life',tag:'chapter2',importance:stage==='end'?3:2,summary:'「'+label+'」について考えた'});
+  privateRemember(id,'第'+n+'夜ごろ、「'+label+'」に関わる時間を過ごした');
+  if(stage==='friction'){simAdjust(p.emotion,'anxiety',2);simAdjust(p.emotion,'hope',1)}
+  if(stage==='turn'){simAdjust(p.emotion,'hope',1)}
+ }
+ for(const [id,night] of Object.entries(CH2_TRANSITION_NIGHTS))if(n===night)chapter2SecondaryDecision(id,n);
+ if(n===28){
+  c.finished=true;
+  for(const id of Object.keys(CH2_TITLES)){
+   const p=s.simState?.people?.[id];if(!p)continue;
+   simMemory(p,{night:n,kind:'chapter',tag:'chapter2',importance:4,summary:'いまの進路を続けながら、新しい日々へ進んでいる'});
+  }
+ }
+ c.processedNights.push(n);
 }
