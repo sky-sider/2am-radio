@@ -166,9 +166,8 @@ function updatePendingLetters(){
 
 function recordOpening(){
   const tone=s.stationTone ||= {warmth:0,curiosity:0,quiet:0};
-  if(s.opening===0)tone.warmth++;
-  if(s.opening===1)tone.quiet++;
-  if(s.opening===2)tone.curiosity++;
+  const mood=OPENING_MOODS[s.opening];
+  if(mood)tone[mood]=(tone[mood]||0)+1;
   log('オープニング',opening[s.opening]);
 }
 
@@ -179,6 +178,9 @@ function applySongMood(){
     if(s.song===0)affect(id,{reflection:1});
     else if(s.song===1)affect(id,{stress:-2});
     else if(s.song===2)affect(id,{agency:1});
+    else if(s.song===3)affect(id,{stress:-1});
+    else if(s.song===4)affect(id,{agency:1});
+    else if(s.song===5)affect(id,{reflection:1});
   }
 }
 
@@ -1123,6 +1125,115 @@ function newListenerAfterDaily(n){
 const REGULAR_MAIN=['cat','driver','fish','clock','terminal'];
 const REGULAR_SUPPORT=['bread','moon','anon','sugar'];
 const REGULAR_NEW=['umbrella','triangle','fridge'];
+
+// v3.4: 投稿のない夜も、リスナー自身の暮らしは止まらない。
+// 配達の抽選を止めるだけであり、生活・感情・他者との交流は通常どおり進行する。
+const QUIET_LISTENERS_34=['cat','driver','fish','clock','terminal','bread','umbrella','triangle','fridge'];
+const QUIET_RETURN_VOICES_34={
+ cat:['お久しぶりです。少しの間、手紙を書くより、自分の毎日を静かに眺めていました。','久しぶりにメールを書きます。頭の中で文章を作っては、消す夜が続いていました。'],
+ driver:['お久しぶりです。主任は相変わらず元気です。僕のほうは、手紙を書く前に眠ってしまう夜が続いていました。','ご無沙汰しています。仕事の合間に書こうと思って、毎回そのままになっていました。主任は無断欠勤を認めてくれています。'],
+ fish:['お久しぶりです。書くことがなかったわけじゃないのに、送信するところで何度もやめていました。','しばらく聴く側にも、書く側にもなれない夜がありました。また少し、言葉にしたくなりました。'],
+ clock:['ご無沙汰しております。書こうと思うことはあったのですが、日々の用事を先に済ませておりました。','しばらく筆を置いていました。変わったことばかりが日々ではないと、近頃よく感じます。'],
+ terminal:['お久しぶりです。送らない夜が続きました。話さずに過ごした時間も、自分のものでした。','ご無沙汰しています。書きかけの文を何度か閉じて、今夜ようやく送ります。'],
+ bread:['お久しぶりです。パンは相変わらず焼いていましたが、お便りを書く時間がなかなか取れませんでした。','少しご無沙汰しました。店長からは特に何も言われていません。ラジオネームでシフト管理はされませんからね。'],
+ umbrella:['お久しぶりです。店先の花が何度か入れ替わる間、お便りは書かずにいました。','しばらくぶりに手紙を書きます。店のことを片づけているうちに、夜が過ぎていきました。'],
+ triangle:['お久しぶりです。ノートにはいろいろ書いていたのですが、ラジオに送るのは久しぶりです。','しばらくご無沙汰しました。将来のことを考えると、なぜか目の前の宿題が増えるんですよね。'],
+ fridge:['お久しぶりです。厨房は毎日動いていたのに、家へ戻ると何も書かずに寝ていました。','しばらくぶりです。誰かの食事を作ることは続いていて、自分の近況を書くのだけ後回しでした。']
+};
+function createQuietState(){return {schema:1,active:{},history:[],lastStartNight:0,lastReturnNight:{},processedNights:[],migrationNight:0}}
+function migrateQuiet(data){
+ const old=data.quiet&&typeof data.quiet==='object'?data.quiet:{};
+ const q={...createQuietState(),...old};
+ q.active=old.active&&typeof old.active==='object'?old.active:{};
+ q.history=Array.isArray(old.history)?old.history.slice(-35):[];
+ q.lastReturnNight=old.lastReturnNight&&typeof old.lastReturnNight==='object'?old.lastReturnNight:{};
+ q.processedNights=Array.isArray(old.processedNights)?old.processedNights.slice(-75):[];
+ q.lastStartNight=Number.isInteger(old.lastStartNight)?old.lastStartNight:0;
+ q.migrationNight=Number.isInteger(old.migrationNight)?old.migrationNight:data.night;
+ data.quiet=q;return data;
+}
+function quietScheduledFor(id,n){const a=s.quiet?.active?.[id];return Boolean(a&&n>=a.startNight&&n<=a.endNight)}
+function quietWaitingToReturn(id,n){const a=s.quiet?.active?.[id];return Boolean(a&&n>a.endNight)}
+// 初投稿前と重要な章の手書きストーリーは、物語上の整合性を優先して保護する。
+function quietSafeWindow(n,duration){
+ for(let k=n;k<n+duration+1;k++){
+  if(k===49||k===50||k===51||chapter3IsNight(k))return false;
+ }
+ return true;
+}
+function quietReasonFromAction(id,act,p){
+ const category=act?.category;
+ const anxiety=p?.emotion?.anxiety||0;
+ if(category==='duty')return 'busy';
+ if(category==='rest'||((p?.life?.health||50)<40))return 'rest';
+ if(category==='reflection'||(anxiety>=65&&category!=='social'))return 'think';
+ if(category==='creative')return 'immersed';
+ if(category==='social')return 'everyday';
+ return 'everyday';
+}
+// ある日を終えた後、本人が自分の暮らしを優先する時間が自然に生まれる。
+// 未来の予定を確定するが、プレイヤーがまだ知らない理由を番組画面に表示しない。
+function quietAfterDaily(n){
+ if(n<31)return;
+ s.quiet ||= createQuietState();const q=s.quiet;
+ if(q.processedNights.includes(n))return;
+ q.processedNights.push(n);q.processedNights=q.processedNights.slice(-75);
+ const start=n+1;
+ if(Object.keys(q.active).length||n-q.lastStartNight<9||!quietSafeWindow(start,6))return;
+ // はじめての投稿から時間が経ち、すでに聞き馴染みのある声だけを対象とする。
+ const candidates=QUIET_LISTENERS_34.filter(id=>{
+  if(!newListenerEligible(id,start)||!newListenerIntroduced(id,start))return false;
+  if(!s.played?.some(x=>x.who===id&&x.night<start))return false;
+  if(start-(q.lastReturnNight[id]||0)<20)return false;
+  const p=s.simState?.people?.[id];const day=p?.daily?.find(x=>x.night===n);
+  return Boolean(day&&day.actionId);
+ }).map(id=>{
+  const p=s.simState.people[id],day=p.daily.find(x=>x.night===n);
+  const reason=quietReasonFromAction(id,day,p);
+  const weight=({busy:27,rest:23,think:19,immersed:13,everyday:8})[reason]||8;
+  return {id,day,reason,weight,roll:simHash(`quiet34:choose:${id}:${n}:${day.actionId}`)%100};
+ }).filter(x=>x.roll<x.weight).sort((a,b)=>(a.roll-a.weight)-(b.roll-b.weight)||a.id.localeCompare(b.id));
+ if(!candidates.length)return;
+ const v=candidates[0];
+ const days=3+simHash(`quiet34:length:${v.id}:${n}:${v.day.actionId}`)%4; // 3〜6夜
+ if(!quietSafeWindow(start,days))return;
+ q.active[v.id]={startNight:start,endNight:start+days-1,reason:v.reason,sourceNight:n,sourceAction:v.day.actionId,sourceActivity:v.day.activity,createdAt:n};
+ q.lastStartNight=n;
+ // UIに「休止」が表示されたり、本人の気持ちが強制変更されたりすることはない。
+}
+function quietReturnNote(id,n){
+ const q=s.quiet?.active?.[id];if(!q||n<=q.endNight)return null;
+ const voices=QUIET_RETURN_VOICES_34[id]||QUIET_RETURN_VOICES_34.cat;
+ const start=voices[simHash(`quiet34:return:${id}:${q.startNight}`)%voices.length];
+ const again=regularDayAction(id,n);
+ const suffix={
+  cat:'返事がほしいというより、また少し話したくなったので書きました。',
+  driver:'では、主任の見回りが始まったので、この辺で。',
+  fish:'何か決まったわけではありません。また考えたことを書いてみます。',
+  clock:'次のお便りは、もう少し早く書けるとよいのですが。',
+  terminal:'書けなかった時間も含めて、今の暮らしなのだと思います。',
+  bread:'これからまた生地を仕込みます。お便りはその前に。',
+  umbrella:'そろそろ花瓶の水を替えます。お便りはそのあとに。',
+  triangle:'次はいつ書くかわかりませんが、また面白いことがあれば送ります。',
+  fridge:'今日は自分のための夕飯も考えてみます。'
+ }[id]||'また、気が向いた日に書きます。';
+ // 本人が確かに経験した前日の行動だけを任意で振り返る。
+ const fact=again?.activity?'\n\n昨日は、'+again.activity.replace(/。+$/,'')+'。':'';
+ return {subject:'久しぶりのお便り',kind:'return',tag:`return-${q.startNight}`,
+  body:start+fact+'\n\n'+suffix,absenceReturn:true,voiceVersion:34};
+}
+// 便箋が最終的に夜の投函箱へ届いた場合にだけ、実際の帰還として確定する。
+function quietConfirmDelivered(n,ids){
+ const q=s.quiet;if(!q)return;
+ for(const uid of ids){
+  const letter=s.regular?.letterArchive?.[uid];if(!letter?.absenceReturn)continue;
+  const id=letter.who,active=q.active[id];
+  if(!active||n<=active.endNight)continue;
+  q.history.push({who:id,...active,returnedNight:n,returnLetterId:uid});
+  q.history=q.history.slice(-35);q.lastReturnNight[id]=n;delete q.active[id];
+ }
+}
+
 function createRegularState(){return {schema:1,started:false,letterArchive:{},processedNights:[],latestThemes:{},lastMailed:{},mailHistory:[],routeActions:[],phase:'between_chapters'}}
 function migrateRegular(data){
  const base=createRegularState(),old=data.regular&&typeof data.regular==='object'?data.regular:{};
@@ -1157,7 +1268,19 @@ function regularDayNote(id,n){
   'いつもの生活の途中にも、忘れたくない時間があるものですね。',
   '誰かに相談するほどでもないけれど、話してみたかったことです。'
  ];
- return {subject,kind:'daily',tag:`daily-${yesterday.actionId}`,body:regularFirstSentence(id,n)+'\n\n'+yesterday.activity+(yesterday.activity.endsWith('。')?'':'。')+'\n\n'+narr[simHash(`reg:thought:${n}:${id}`)%narr.length]};
+ const personalThought={
+  cat:['人に説明するほどの話じゃないかもしれません。でも、なぜか描いておきたい一日です。','帰り道でその場面を思い返して、少し立ち止まりました。'],
+  driver:['現場からは以上です。主任が起きていたら報告します。','夜勤明けにはどうでもよくなるかもしれませんが、今は気になります。'],
+  fish:['これが正しい考えかはわからないけれど、いまの気持ちを書いておきます。','日記にも書いたのですが、別の人の声も聞いてみたくなりました。'],
+  clock:['こうした出来事が、最近はかえって心に残ります。','昔なら聞き流していたかもしれません。'],
+  terminal:['理由はわかりませんが、その景色を覚えています。','何も変わらなかったようで、少し違う日でした。'],
+  bread:['粉まみれの手でメモした話なので、字が読めていればいいのですが。','店長には話していないので、ここで書いておきます。'],
+  umbrella:['花を片づけながら、まだ少し考えていました。','店の外での自分の時間も、忘れずにいたいです。'],
+  triangle:['たぶん明日は別のことを考えていると思います。','ノートに書いても整理できなかったので、送ってみました。'],
+  fridge:['自分の夕飯のことも考えたくなる日でした。','包丁を置いたあとに考えることもあるんですね。']
+ };
+ const thoughts=personalThought[id]||narr;
+ return {subject,kind:'daily',tag:`daily-${yesterday.actionId}`,body:regularFirstSentence(id,n)+'\n\n'+yesterday.activity+(yesterday.activity.endsWith('。')?'':'。')+'\n\n'+thoughts[simHash(`reg:thought:${n}:${id}`)%thoughts.length]};
 }
 function regularContact(id,n){
  const person=s.simState?.people?.[id];if(!person)return null;
@@ -1218,12 +1341,64 @@ function regularCompose(id,n){
  options.sort((a,b)=>b.weight-a.weight);
  return options[0]||regularThemeLetter(id,n);
 }
+
+// v3.3: 生活の事実は変更せず、書き手固有の言葉遣いと手紙の記憶を添える。
+// 放送されたかどうかは推測せず、本人が「前に書いた」事実だけを扱う。
+const LETTER_VOICE_33={
+ cat:{daily:['仕事や絵のこと以外にも、書いておきたい日があります。','帰り道で思い返すと、案外こういう時間が残ります。'],contact:['人と話した日のことは、あとからじわじわ思い出します。','言葉にすると大げさですが、小さな変化だった気がします。'],theme:['いまの自分なら、少し違う答えになる気もします。'],default:['また何か描きたくなったら、その話も書きます。']},
+ driver:{daily:['主任に報告したら、たぶんあくびで返されます。','地味な報告ですけど、夜の便りってことで。'],contact:['主任なら十秒で寝て忘れる話でしょうね。僕はまだ少し覚えています。','運転中はあれこれ考えるのに、面と向かうと案外言えないものです。'],theme:['それでは、今夜の道路からは以上です。','この件、主任の決裁はまだ下りていません。'],default:['明日も安全運転で帰ってきます。']},
+ fish:{daily:['ノートに書くより、こうして送るほうが少し緊張します。','うまく説明できないので、あとで日記にも書いてみます。'],contact:['その人から見た私は、どんなふうだったのか少し気になります。'],theme:['選択肢が増えた気がして、まだ決められません。'],default:['また考えが変わったら、お便りしてもいいですか。']},
+ clock:{daily:['たいした出来事ではありませんが、こういう日も覚えていたいものです。','昔は気にも留めなかったことが、今は妙に心に残ります。'],contact:['長く生きても、人と話すのは毎回少し違うものです。'],theme:['時計の針は進みますが、考えごとは少し寄り道するようです。'],default:['深夜の放送ですから、どうぞ無理のないように。']},
+ terminal:{daily:['そのとき見た景色だけは、なぜか覚えています。','書いてみると、思っていたほど特別な話ではありませんでした。'],contact:['次に同じ場所を通る頃には、何かが変わっているのでしょうか。'],theme:['いつか別の言葉で書けるかもしれません。'],default:['返事はいりません。ただ、書いておきたかったのです。']},
+ bread:{daily:['焼き上がりの具合より、あとになって気になることもあります。','店長に話したら、たぶん別の話にすり替えられます。'],contact:['パンの話じゃないのに、なぜか店の匂いまで思い出します。'],theme:['これをパンに例えるのは難しそうです。'],default:['そろそろ明日の仕込みに戻ります。']},
+ moon:{daily:['月の監査部には、まだ報告していません。'],theme:['あくまで月の裏側からの非公式見解です。'],default:['異議申し立ては月明かりのある夜にどうぞ。']},
+ anon:{daily:['名前を出すほどではないと思ったのですが、書いてみました。'],theme:['ふだんは聴く側なので、少し不思議な気分です。'],default:['また聴いています。']},
+ sugar:{daily:['冷めたコーヒーを前に、少しだけ考えました。'],theme:['コーヒーのおかわりを入れてから、続きを考えます。'],default:['今夜もあたたかいうちに一杯。']},
+ umbrella:{daily:['水を替える手を止めて、ちょっと書いています。','切り花には休みがありませんが、私には必要ですね。'],contact:['花の名前より、人の顔を覚えるほうが難しい日もあります。'],theme:['店先に立つと、季節は案外はっきり見えます。'],default:['花瓶の水を替えたら、今日は帰ります。']},
+ triangle:{daily:['ノートの余白に大きな丸を付けておきました。','これも将来の役に立つかはわかりません。でも面白いです。'],contact:['そのあとで、友達にも話したくなりました。'],theme:['いまの答えを来週の自分がどう思うか、わかりません。'],default:['では、宿題に戻ります。たぶん。']},
+ fridge:{daily:['厨房では片づけて帰るのに、家の台所は別問題ですね。','仕事の段取りなら得意なのに、自分の夜はうまくいきません。'],contact:['料理の話以外で誰かと話すのは、まだ少し慣れません。'],theme:['明日の仕込みの前に、こんなことを考えています。'],default:['自分用の皿も、たまには使うことにします。']}
+};
+function v33VoiceLetter(id,n,note){
+ if(!note||!note.body||note.kind==='new-intro'||note.absenceReturn)return note;
+ const data=LETTER_VOICE_33[id]||LETTER_VOICE_33.anon;
+ const group=note.kind==='new-life'?'daily':(data[note.kind]?note.kind:'default');
+ const lines=data[group]||data.default||[];
+ const pick=lines.length?lines[simHash(`v33:voice:${id}:${n}:${note.tag}`)%lines.length]:'';
+ let body=note.body;
+ // 元の生活記録・実在した会話の記述には触れない。文末のみ語り口を加える。
+ if(pick&&!body.includes(pick)&&simHash(`v33:frequency:${id}:${n}`)%100<72)body+='\n\n'+pick;
+ // 同じ人が以前書いた事柄を、数夜の間隔を空けて本人が思い出す。
+ // 過去の放送日誌・公開状況には決して言及しない。
+ const old=(s.regular?.mailHistory||[]).filter(h=>h.who===id&&h.night<=n-5&&h.night>=n-28&&h.tag!==note.tag);
+ if(old.length && simHash(`v33:remember?:${id}:${n}`)%100<24){
+  const prev=old[simHash(`v33:remember:${id}:${n}`)%old.length];
+  const archived=s.regular?.letterArchive?.[`regular_${prev.night}_${id}`];
+  if(archived?.subject && !/^初めまして|初投稿/.test(archived.subject)){
+   const title=archived.subject.replace(/[\n\r「」]/g,'').slice(0,26);
+   const remembering={
+    cat:`少し前に「${title}」と書きました。あの日の気持ちを、今も少し覚えています。`,
+    driver:`そういえば、前に「${title}」って送りましたね。主任は忘れてると思います。`,
+    fish:`前に「${title}」と書いたときとは、少し考えが違うかもしれません。`,
+    clock:`以前「${title}」という便りを書きました。いま思い返すと、また違う景色です。`,
+    terminal:`前に「${title}」と書いたことがあります。あれから何日か経ちました。`,
+    bread:`前に「${title}」なんて書きました。あれも、たしかに私の一日でした。`,
+    umbrella:`前に「${title}」と書きました。花は変わっても、気になることは残るものです。`,
+    triangle:`以前「${title}」と書いたのを覚えています。あのときとは別のことも気になります。`,
+    fridge:`前に「${title}」と書きました。片づいたようで、まだ続きを考えています。`
+   };
+   const phrase=remembering[id]||`以前「${title}」という話を書いたのを思い出しました。`;
+   body+='\n\n'+phrase;
+  }
+ }
+ return {...note,body,voiceVersion:33};
+}
+
 function createRegularLetters(n){
  if(!s.regular)s.regular=createRegularState();
  const archive=s.regular.letterArchive;
  // 読み直しても新しい抽選をせず、確定済みの便箋を返す。
  const cached=s.letterSets[n];if(cached)return cached;
- const sorted=Object.keys(SIM_PROFILES).filter(id=>newListenerEligible(id,n)).map(id=>{
+ const sorted=Object.keys(SIM_PROFILES).filter(id=>newListenerEligible(id,n)&&!quietScheduledFor(id,n)).map(id=>{
   const last=s.regular.lastMailed[id]||0;
   const p=s.simState?.people?.[id];
   const activity=p?.daily?.find(d=>d.night===n-1);
@@ -1231,7 +1406,8 @@ function createRegularLetters(n){
   const quiet=last?Math.min(30,(n-last)*3):25;
   const trust=(s.listeners[id]?.trust||25)/12;
   const noise=simHash(`reg:mail:${id}:${n}:${s.rng}`)%35;
-  return {id,weight:quiet+trust+historyBoost+noise-(last===n-1?24:0)};
+  const returning=quietWaitingToReturn(id,n);
+  return {id,weight:quiet+trust+historyBoost+noise-(last===n-1?24:0)+(returning?10000:0),returning};
  }).sort((a,b)=>b.weight-a.weight||a.id.localeCompare(b.id));
  // 主要5人は毎夜最大3人。新規3人は一斉に登場させず、毎夜最大1通。
  const main=sorted.filter(x=>REGULAR_MAIN.includes(x.id)).slice(0,3);
@@ -1250,11 +1426,12 @@ function createRegularLetters(n){
  const ids=[];
  for(const {id} of selected){
   const first=REGULAR_NEW.includes(id)&&!newListenerIntroduced(id,n);
-  const note=first?newListenerFirstLetter(id,n):REGULAR_NEW.includes(id)?newListenerCompose(id,n):
+  const note=quietWaitingToReturn(id,n)?quietReturnNote(id,n):first?newListenerFirstLetter(id,n):REGULAR_NEW.includes(id)?newListenerCompose(id,n):
     id===support[(n%2)%support.length]?.id?regularThemeLetter(id,n):regularCompose(id,n);
+  const voiced=v33VoiceLetter(id,n,note);
   const uuid=`regular_${n}_${id}`;
   const special=n>=21&&(n-21)%7===0&&REGULAR_MAIN.includes(id)&&id===main[0]?.id;
-  archive[uuid]={who:id,subject:note.subject,body:note.body,special,regular:true,kind:note.kind,tag:note.tag,
+  archive[uuid]={who:id,subject:voiced.subject,body:voiced.body,special,regular:true,kind:voiced.kind,tag:voiced.tag,voiceVersion:voiced.voiceVersion||0,absenceReturn:Boolean(voiced.absenceReturn),
    choices:REGULAR_CHOICES.map(x=>[...x])};
   s.regular.lastMailed[id]=n;
   s.regular.mailHistory.push({night:n,who:id,kind:note.kind,tag:note.tag});
@@ -1601,7 +1778,7 @@ function specialFinalizeAnnouncement(n){
   if(!heard)continue;
   const mood=p.emotion||{};
   const sendChance=Math.min(82,17+Math.round(traits[0]/2.9)+Math.round((mood.hope||30)/8)+Math.round(trust/10));
-  const mail=simHash(`sp:mail:${n}:${id}:${plan.themeId}`)%100<sendChance;
+  const mail=!quietScheduledFor(id,plan.night)&&simHash(`sp:mail:${n}:${id}:${plan.themeId}`)%100<sendChance;
   audience.push({id,choice:mail?'sent':(simHash(`sp:quiet:${n}:${id}`)%3===0?'draft':'listen')});
   if(mail)submissions.push(id);
   // 聴くだけの人も、企画について一度は考えた。そのことは番組側には公開しない。
@@ -1630,7 +1807,7 @@ function specialCreateLetters(n){
  const maxSpecial=5;
  const selectedSpecial=specialIds.slice(0,maxSpecial);
  const fallback=allRegular.filter(uid=>!selectedSpecial.some(sid=>archive[sid]?.who===archive[uid]?.who));
- fallback.sort((a,b)=>Number(archive[b]?.kind==='new-intro')-Number(archive[a]?.kind==='new-intro'));
+ fallback.sort((a,b)=>Number(Boolean(archive[b]?.absenceReturn))-Number(Boolean(archive[a]?.absenceReturn))||Number(archive[b]?.kind==='new-intro')-Number(archive[a]?.kind==='new-intro'));
  const chosen=[...selectedSpecial,...fallback.slice(0,Math.max(2,7-selectedSpecial.length))].slice(0,8);
  plan.createdIds=[...chosen];
  return chosen;

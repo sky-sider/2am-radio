@@ -87,3 +87,66 @@ html { scroll-behavior: auto; overflow-anchor: none; }
 .guide-toggle input{width:19px;height:19px;accent-color:#d8b783}
 .guide-launch:focus-visible,.bookmark-btn:focus-visible,.guide-dialog button:focus-visible,.guide-topic summary:focus-visible{outline:2px solid #f1c78b;outline-offset:3px}
 @media(max-width:760px){.header-tools{gap:5px;align-self:flex-start}.guide-launch{font-size:.77rem;padding:8px 10px}.guide-dialog{padding:17px;max-height:88dvh}.night-reflection{padding:12px}}
+
+/* v3.5 放送スタイル。ボタンの選択状態は既存と共通、スマホでは縦積みで読みやすく。 */
+.station-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0 20px}
+.station-compact-choice{height:100%;margin:0!important;padding:14px 15px!important;display:flex;flex-direction:column;align-items:flex-start;gap:7px;text-align:left;line-height:1.7;white-space:normal}
+.station-compact-choice strong{display:block;color:#f1d1a0;font-size:.93rem}
+.station-compact-choice span{display:block;color:#e2dfd9;font-size:.85rem;line-height:1.85}
+.station-compact-choice.selected{outline:2px solid #d5b681;outline-offset:0;background:#374359}
+.station-tiny-hint{font-size:.82rem}
+.station-habit{border-left:2px solid #ae936a;padding:10px 13px;background:#253247;color:#d8d1c3;font-size:.82rem;line-height:1.95;white-space:pre-line;margin:14px 0}
+.station-interlude{border-color:#70664e}
+.station-onair-voice{border-left:3px solid #bba077;background:#253247;padding:12px 15px;margin:12px 0 18px;line-height:1.9}.station-onair-voice p{margin:6px 0;font-size:.91rem}
+.station-script-preview,.night-style-note{border:1px solid #756b53;border-radius:11px;padding:14px 17px;background:#2a3549;line-height:1.9;margin:16px 0}
+.station-script-preview p,.night-style-note p{white-space:pre-line;font-size:.9rem;margin:7px 0}
+.night-style-note .small{color:#b9c4d0;font-size:.78rem}
+.station-history-hint{border-left:2px solid #ae936a;padding:10px 13px;background:#253247;margin:12px 0 17px}
+.station-history-hint p{white-space:pre-line;margin:7px 0;font-size:.84rem;line-height:1.85}
+@media(max-width:760px){.station-choice-grid{grid-template-columns:1fr;gap:8px}.station-compact-choice{padding:12px 13px!important}.station-compact-choice span{font-size:.82rem}.night-style-note{padding:12px 13px}}
+
+/* v3.5.1: ガイド操作を主ボタンと同じ温かな金色に統一。
+   暗い背景でも「押せる」と分かるよう、文字と背景のコントラストを確保。 */
+.guide-launch {
+  background: var(--gold);
+  border: 1px solid var(--gold);
+  color: #172133;
+  border-radius: 9px;
+  min-height: 44px;
+  padding: 8px 14px;
+  font-size: .84rem;
+  font-weight: 700;
+  line-height: 1.35;
+  box-shadow: 0 2px 7px #0003;
+  white-space: nowrap;
+}
+.guide-launch:hover {
+  background: #f2d49e;
+  border-color: #f2d49e;
+  color: #172133;
+}
+.guide-launch:active { background: #d9af6e; border-color: #d9af6e; }
+/* ヒントを閉じる操作も、補助的ながら明確に押せるボタンに。 */
+.play-hint button {
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  padding: 0;
+  border: 1px solid #e5bf83;
+  border-radius: 9px;
+  background: #e5bf83;
+  color: #172133;
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: 0 2px 5px #0002;
+}
+.play-hint button:hover { background: #f2d49e; border-color: #f2d49e; color: #172133; }
+.play-hint button:active { background: #d9af6e; }
+.play-hint button:focus-visible { outline: 2px solid #f2d49e; outline-offset: 3px; }
+@media (max-width: 760px) {
+  .guide-launch { min-height: 44px; padding: 9px 12px; font-size: .81rem; }
+}
