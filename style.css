@@ -150,3 +150,11 @@ html { scroll-behavior: auto; overflow-anchor: none; }
 @media (max-width: 760px) {
   .guide-launch { min-height: 44px; padding: 9px 12px; font-size: .81rem; }
 }
+
+/* v3.5.2: PC画面のみ、読みやすいメイリオを優先。
+   文字サイズ・行間は変更せず、スマホ（760px以下）には適用しない。 */
+@media (min-width: 761px) {
+  body {
+    font-family: "Meiryo", "Yu Gothic", "Hiragino Kaku Gothic ProN", system-ui, sans-serif;
+  }
+}
