@@ -12,6 +12,8 @@ if(!s.radioCulture)s.radioCulture=createRadioCultureState();
 if(!s.radioMemory)s.radioMemory=createRadioMemoryState39();
 if(!s.dailyThreads)s.dailyThreads=createDailyThreadsState41();
 if(!s.relationThreads)s.relationThreads=createRelationThreadsState42();
+if(!s.longEcho43)s.longEcho43=createLongEchoState43();
+if(!s.surprise46)s.surprise46=createSurpriseState46();
 if(!s.special)s.special=createSpecialState();
 if(!s.storyPrograms)s.storyPrograms=createStoryProgramsState();
 if(!s.climate)s.climate=createClimateState();
@@ -28,6 +30,8 @@ function migrateState(data){
   migrateRadioMemory39(data);
   migrateDailyThreads41(data);
   migrateRelationThreads42(data);
+  migrateLongEcho43(data);
+  migrateSurprise46(data);
   migrateChapter2(data);
   migrateChapter3(data);
   migrateMicroWorld(data);
@@ -154,6 +158,9 @@ function nightLetters(n){
   radioMemoryConfirmDelivered39(n,s.letterSets[n]);
   dailyThreadConfirmDelivered41(n,s.letterSets[n]);
   relationThreadConfirmDelivered42(n,s.letterSets[n]);
+  longEchoConfirmSource43(n,s.letterSets[n]);
+  longEchoConfirmDelivered43(n,s.letterSets[n]);
+  surpriseConfirmDelivered46(n,s.letterSets[n]);
     newListenerOnLettersDelivered(n,s.letterSets[n]);
     return s.letterSets[n];
   }
@@ -192,6 +199,9 @@ function nightLetters(n){
   radioMemoryConfirmDelivered39(n,s.letterSets[n]);
   dailyThreadConfirmDelivered41(n,s.letterSets[n]);
   relationThreadConfirmDelivered42(n,s.letterSets[n]);
+  longEchoConfirmSource43(n,s.letterSets[n]);
+  longEchoConfirmDelivered43(n,s.letterSets[n]);
+  surpriseConfirmDelivered46(n,s.letterSets[n]);
   newListenerOnLettersDelivered(n,s.letterSets[n]);
   // 便箋が確定した時点で返答候補も確定し、セーブに一緒に保存する。
   for(const id of s.letterSets[n])letter(id);
@@ -262,7 +272,7 @@ function finishBroadcast(){
  log('エンディング',STATION_CLOSINGS[s.broadcastStyle.closing][1]);
  s.broadcastStyle.history.push(nightStyleRecord());
  if(s.broadcastStyle.history.length>120)s.broadcastStyle.history.splice(0,s.broadcastStyle.history.length-120);
- applySongMood();radioCultureAfterBroadcast(s.night);radioMemoryAfterBroadcast39(s.night);const omitted=nightLetters(s.night).filter(id=>!s.chosen.includes(id));log('未紹介',omitted.length?omitted.map(id=>NAMES[letter(id).who]).join('、')+'のお便りは放送で紹介されなかった。':'今夜届いたお便りはすべて紹介した。');updatePendingLetters();if(s.night<=14)advanceWorld();if(s.night>=29)specialBeginAnnouncement(s.night);simulateDailyLives(s.night);newListenerAfterDaily(s.night);dailyThreadsAfterWorld41(s.night);relationThreadsAfterWorld42(s.night);simulateSocialWorld(s.night);quietAfterDaily(s.night);if(s.night<=14){lifeAfterDaily(s.night);simulateMicroWorld(s.night)}else {regularAfterWorld(s.night);chapter2AfterWorld(s.night);chapter3AfterWorld(s.night);specialProcessNight(s.night);storyProgramsAfterWorld(s.night)}save();render()}
+ applySongMood();radioCultureAfterBroadcast(s.night);radioMemoryAfterBroadcast39(s.night);longEchoAfterBroadcast43(s.night);const omitted=nightLetters(s.night).filter(id=>!s.chosen.includes(id));log('未紹介',omitted.length?omitted.map(id=>NAMES[letter(id).who]).join('、')+'のお便りは放送で紹介されなかった。':'今夜届いたお便りはすべて紹介した。');updatePendingLetters();if(s.night<=14)advanceWorld();if(s.night>=29)specialBeginAnnouncement(s.night);simulateDailyLives(s.night);newListenerAfterDaily(s.night);dailyThreadsAfterWorld41(s.night);relationThreadsAfterWorld42(s.night);surpriseAfterWorld46(s.night);simulateSocialWorld(s.night);quietAfterDaily(s.night);if(s.night<=14){lifeAfterDaily(s.night);simulateMicroWorld(s.night)}else {regularAfterWorld(s.night);chapter2AfterWorld(s.night);chapter3AfterWorld(s.night);specialProcessNight(s.night);storyProgramsAfterWorld(s.night)}save();render()}
 function nextNight(){
   if(s.phase==='after')s.guidance.seen.after=true;
   if(chapter3Offset(s.night)===CH3_DAYS.length-1&&s.chapter3?.finished){s.phase='chapter3_complete';save();render();return}
@@ -280,7 +290,7 @@ function beginRegular(){
   s.current=null;s.replyStep=0;s.replyParts=[null,null,null];s.song=null;s.broadcastStyle.closing=null;s.broadcastStyle.interludes={};s.broadcastStyle.completed={};
   nightLetters(s.night);save();render();
 }
-function resetGame(){if(!confirm('進行状況を最初からやり直しますか？ 現在のセーブは消えます。'))return;s=defaultState();s.simState=createSimulationState();s.newListeners=createNewListenerState();s.chapter3=createChapter3State();s.quiet=createQuietState();s.radioCulture=createRadioCultureState();s.radioMemory=createRadioMemoryState39();save();render()}
+function resetGame(){if(!confirm('進行状況を最初からやり直しますか？ 現在のセーブは消えます。'))return;s=defaultState();s.simState=createSimulationState();s.newListeners=createNewListenerState();s.chapter3=createChapter3State();s.quiet=createQuietState();s.radioCulture=createRadioCultureState();s.radioMemory=createRadioMemoryState39();s.longEcho43=createLongEchoState43();s.surprise46=createSurpriseState46();save();render()}
 function downloadSave(){let blob=new Blob([JSON.stringify(s,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='radio_2am_save.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function importSave(input){
   const file=input.files?.[0];if(!file)return;
@@ -379,6 +389,8 @@ function tonightReflection(n){
   for(const now of heard){
     const previous=[...s.played].reverse().find(x=>x.night<n&&x.who===now.who);
     if(previous&&previous.subject!==now.subject){
+      const gap=n-previous.night;
+      if(gap>=22)return `${NAMES[now.who]||'あるリスナー'}から、久しぶりにお便りが届きました。前に放送で紹介したのは第${previous.night}夜の「${previous.subject}」。紹介していなかった夜にも、この人の日々は続いていたんですね。今夜は「${now.subject}」という手紙です。`;
       return `${NAMES[now.who]||'あるリスナー'}から、またお便りが届きました。前に紹介したのは「${previous.subject}」。今夜の件名は「${now.subject}」。同じ人から届く手紙にも、いろいろな日があるんですね。`;
     }
   }
@@ -413,7 +425,7 @@ function bookmarkArchive(){
 
 const dayTitles=['','はじめましての夜','誰かが聴いている','言えなかった言葉',
   '終点のひとつ前','いつもの道の途中','言いそびれた返事','ひとり分の余白','返事をしない自由','描かれなかった余白','窓の明かり','木曜日の駅','自分の声','返ってこない約束','それぞれの朝'];
-function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete',done3=s.phase==='chapter3_complete',sp=specialActive(s.night);return `<header class="header"><div class="header-identity"><div class="brand">SOMEWHERE ON AIR</div><h1>午前二時の周波数</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':done3?'第3章 14夜 終了':`第${s.night}夜　${regularDayTitle(s.night)}`}</div><div class="climate-meta">${esc(climateCaption(s.night))}</div></div><div class="header-tools" aria-label="放送の補助操作と状態"><button class="guide-launch" type="button" onclick="openGuide()" aria-label="あそび方・手引きを開く">？ あそび方</button><div class="chip" role="status" aria-label="放送状態">${s.phase==='broadcast'||s.phase==='reply'?'● ON AIR':'◌ OFF AIR'}</div></div></header>${studioScene()}<div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}</div><div class="panel"><div class="overline">${sp?'特別放送':s.night>=15&&s.night<=28?'第2章':chapter3IsNight(s.night)?'第3章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー"><button class="${s.tab==='studio'?'active':''}" onclick="setTab('studio')"><span>◉</span>放送</button><button class="${s.tab==='letters'?'active':''}" onclick="setTab('letters')"><span>✉</span>お便り</button><button class="${s.tab==='journal'?'active':''}" onclick="setTab('journal')"><span>▤</span>記録</button><button class="${s.tab==='listeners'?'active':''}" onclick="setTab('listeners')"><span>♧</span>リスナー</button><button class="${s.tab==='settings'?'active':''}" onclick="setTab('settings')"><span>⚙</span>設定</button></nav><div class="footer">『午前二時の周波数』 · SOMEWHERE ON AIR · v4.2</div>`}
+function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete',done3=s.phase==='chapter3_complete',sp=specialActive(s.night);return `<header class="header"><div class="header-identity"><div class="brand">SOMEWHERE ON AIR</div><h1>午前二時の周波数</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':done3?'第3章 14夜 終了':`第${s.night}夜　${regularDayTitle(s.night)}`}</div><div class="climate-meta">${esc(climateCaption(s.night))}</div></div><div class="header-tools" aria-label="放送の補助操作と状態"><button class="guide-launch" type="button" onclick="openGuide()" aria-label="あそび方・手引きを開く">？ あそび方</button><div class="chip" role="status" aria-label="放送状態">${s.phase==='broadcast'||s.phase==='reply'?'● ON AIR':'◌ OFF AIR'}</div></div></header>${studioScene()}<div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}</div><div class="panel"><div class="overline">${sp?'特別放送':s.night>=15&&s.night<=28?'第2章':chapter3IsNight(s.night)?'第3章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー"><button class="${s.tab==='studio'?'active':''}" onclick="setTab('studio')"><span>◉</span>放送</button><button class="${s.tab==='letters'?'active':''}" onclick="setTab('letters')"><span>✉</span>お便り</button><button class="${s.tab==='journal'?'active':''}" onclick="setTab('journal')"><span>▤</span>記録</button><button class="${s.tab==='listeners'?'active':''}" onclick="setTab('listeners')"><span>♧</span>リスナー</button><button class="${s.tab==='settings'?'active':''}" onclick="setTab('settings')"><span>⚙</span>設定</button></nav><div class="footer">『午前二時の周波数』 · SOMEWHERE ON AIR · v4.6</div>`}
 function navButtons(){return [['studio','◉ 放送'],['letters','✉ お便り'],['journal','▤ 放送日誌'],['listeners','♧ リスナー'],['settings','⚙ 設定・セーブ']].map(([id,t])=>`<button class="navbtn ${s.tab===id?'active':''}" onclick="setTab('${id}')">${t}</button>`).join('')}
 function intro(){
   if(s.night>=15&&s.night<=28)return chapter2Intro();
@@ -551,7 +563,7 @@ function listeners(){
   const unknown=undiscovered.length?`<div class="archive-undiscovered"><h3>まだ出会っていない声</h3><p class="small">お便りを放送で紹介すると、その人の記録が開きます。まだ紹介していない人の名前や暮らしは、ここでは明かされません。</p><div class="archive-unknown-grid">${undiscovered.map(()=>`<div class="listener archive-unknown"><span class="archive-unknown-mark" aria-hidden="true">✧</span><span>まだよく知らないリスナー</span></div>`).join('')}</div></div>`:'';
   return `<section class="panel"><div class="overline">LISTENER ARCHIVE</div><h2>リスナーの記録</h2><p class="muted">放送で紹介したお便りからわかったことを記録します。お便りを紹介していない人の暮らしも、番組の外で続いています。</p>${published}${unknown}</section>`;
 }
-function settings(){return `<section class="panel"><div class="overline">SETTINGS</div><h2>設定・セーブデータ</h2><button class="btn secondary settings-guide-btn" type="button" onclick="openGuide()">？ ラジオ局の手引きを読む</button><p class="settings-save-note">進行状況は、この端末のブラウザ内に自動保存されます。別の端末に引き継ぐ場合は、バックアップを書き出してください。</p><div class="actions settings-backup-actions"><button class="btn" onclick="downloadSave()">バックアップを保存</button><label class="btn secondary" style="cursor:pointer">バックアップを読み込む<input class="screen-reader" type="file" accept=".json,application/json" onchange="importSave(this)"></label></div><hr class="divider"><h3>スタジオ演出</h3><p class="small">放送前後の静けさと、マイク横の小さなメーターです。効果音や音声はありません。</p><label class="studio-setting"><input type="checkbox" ${s.studioVisuals?.enabled!==false?'checked':''} onchange="setStudioVisuals('enabled',this.checked)"> スタジオ演出を表示する</label><div class="studio-setting-modes settings-motion-modes"><span class="small">アニメーション：</span>${[['normal','通常'],['reduced','控えめ'],['off','動きなし']].map(([id,name])=>`<label><input type="radio" name="studio-motion" value="${id}" ${s.studioVisuals?.motion===id?'checked':''} ${s.studioVisuals?.enabled===false?'disabled':''} onchange="setStudioVisuals('motion',this.value)"> ${name}</label>`).join('')}</div><p class="small settings-motion-note">動きを止めても、時計とON AIRの表示は残ります。端末で動きを減らす設定を使用している場合は、その設定が優先されます。</p><hr class="divider"><h3>最初から遊ぶ</h3><p class="small">現在のセーブデータを消して、第1夜からやり直します。必要なら先にバックアップしてください。</p><button class="btn secondary" onclick="resetGame()">進行状況をリセット</button><hr class="divider"><p class="small">バージョン 4.2</p></section>`}
+function settings(){return `<section class="panel"><div class="overline">SETTINGS</div><h2>設定・セーブデータ</h2><button class="btn secondary settings-guide-btn" type="button" onclick="openGuide()">？ ラジオ局の手引きを読む</button><p class="settings-save-note">進行状況は、この端末のブラウザ内に自動保存されます。別の端末に引き継ぐ場合は、バックアップを書き出してください。</p><div class="actions settings-backup-actions"><button class="btn" onclick="downloadSave()">バックアップを保存</button><label class="btn secondary" style="cursor:pointer">バックアップを読み込む<input class="screen-reader" type="file" accept=".json,application/json" onchange="importSave(this)"></label></div><hr class="divider"><h3>スタジオ演出</h3><p class="small">放送前後の静けさと、マイク横の小さなメーターです。効果音や音声はありません。</p><label class="studio-setting"><input type="checkbox" ${s.studioVisuals?.enabled!==false?'checked':''} onchange="setStudioVisuals('enabled',this.checked)"> スタジオ演出を表示する</label><div class="studio-setting-modes settings-motion-modes"><span class="small">アニメーション：</span>${[['normal','通常'],['reduced','控えめ'],['off','動きなし']].map(([id,name])=>`<label><input type="radio" name="studio-motion" value="${id}" ${s.studioVisuals?.motion===id?'checked':''} ${s.studioVisuals?.enabled===false?'disabled':''} onchange="setStudioVisuals('motion',this.value)"> ${name}</label>`).join('')}</div><p class="small settings-motion-note">動きを止めても、時計とON AIRの表示は残ります。端末で動きを減らす設定を使用している場合は、その設定が優先されます。</p><hr class="divider"><h3>最初から遊ぶ</h3><p class="small">現在のセーブデータを消して、第1夜からやり直します。必要なら先にバックアップしてください。</p><button class="btn secondary" onclick="resetGame()">進行状況をリセット</button><hr class="divider"><p class="small">バージョン 4.6</p></section>`}
 function specialPlanningPanel(){
  const n=s.night;
  const p=s.special?.planned;
