@@ -2,7 +2,7 @@ function log(type,message){s.logs.push({night:s.night,type,message})}
 function event(message){s.events.push({night:s.night,message})}
 function affect(id,changes){const o=s.listeners[id];if(!o)return;for(const [k,v] of Object.entries(changes))if(typeof o[k]==='number')o[k]=clamp(o[k]+v)}
 function remember(id,mem){let a=s.listeners[id]?.memories;if(a&&!a.includes(mem))a.push(mem)}
-function applyReply(l,choice,assembled){let id=l.who;if(!s.listeners[id])s.listeners[id]={trust:25,reflection:40,agency:40,stress:35,memories:[],known:false};s.listeners[id].known=true;affect(id,{trust:1});if(l.id==='cat1'){s.flags.catRead=true;s.flags.catReply=choice;remember('cat','退職についてラジオに相談した');const e={empathy:{trust:2,reflection:1},reflection:{reflection:3,agency:1},caution:{stress:-5,reflection:1},agency:{agency:3,trust:1}};affect('cat',e[choice]||{})}if(l.id==='clock1'){s.flags.clockRead=true;s.flags.clockPast=choice==='past';remember('clock','止まった時計の話をした');if(choice==='past')affect('clock',{trust:3,reflection:2})}if(l.id==='moon1'&&choice==='question')s.flags.moonQuestion=true;if(l.id==='driver2')s.flags.driverRead=true;if(l.id==='fish3'){s.flags.fishRead=true;s.flags.fishParts=[...s.replyParts];remember('fish','笑ってしまう癖について初めて相談した');const impacts={};s.replyParts.forEach((ix,k)=>{let e=fishParts[k].options[ix][2];for(let [a,v] of Object.entries(e))impacts[a]=(impacts[a]||0)+v});affect('fish',{trust:impacts.trust||0,reflection:(impacts.reflection||0)*2,agency:(impacts.agency||0)*2,stress:-(impacts.comfort||0)*2});s.flags.fishImpact=impacts}if(l.id==='clock2'){s.flags.clockWifeKnown=true;remember('clock','妻が買った時計について話した')}if(l.id==='clock3'&&s.flags.clockWifeKnown)remember('clock','散歩で見つけた花について話した');if(l.id==='bread1')remember('bread','くるみと蜂蜜のパンが売り切れた');if(l.id==='driver2')remember('driver','配送先の猫を「主任」と呼んでいる');if(l.id==='fish3')s.flags.fishRead=true;if(l.id==='cat2'||l.id==='cat2unread')remember('cat','上司に仕事の相談をした');if(l.id==='driver3'||l.id==='driver3first')remember('driver','猫主任が車の前で寝ていた');if(l.id==='bread3')remember('bread','新しいパンの試作に失敗した');if(l.id==='clock2generic')remember('clock','朝の散歩で時計の音を聞いた');if(l.id==='moon2'||l.id==='moon3')remember('moon','秘密の隠し場所について考えた');if(choice==='empathy')affect(id,{trust:2});if(choice==='agency')affect(id,{agency:2});if(choice==='reflection')affect(id,{reflection:2});if(choice==='humor')affect(id,{trust:1,stress:-2});if(choice==='curiosity'||choice==='followup'||choice==='past')affect(id,{trust:1,reflection:1});extendedApplyReply(l,choice,assembled);regularReplyRecorded(l,choice);simReplyImpact(id,choice,assembled,l.id);s.played.push({id:l.id,who:id,subject:l.subject,response:assembled,night:s.night});log('放送',`${NAMES[id]}「${l.subject}」に返答した。`);s.cursor++;s.current=null;s.replyStep=0;s.replyParts=[null,null,null];s.phase='broadcast';save();render()}
+function applyReply(l,choice,assembled){let id=l.who;if(!s.listeners[id])s.listeners[id]={trust:25,reflection:40,agency:40,stress:35,memories:[],known:false};s.listeners[id].known=true;affect(id,{trust:1});if(l.id==='cat1'){s.flags.catRead=true;s.flags.catReply=choice;remember('cat','退職についてラジオに相談した');const e={empathy:{trust:2,reflection:1},reflection:{reflection:3,agency:1},caution:{stress:-5,reflection:1},agency:{agency:3,trust:1}};affect('cat',e[choice]||{})}if(l.id==='clock1'){s.flags.clockRead=true;s.flags.clockPast=choice==='past';remember('clock','止まった時計の話をした');if(choice==='past')affect('clock',{trust:3,reflection:2})}if(l.id==='moon1'&&choice==='question')s.flags.moonQuestion=true;if(l.id==='driver2')s.flags.driverRead=true;if(l.id==='fish3'){s.flags.fishRead=true;s.flags.fishParts=[...s.replyParts];remember('fish','笑ってしまう癖について初めて相談した');const impacts={};s.replyParts.forEach((ix,k)=>{let e=fishParts[k].options[ix][2];for(let [a,v] of Object.entries(e))impacts[a]=(impacts[a]||0)+v});affect('fish',{trust:impacts.trust||0,reflection:(impacts.reflection||0)*2,agency:(impacts.agency||0)*2,stress:-(impacts.comfort||0)*2});s.flags.fishImpact=impacts}if(l.id==='clock2'){s.flags.clockWifeKnown=true;remember('clock','妻が買った時計について話した')}if(l.id==='clock3'&&s.flags.clockWifeKnown)remember('clock','散歩で見つけた花について話した');if(l.id==='bread1')remember('bread','くるみと蜂蜜のパンが売り切れた');if(l.id==='driver2')remember('driver','配送先の猫を「主任」と呼んでいる');if(l.id==='fish3')s.flags.fishRead=true;if(l.id==='cat2'||l.id==='cat2unread')remember('cat','上司に仕事の相談をした');if(l.id==='driver3'||l.id==='driver3first')remember('driver','猫主任が車の前で寝ていた');if(l.id==='bread3')remember('bread','新しいパンの試作に失敗した');if(l.id==='clock2generic')remember('clock','朝の散歩で時計の音を聞いた');if(l.id==='moon2'||l.id==='moon3')remember('moon','秘密の隠し場所について考えた');if(choice==='empathy')affect(id,{trust:2});if(choice==='agency')affect(id,{agency:2});if(choice==='reflection')affect(id,{reflection:2});if(choice==='humor')affect(id,{trust:1,stress:-2});if(choice==='curiosity'||choice==='followup'||choice==='past')affect(id,{trust:1,reflection:1});extendedApplyReply(l,choice,assembled);regularReplyRecorded(l,choice);socialVisibleClue(l);simReplyImpact(id,choice,assembled,l.id);s.played.push({id:l.id,who:id,subject:l.subject,response:assembled,night:s.night});log('放送',`${NAMES[id]}「${l.subject}」に返答した。`);s.cursor++;s.current=null;s.replyStep=0;s.replyParts=[null,null,null];s.phase='broadcast';save();render()}
 function advanceWorld(){const n=s.night;if(n===1){event('夜明けの猫は上司に仕事について相談した。');privateRemember('cat','上司に相談した');if(s.flags.catReply==='caution')event('夜明けの猫は退職の結論を急がないことにした。');else if(s.flags.catReply==='agency')event('夜明けの猫は自分の希望を少し言葉にできた。');else event('夜明けの猫は上司の言葉を聞いて、また迷い始めた。');event('古時計は翌朝、近所を散歩した。');event('眠れないパン屋は次のパンを試作し始めた。');event('午前3時の配達員は仕事の休憩中に番組を聴いた。');affect('cat',{stress:-2,reflection:2});affect('clock',{reflection:1});affect('driver',{trust:1});}else if(n===2){event('透明な金魚は友人との会話で傷ついたが、その場では笑ってしまった。');privateRemember('fish','友人の言葉に傷つき、笑ってごまかした');event('夜明けの猫は上司との話を思い返した。');affect('cat',{reflection:2});event('古時計は朝の散歩で小さな花を見つけた。');event('午前3時の配達員は駐車場で猫主任に再会した。');event('眠れないパン屋は新しいパンの試作に失敗した。');if(s.flags.driverRead)affect('driver',{trust:1});}else if(n===3){event('透明な金魚は放送後、自分の気持ちを日記に書くか迷った。');if(s.flags.fishRead){let e=s.flags.fishImpact||{};let opts=[['日記に、嫌だった気持ちを一行書いた。',e.reflection||0],['友人に伝える言葉を小さく練習した。',e.agency||0],['今夜は何も決めず、ゆっくり休んだ。',e.comfort||0],['別の友人に相談しようと考えた。',e.relationship||0]];let weights=opts.map(x=>Math.max(1,x[1]+1));let t=weights.reduce((a,b)=>a+b,0)*rand();let ix=0;for(;ix<weights.length-1;ix++){t-=weights[ix];if(t<0)break}let m='透明な金魚は'+opts[ix][0];s.flags.fishAction=['journal','practice','rest','consult'][ix];event(m);privateRemember('fish',m)}else{event('透明な金魚は番組に送ったお便りが読まれなかった夜も、自分の気持ちについて考え続けた。');privateRemember('fish','番組への初投稿は紹介されなかった')}event('終点のひとつ前に関する古い封筒が、郵送物を整理していたスタッフから渡された。');s.flags.envelope=true;}else if(n>=4){advanceExtendedWorld(n)}save()}
 
 
@@ -756,10 +756,373 @@ function simulateMicroWorld(n){
  w.history=w.history.slice(-50);
 }
 
+// v2.4 : 人と人の関係は放送の外で成長する。
+// 世界の事実と、本人の受け止め方と、放送局が知っていることは分けて保存する。
+const SOCIAL_PAIRS={
+ cat_bread:{members:['cat','bread'],location:'bakery',place:'小さなパン屋',time:'evening',names:{cat:'帰り道のパン屋さん',bread:'夕方に来るお客さん'},
+  needs:{cat:['bakery'],bread:['bake','store','boss','customer']}},
+ driver_clock:{members:['driver','clock'],location:'clock_street',place:'昔の時計店があった通り',time:'evening',names:{driver:'古い時計店の近くで会う人',clock:'配送中に通りかかる運転手さん'},
+  needs:{driver:['shoproute','route'],clock:['shopfront','shopvisit']}},
+ fish_clock:{members:['fish','clock'],location:'library',place:'地域の図書室',time:'afternoon',names:{fish:'図書室の年配の方',clock:'図書室によく来る学生さん'},
+  needs:{fish:['libraryvisit','librarystudy'],clock:['library']}},
+ driver_terminal:{members:['driver','terminal'],location:'station_area',place:'駅前の通り',time:'evening',names:{driver:'駅前で見かける人',terminal:'駅前の配達の人'},
+  needs:{driver:['stationdelivery','route'],terminal:['timetable','stationstop']}}
+};
+
+// v2.5: 三人が既存リスナーと自律的に接点を持つ場所。
+Object.assign(SOCIAL_PAIRS,{
+ umbrella_cat:{members:['umbrella','cat'],location:'flower_shop',place:'商店街の花屋',time:'evening',names:{umbrella:'帰り道に鉢を眺めるお客さん',cat:'商店街の花屋さん'},needs:{umbrella:['bouquet','window','flowercustomer'],cat:['flowerstop']}},
+ umbrella_clock:{members:['umbrella','clock'],location:'flower_market',place:'朝の花市場',time:'morning',names:{umbrella:'朝の市場で会う年配の方',clock:'市場で花を選んでいた店の方'},needs:{umbrella:['market'],clock:['morningmarket']}},
+ triangle_fish:{members:['triangle','fish'],location:'library',place:'地域の図書室',time:'afternoon',names:{triangle:'図書室で見かける大学生の方',fish:'図書室で本を探す高校生らしい子'},needs:{triangle:['librarystudy'],fish:['libraryvisit','librarystudy']}},
+ fridge_driver:{members:['fridge','driver'],location:'night_shop',place:'深夜のコンビニ',time:'night',names:{fridge:'夜によく会う運転手さん',driver:'同じ棚で迷っていた人'},needs:{fridge:['konbini'],driver:['conveniencestop']}},
+ fridge_bread:{members:['fridge','bread'],location:'ingredient_wholesale',place:'朝の食材の卸売店',time:'morning',names:{fridge:'朝の仕入れ先で会うパン屋さん',bread:'仕入れ先でよく見る料理人さん'},needs:{fridge:['supply'],bread:['ingredientmarket']}}
+});
+
+const SOCIAL_LEVELS=['stranger','noticed','greeted','acquaintance','familiar'];
+function socialFreshPair(id){
+ const c=SOCIAL_PAIRS[id];if(!c)return null;
+ return {id,members:[...c.members],stage:'stranger',perspectives:Object.fromEntries(c.members.map(a=>[a,{familiarity:0,trust:32,tension:10,interest:22,recognized:false}])),
+  totalContacts:0,lastContactNight:0,recentContacts:[],sharedEvents:[],lastOutcome:'',cooldownUntil:0};
+}
+function createSocialWorldState(){return {schema:1,pairs:Object.fromEntries(Object.keys(SOCIAL_PAIRS).map(id=>[id,socialFreshPair(id)])),processedNights:[],events:[],queued:{},publicClues:[],lastMailed:{},mailHistory:[]}}
+function migrateSocialWorld(data){
+ const w=data.socialWorld&&typeof data.socialWorld==='object'?data.socialWorld:createSocialWorldState();
+ w.pairs=w.pairs&&typeof w.pairs==='object'?w.pairs:{};
+ for(const key of Object.keys(SOCIAL_PAIRS)){
+  const def=socialFreshPair(key),old=w.pairs[key];
+  if(!old){w.pairs[key]=def;continue}
+  w.pairs[key]={...def,...old, members:def.members,
+   perspectives:Object.fromEntries(def.members.map(id=>[id,{...def.perspectives[id],...(old.perspectives?.[id]||{})}])),
+   recentContacts:Array.isArray(old.recentContacts)?old.recentContacts.slice(-14):[],
+   sharedEvents:Array.isArray(old.sharedEvents)?old.sharedEvents.slice(-20):[]};
+ }
+ // v2.3の実際の会釈は履歴として引き継ぐが、知らない相手を突然「知人」にしない。
+ const oldGreeted=data.microWorld?.links?.['old-clock-street'];
+ if(oldGreeted?.greeted && w.pairs.driver_clock.totalContacts===0){
+  const pair=w.pairs.driver_clock,when=Number(oldGreeted.greetedNight)||0;
+  pair.stage='greeted';pair.totalContacts=1;pair.lastContactNight=when;
+  for(const id of pair.members){pair.perspectives[id].recognized=true;pair.perspectives[id].familiarity=12;}
+  pair.recentContacts=[when];
+ }
+ w.processedNights=Array.isArray(w.processedNights)?[...new Set(w.processedNights)].slice(-135):[];
+ w.events=Array.isArray(w.events)?w.events.slice(-120):[];
+ w.queued=w.queued&&typeof w.queued==='object'?w.queued:{};
+ w.publicClues=Array.isArray(w.publicClues)?w.publicClues.slice(-90):[];
+ w.lastMailed=w.lastMailed&&typeof w.lastMailed==='object'?w.lastMailed:{};
+ w.mailHistory=Array.isArray(w.mailHistory)?w.mailHistory.slice(-70):[];
+ w.schema=1;data.socialWorld=w;return data;
+}
+function socialActionBias(id,action,n){
+ if(n<29||!s.socialWorld)return 0;
+ const act=action[0];let bias=0;
+ for(const [key,c] of Object.entries(SOCIAL_PAIRS)){
+  if(!c.needs[id]?.includes(act))continue;
+  const pair=s.socialWorld.pairs?.[key];if(!pair||pair.totalContacts===0)continue;
+  const me=pair.perspectives?.[id];if(!me)continue;
+  const recent=pair.lastContactNight>=n-2;
+  // 親しみが行動選択に影響する。ただし気まずさ、疲れ、仕事上の制約は尊重する。
+  bias+=Math.max(-10,Math.min(12,(me.interest-22)*.13+(me.familiarity-20)*.07-me.tension*.13-(recent?3:0)));
+ }
+ return Math.max(-9,Math.min(12,bias));
+}
+function socialActorSchedule(id,n){
+ const p=s.simState?.people?.[id];const today=p?.daily?.find(d=>d.night===n);
+ if(!today)return [];
+ const a=today.actionId,places=[];
+ // すでに行ったと記録されている行動＋職業上の決まった勤務だけを使用する。
+ if(id==='cat'&&a==='bakery')places.push({location:'bakery',time:'evening',why:a});
+ if(id==='bread'&&['bake','store','boss','customer'].includes(a))places.push({location:'bakery',time:'evening',why:a});
+ if(id==='driver'&&['shoproute','route'].includes(a))places.push({location:'clock_street',time:'evening',why:a});
+ if(id==='clock'&&(['shopfront','shopvisit'].includes(a)||(a==='walk'&&simHash(`social:clock:walk:${n}`)%100<72)))places.push({location:'clock_street',time:'evening',why:a});
+ if(id==='fish'&&['libraryvisit','librarystudy'].includes(a))places.push({location:'library',time:'afternoon',why:a});
+ if(id==='clock'&&a==='library')places.push({location:'library',time:'afternoon',why:a});
+ if(id==='terminal'&&['timetable','stationstop'].includes(a))places.push({location:'station_area',time:'evening',why:a});
+ if(id==='driver'&&['stationdelivery','route'].includes(a))places.push({location:'station_area',time:'evening',why:a});
+ if(id==='umbrella'&&['bouquet','window','flowercustomer'].includes(a)&&newListenerEligible(id,n))places.push({location:'flower_shop',time:'evening',why:a});
+ if(id==='umbrella'&&a==='market'&&newListenerEligible(id,n))places.push({location:'flower_market',time:'morning',why:a});
+ if(id==='cat'&&a==='flowerstop')places.push({location:'flower_shop',time:'evening',why:a});
+ if(id==='clock'&&a==='morningmarket')places.push({location:'flower_market',time:'morning',why:a});
+ if(id==='triangle'&&a==='librarystudy'&&newListenerEligible(id,n))places.push({location:'library',time:'afternoon',why:a});
+ if(id==='fridge'&&a==='konbini'&&newListenerEligible(id,n))places.push({location:'night_shop',time:'night',why:a});
+ if(id==='driver'&&a==='conveniencestop')places.push({location:'night_shop',time:'night',why:a});
+ if(id==='fridge'&&a==='supply'&&newListenerEligible(id,n))places.push({location:'ingredient_wholesale',time:'morning',why:a});
+ if(id==='bread'&&a==='ingredientmarket')places.push({location:'ingredient_wholesale',time:'morning',why:a});
+ // 行動に記録された場所だけを使う。一般配送ルートは一日一地区に割り当てる。
+ if(id==='driver'&&a==='route'&&places.length>1){
+  const ix=simHash(`v24:driver:district:${n}`)%4===0?1:0;
+  return [places[ix]];
+ }
+ if(id==='clock'&&places.length>1)return [places[0]];
+ return places;
+}
+function socialWeightDecision(key,n,pair){
+ const [a,b]=pair.members;const pa=s.simState.people[a],pb=s.simState.people[b];
+ const ra=pair.perspectives[a],rb=pair.perspectives[b];
+ const fatigue=Math.max(0,55-pa.life.health)+Math.max(0,55-pb.life.health);
+ const score=(pa.traits.sociability+pb.traits.sociability)*.22+
+   (ra.familiarity+rb.familiarity)*.20+(ra.interest+rb.interest)*.12-
+   (ra.tension+rb.tension)*.22-fatigue*.18;
+ const noise=simHash(`social:choice:${key}:${n}:${pair.totalContacts}`)%100;
+ if(pair.totalContacts===0)return noise<35?'greet':'notice';
+ if(pair.stage==='noticed')return noise<65?'greet':'notice';
+ if(score+noise*.55>=90&&pair.totalContacts>=4&&pair.stage==='acquaintance')return 'invite';
+ if(score+noise*.44+pair.totalContacts*2>=58)return 'talk';
+ return noise<77?'greet':'notice';
+}
+function socialPairContact(key,n,plA,plB){
+ const w=s.socialWorld,c=SOCIAL_PAIRS[key],pair=w.pairs[key];
+ if(!pair||pair.lastContactNight===n||n<pair.cooldownUntil)return null;
+ const [a,b]=c.members,people=s.simState.people;
+ if(!people[a]||!people[b])return null;
+ let action=socialWeightDecision(key,n,pair);
+ // 誘いは互いに好意・時間的な余裕がある場合にのみ成立する。
+ if(action==='invite'){
+  const accepts=c.members.every(id=>{
+   const op=pair.perspectives[id],p=people[id];
+   return p.life.health>=35&&op.tension<56&&op.trust>32&&op.interest>30;
+  });
+  if(!accepts)action='talk';
+ }
+ const before=pair.stage;
+ const outcomes=['warm','ordinary','guarded','awkward'];
+ const moodAvg=c.members.reduce((t,id)=>t+people[id].emotion.anxiety,0)/2;
+ const tensionAvg=c.members.reduce((t,id)=>t+pair.perspectives[id].tension,0)/2;
+ const roll=simHash(`social:outcome:${key}:${n}:${pair.totalContacts}`)%100;
+ const outcome=action==='notice'?'noticed':action==='greet'?'greeted':roll<Math.max(9,27-(moodAvg+tensionAvg)/9)?'awkward':roll<43?'guarded':roll<72?'ordinary':'warm';
+ pair.lastContactNight=n;pair.totalContacts++;
+ pair.recentContacts.push(n);pair.recentContacts=pair.recentContacts.slice(-14);
+ pair.lastOutcome=outcome;
+ if(action==='notice'&&pair.stage==='stranger')pair.stage='noticed';
+ if(action==='greet'&&SOCIAL_LEVELS.indexOf(pair.stage)<2)pair.stage='greeted';
+ if(action==='talk'&&SOCIAL_LEVELS.indexOf(pair.stage)<3)pair.stage='acquaintance';
+ if(action==='invite'&&SOCIAL_LEVELS.indexOf(pair.stage)<4)pair.stage='familiar';
+ if(outcome==='awkward')pair.cooldownUntil=n+2;
+ const views={};
+ for(const id of c.members){
+  const p=people[id],rel=pair.perspectives[id];
+  rel.recognized=true;
+  let feel={noticed:0,greeted:1,warm:3,ordinary:1,guarded:0,awkward:-2}[outcome]||0;
+  // 同じ会話でも本人の感受性や疲れで少し違った受け止め方をする。
+  const variance=(simHash(`social:view:${key}:${n}:${id}`)%5)-2;
+  feel+=variance;
+  views[id]=feel>1?'warm':feel<0?'awkward':'ordinary';
+  rel.familiarity=simNumber(rel.familiarity+(action==='notice'?2:action==='greet'?4:action==='talk'?8:11),0);
+  rel.trust=simNumber(rel.trust+(feel>2?2:feel<0?-1:0),32);
+  rel.tension=simNumber(rel.tension+(feel<0?2:feel>2?-1:0),10);
+  rel.interest=simNumber(rel.interest+(feel>0?2:feel<0?-2:0),22);
+  if(feel>1)simAdjust(p.emotion,'joy',1);
+  if(feel<0)simAdjust(p.emotion,'anxiety',1);
+  const text=action==='notice'?'同じ場所で見かけた':action==='greet'?'会釈した':action==='invite'?'少し一緒に過ごした':'短く話した';
+  const view=feel>=2?'少しうれしかった':feel<=-1?'なんとなく気まずかった':'何でもない時間だった';
+  simMemory(p,{night:n,kind:'relationship',tag:'social',importance:action==='invite'?4:action==='talk'?3:2,summary:`${c.names[id]}と${text}。${view}`});
+  // 旧来の人間関係システムと共存させる。ラジオネームや本名は結びつけない。
+  const target=c.members.find(x=>x!==id),relKey='social_'+target;
+  const old=p.relationships[relKey]||{name:c.names[id],closeness:10,trust:30,tension:10,personKey:null,contactCount:0,lastContactNight:0,history:[]};
+  old.name=c.names[id];old.closeness=rel.familiarity;old.trust=rel.trust;old.tension=rel.tension;
+  old.lastContactNight=n;old.contactCount++;
+  old.history.push({night:n,actionId:'social_'+action,outcome:(action==='notice'||action==='greet')?null:outcome,summary:text});old.history=old.history.slice(-12);
+  p.relationships[relKey]=old;
+ }
+ const eid=`social_event_${n}_${key}`;
+ const ev={id:eid,night:n,pair:key,members:[...c.members],location:c.location,place:c.place,time:c.time,action,outcome,stageBefore:before,stageAfter:pair.stage,views};
+ w.events.push(ev);w.events=w.events.slice(-120);
+ pair.sharedEvents.push(eid);pair.sharedEvents=pair.sharedEvents.slice(-20);
+ w.historyChangedNight=n;
+ return ev;
+}
+const SOCIAL_LETTER_TEXT={
+ cat_bread:{cat:{subject:'帰り道に寄るお店',intro:'昨日、仕事帰りにパン屋へ寄りました。',noticed:'いつもの棚の近くで、店員さんを見かけました。',greeted:'何度か見かけた店員さんと、短く挨拶しました。',talk:'新しいパンについて、店員さんと少し話しました。',invite:'いつもより少し長く、店員さんと話しました。'},
+ bread:{subject:'夕方のお客さん',intro:'昨日、店に夕方のお客さんが来ました。',noticed:'以前も見かけたような気がする方でした。',greeted:'いつものお客さんと、ちょっと挨拶しました。',talk:'パンの話をしていたら、少し時間が経っていました。',invite:'閉店前、いつもよりゆっくりお話ができました。'}},
+ driver_clock:{driver:{subject:'あの時計屋の通り',intro:'昨日、配送の途中で古い時計店の通りを通りました。',noticed:'前にも見かけた人がいました。',greeted:'通りにいた人と会釈しました。',talk:'時計の話をしていたら、思いのほか話が長くなりました。',invite:'時計のことを、いつもより少し長く教わりました。'},
+ clock:{subject:'昔の店の近くで',intro:'昨日、かつて店があった通りを歩きました。',noticed:'通りかかった配送車が、少し懐かしく見えました。',greeted:'見覚えのある運転手さんと会釈しました。',talk:'配送の方と、時計について少し話しました。',invite:'運転手さんと、また時計の話をする機会がありました。'}},
+ fish_clock:{fish:{subject:'図書室で会った人',intro:'昨日、地域の図書室に行きました。',noticed:'よく見かける年配の方がいました。',greeted:'その方と、初めて少し挨拶を交わしました。',talk:'本について少しお話しました。',invite:'本について話す時間が、少し楽しみになっています。'},
+ clock:{subject:'図書室の学生さん',intro:'昨日、図書室で本を整理しておりました。',noticed:'熱心に本を探している学生さんがいました。',greeted:'何度か見かけた学生さんと会釈しました。',talk:'学生さんと本について短く話しました。',invite:'学生さんと、いつもより長く本の話をしました。'}},
+ driver_terminal:{driver:{subject:'駅前の小さな出来事',intro:'昨夜、配送で駅前を通りました。',noticed:'駅の前で誰かを見かけました。',greeted:'以前にも会ったような人と会釈しました。',talk:'駅前で少し道の話をしました。',invite:'道順について、思いがけず長話になりました。'},
+ terminal:{subject:'駅前ですれ違った人',intro:'昨日、駅前の道を歩きました。',noticed:'配送車の明かりが通り過ぎました。',greeted:'見覚えのある運転手さんに会釈しました。',talk:'駅前で運転手さんと少し話しました。',invite:'駅前で、運転手さんと少し長く話しました。'}}
+};
+
+Object.assign(SOCIAL_LETTER_TEXT,{
+ umbrella_cat:{umbrella:{subject:'夕方の鉢植え',intro:'昨日、花屋の前で立ち止まるお客さんがいました。',noticed:'窓辺の小さな鉢を、じっと見ていました。',greeted:'短く挨拶を交わしました。',talk:'花の育て方について少し話しました。',invite:'また花の話ができる時間がありました。'},cat:{subject:'帰り道の花屋',intro:'昨日、帰り道に花屋へ立ち寄りました。',noticed:'店の中で鉢を並べる人がいました。',greeted:'店の人と少し挨拶しました。',talk:'小さな鉢について店の人に聞きました。',invite:'また、花屋で少し長く話せました。'}},
+ umbrella_clock:{umbrella:{subject:'朝の市場の話',intro:'昨日、朝の花市場で仕入れをしていました。',noticed:'花を眺めている年配の方を見かけました。',greeted:'その方と会釈しました。',talk:'花の手入れについて少し話しました。',invite:'市場で、また花の話を聞かせてもらいました。'},clock:{subject:'市場で見つけた花',intro:'昨日の朝、花市場に立ち寄りました。',noticed:'朝早くから働いている花屋の方を見かけました。',greeted:'その方と会釈しました。',talk:'花の名前を一つ教えてもらいました。',invite:'花屋の方と、少しゆっくり季節の話をしました。'}},
+ triangle_fish:{triangle:{subject:'図書室での小さな会話',intro:'昨日、図書室で本を探していました。',noticed:'熱心にノートを読んでいる年上の人がいました。',greeted:'その人と軽く挨拶しました。',talk:'どの本が面白かったか、少し聞いてみました。',invite:'本を選ぶ時間が、少し長くなりました。'},fish:{subject:'図書室で見かけた人',intro:'昨日、地域の図書室へ行きました。',noticed:'知らない高校生くらいの人が熱心に本を見ていました。',greeted:'その人と短い挨拶を交わしました。',talk:'本の棚について少し話しました。',invite:'また本について話す時間がありました。'}},
+ fridge_driver:{fridge:{subject:'夜中のおにぎり売り場',intro:'昨日、仕事帰りにコンビニへ寄りました。',noticed:'同じ棚で迷っている人がいました。',greeted:'棚の前で軽く会釈しました。',talk:'どのおにぎりが好きか、思わず話してしまいました。',invite:'また、その人と食べ物の話をしました。'},driver:{subject:'夜のコンビニ',intro:'昨夜、配送の休憩中にコンビニへ寄りました。',noticed:'同じおにぎり棚をじっと見ている人がいました。',greeted:'棚の前で会釈しました。',talk:'おにぎりについて、知らない人と意見が一致しました。',invite:'またその人と、夜食の話ができました。'}},
+ fridge_bread:{fridge:{subject:'朝の仕入れ先で',intro:'昨日の早朝、食材の卸売店へ寄りました。',noticed:'パンの材料を選ぶ人を見かけました。',greeted:'その人と会釈しました。',talk:'粉の違いについて少し教えてもらいました。',invite:'また仕入れ先で、食材の話ができました。'},bread:{subject:'朝の卸売店',intro:'昨日、仕入れ先へ行きました。',noticed:'店でよく見る料理人らしい人がいました。',greeted:'その人と挨拶しました。',talk:'粉の違いについて少し話しました。',invite:'また、朝の仕入れ先で話ができました。'}}
+});
+
+function socialLetterFor(ev,who,day){
+ const desc=SOCIAL_LETTER_TEXT[ev.pair]?.[who];if(!desc)return null;
+ const relation=s.socialWorld.pairs[ev.pair];const my=relation.perspectives[who];
+ const personal=ev.views?.[who]||ev.outcome;
+ const close=personal==='warm'?'今日はちょっと、いい気分で帰りました。':personal==='awkward'?'悪いことがあったわけではないのですが、少し気まずさが残りました。':ev.outcome==='guarded'?'もう少し話してもよかった気がします。':'何でもないことなのに、帰り道で思い出しました。';
+ // 本人の観測と主観のみ。相手のラジオネーム・本名・知らない気持ちは記さない。
+ const opener=day>=ev.night+2?desc.intro.replace('昨夜','先日の夜').replace('昨日','先日'):desc.intro;
+ return {who,subject:desc.subject,body:'こんばんは。\n\n'+opener+'\n\n'+(desc[ev.action]||desc.talk)+'\n\n'+close,
+  regular:true,kind:'socialWorld',tag:`social-${ev.pair}-${ev.id}`,socialEventId:ev.id,socialPair:ev.pair,choices:REGULAR_CHOICES.map(x=>[...x])};
+}
+function socialQueueRecollection(ev){
+ if(ev.action==='notice')return;
+ const n=ev.night+1,w=s.socialWorld;
+ if((w.queued[n]||[]).length>=1)return;
+ const chance=ev.action==='greet'?47:ev.action==='talk'?78:85;
+ if(simHash(`social:send:${ev.id}`)%100>=chance)return;
+ let who=ev.members[simHash(`social:writer:${ev.id}`)%2];
+ if(!newListenerIntroduced(who,ev.night))who=ev.members.find(id=>newListenerIntroduced(id,ev.night));
+ if(!who)return;
+ if(w.lastMailed[who]&&ev.night-w.lastMailed[who]<5)return;
+ const id=`social_${n}_${ev.pair}_${who}`;
+ const l=socialLetterFor(ev,who,n);if(!l)return;
+ s.regular.letterArchive[id]=l;
+ (w.queued[n] ||= []).push(id);
+ w.lastMailed[who]=ev.night;
+ w.mailHistory.push({night:n,who,pair:ev.pair,eventId:ev.id});
+ w.mailHistory=w.mailHistory.slice(-70);
+ // もう一方も書く場合があるが、同じ日に投稿を強制しない。
+ const other=ev.members.find(x=>x!==who);
+ if(newListenerIntroduced(other,ev.night)&&ev.action==='talk'&&simHash(`social:other:${ev.id}`)%100<23&&!w.queued[n+2]?.length&&ev.night-(w.lastMailed[other]||-99)>=5){
+  const later=`social_${n+2}_${ev.pair}_${other}`;
+  s.regular.letterArchive[later]=socialLetterFor(ev,other,n+2);
+  (w.queued[n+2] ||= []).push(later);
+  w.lastMailed[other]=ev.night;
+  w.mailHistory.push({night:n+2,who:other,pair:ev.pair,eventId:ev.id});
+ }
+}
+function simulateSocialWorld(n){
+ if(n<29)return; // 第1・第2章の台本の時刻と結末を守る。
+ if(!s.socialWorld)s.socialWorld=createSocialWorldState();
+ const w=s.socialWorld;if(w.processedNights.includes(n))return;
+ const schedules={};for(const id of Object.keys(SIM_PROFILES))schedules[id]=socialActorSchedule(id,n);
+ const busy=new Set();
+ for(const [key,c] of Object.entries(SOCIAL_PAIRS)){
+  const [a,b]=c.members;
+  const aa=schedules[a]?.find(x=>x.location===c.location&&x.time===c.time),
+        bb=schedules[b]?.find(x=>x.location===c.location&&x.time===c.time);
+  if(!aa||!bb||busy.has(a+':'+c.time)||busy.has(b+':'+c.time))continue;
+  const possibility=s.simState?.people?.[a]?.emotion && s.simState?.people?.[b]?.emotion;
+  if(!possibility)continue;
+  const roll=simHash(`social:encounter:${n}:${key}`)%100;
+  if(roll>=83)continue;
+  const ev=socialPairContact(key,n,aa,bb);
+  if(!ev)continue;
+  busy.add(a+':'+c.time);busy.add(b+':'+c.time);
+  socialQueueRecollection(ev);
+ }
+ w.processedNights.push(n);w.processedNights=w.processedNights.slice(-135);
+ for(const day of Object.keys(w.queued))if(Number(day)<n-7)delete w.queued[day];
+}
+function socialVisibleClue(l){
+ if(!l?.socialEventId||!s.socialWorld)return;
+ if(s.socialWorld.publicClues.some(x=>x.eventId===l.socialEventId&&x.who===l.who))return;
+ const summary=`${l.subject}について本人が話した`;
+ s.socialWorld.publicClues.push({night:s.night,eventId:l.socialEventId,who:l.who,summary});
+ s.socialWorld.publicClues=s.socialWorld.publicClues.slice(-90);
+ remember(l.who,'第'+s.night+'夜に「'+l.subject+'」という近況を届けた');
+}
+
 // v1.9 継続放送: chapter 2 や特別放送とは独立した、繰り返し可能な夜。
 // 内容は作者によるテンプレート。実際の生活記録から本文を作り、保存して固定する。
+
+// v2.5: 登場のタイミングと自律生活を分離した新しい三人。
+// 初めてのお便りは自分の暮らしから届く。未紹介でも生活と関係は進む。
+const NEW_LISTENER_SETTINGS={
+ umbrella:{earliest:30,defaultArrival:31,lifeTheme:'一人で店を続けることと休むこと'},
+ triangle:{earliest:35,defaultArrival:37,lifeTheme:'決めないまま興味を増やすこと'},
+ fridge:{earliest:41,defaultArrival:43,lifeTheme:'仕事と自分の食事の境目'}
+};
+function createNewListenerState(){return {schema:1,entries:Object.fromEntries(REGULAR_NEW.map(id=>[id,{arrivalNight:NEW_LISTENER_SETTINGS[id].defaultArrival,firstSentNight:0,milestones:[],lastArcMailNight:0}]))};}
+function migrateNewListeners(data){
+ const old=data.newListeners&&typeof data.newListeners==='object'?data.newListeners:{};
+ const base=createNewListenerState();
+ base.entries={...base.entries,...(old.entries||{})};
+ for(const id of REGULAR_NEW){
+  const def=NEW_LISTENER_SETTINGS[id],v=base.entries[id]||{};
+  const known=(data.regular?.mailHistory||[]).find(x=>x.who===id);
+  const sent=(data.played||[]).find(x=>x.who===id);
+  // v2.4以前のセーブが第60夜でも、新しい初投稿が過去に出現したことにはしない。
+  const fresh=!data.newListeners;
+  let future=Math.max(def.earliest,data.night+(data.phase==='intro'&&!data.letterSets?.[data.night]?0:1));
+  if(fresh&&data.night>def.defaultArrival)future+=simHash(`v25:join:${id}:${data.night}`)%3;
+  base.entries[id]={arrivalNight:fresh?Math.max(def.defaultArrival,future):Math.max(def.earliest,Number(v.arrivalNight)||def.defaultArrival),
+   firstSentNight:Math.max(0,Number(v.firstSentNight)||known?.night||sent?.night||0),
+   milestones:Array.isArray(v.milestones)?v.milestones.slice(-9):[],lastArcMailNight:Math.max(0,Number(v.lastArcMailNight)||0)};
+ }
+ data.newListeners=base;return data;
+}
+function newListenerEligible(id,n){return !NEW_LISTENER_SETTINGS[id]||n>=(s.newListeners?.entries?.[id]?.arrivalNight??NEW_LISTENER_SETTINGS[id].defaultArrival)}
+function newListenerIntroduced(id,n=s.night){return !NEW_LISTENER_SETTINGS[id]||Boolean(s.newListeners?.entries?.[id]?.firstSentNight && s.newListeners.entries[id].firstSentNight<=n)}
+function newListenerFirstLetter(id,n){
+ const [subject,body]=NEW_LISTENER_LETTERS[id].first;
+ return {subject,body,kind:'new-intro',tag:`first-${id}`,who:id,regular:true,choices:REGULAR_CHOICES.map(x=>[...x])};
+}
+function newListenerArcNote(id,n){
+ const meta=s.newListeners?.entries?.[id];if(!meta?.firstSentNight)return null;
+ const item=(meta.milestones||[]).find(x=>x.night>meta.lastArcMailNight&&x.night<n);
+ if(!item)return null;
+ const paragraphs={
+  umbrella:'店を続けていると、花を手渡す時間は好きなのに、自分の休みをうまく作れないことがあります。今は'+item.summary+'。\n\n花屋を続けるかどうかではなく、続け方を少し考える夜です。',
+  triangle:'将来の夢は相変わらず一つに決まっていません。最近は'+item.summary+'。\n\n友達の答えと、自分の答えが違ってもいいのか、考えています。',
+  fridge:'料理の仕事をしていると、一日の終わりがわからなくなることがあります。最近は'+item.summary+'。\n\n仕事が好きだという気持ちは、そのまま持っていたいです。'
+ };
+ return {subject:{umbrella:'花屋を続ける時間',triangle:'まだ決めていない答え',fridge:'火を消したあとの時間'}[id],body:regularFirstSentence(id,n)+'\n\n'+paragraphs[id],kind:'new-arc',tag:`new-arc-${item.night}`};
+}
+function newListenerPersonalNote(id,n){
+ const day=regularDayAction(id,n);if(!day)return null;
+ const me=SIM_PROFILES[id],action=me.actions.find(a=>a[0]===day.actionId),subject={umbrella:'花屋の小さな話',triangle:'ノートの端の話',fridge:'仕事が終わってから'}[id];
+ const tails={
+  umbrella:['花のことを知っているつもりでも、毎日知らないことに出会います。','店の外にも暮らしがある、と最近少し思います。','誰かのための花を選びながら、自分の帰り道のことも考えています。'],
+  triangle:['ひとつ決めるたびに、別のことも気になってしまうんです。','今はまだ答えを一つにしなくてもいい気がします。','先生に聞けば簡単なのかもしれないけれど、しばらく自分で考えたいです。'],
+  fridge:['厨房とは別に、自分の夜がちゃんとあると思いたいです。','仕事に慣れていても、自分の暮らしはまだ練習中です。','家では誰にも採点されないから、少し気楽です。']
+ };
+ const tail=tails[id][simHash(`new:tail:${id}:${n}`)%3];
+ return {subject,body:regularFirstSentence(id,n)+'\n\n'+day.activity.replace(/。+$/,'')+'。\n\n'+tail,kind:'new-life',tag:`new-life-${day.actionId}`};
+}
+function newListenerCompose(id,n){
+ const arc=newListenerArcNote(id,n);
+ const recent=(s.regular?.mailHistory||[]).filter(x=>x.who===id&&x.night>=n-7);
+ if(arc&&!recent.some(x=>x.tag===arc.tag))return arc;
+ const candidates=[newListenerPersonalNote(id,n),regularContact(id,n),regularBroadcastEcho(id,n),regularThemeLetter(id,n)].filter(Boolean);
+ const weighted=candidates.map(x=>({...x,weight:({contact:83,'new-life':76,broadcast:55,theme:45})[x.kind]||45}));
+ for(const item of weighted){
+  if(recent.some(x=>x.tag===item.tag))item.weight-=60;
+  if(recent.some(x=>x.kind===item.kind))item.weight-=13;
+  item.weight+=simHash(`new:pick:${id}:${n}:${item.tag}`)%15;
+ }
+ weighted.sort((a,b)=>b.weight-a.weight);
+ return weighted[0]||regularThemeLetter(id,n);
+}
+function newListenerOnLettersDelivered(n,ids){
+ for(const id of REGULAR_NEW){
+  const intro=`regular_${n}_${id}`;
+  const entry=s.newListeners?.entries?.[id];if(!entry)continue;
+  if(ids.includes(intro)){
+   if(!entry.firstSentNight)entry.firstSentNight=n;
+   const l=s.regular?.letterArchive?.[intro];
+   if(l?.kind==='new-arc')entry.lastArcMailNight=n;
+  }
+ }
+}
+function newListenerAfterDaily(n){
+ if(n<29)return;
+ for(const id of REGULAR_NEW){
+  const entry=s.newListeners?.entries?.[id],p=s.simState?.people?.[id];if(!entry||!p||!newListenerEligible(id,n))continue;
+  const last=entry.milestones.at(-1)?.night||entry.firstSentNight||entry.arrivalNight;
+  if(n-last<11)continue;
+  const activity=Object.entries(p.activityCounts||{});
+  const count=keys=>keys.reduce((sum,k)=>sum+(p.activityCounts?.[k]||0),0);
+  const describe={
+   umbrella:count(['assistanttalk','plantrest','neighborchat'])>=3?'誰かに少し頼ることを試している':'店の休み方を考えている',
+   triangle:count(['librarystudy','future','teacher'])>=4?'違う分野を調べる時間が増えている':'答えをすぐ決めずに考えている',
+   fridge:count(['rest','leftovers','konbini'])>=4?'家で休む時間にも目を向けている':'働く時間と休む時間の境目を考えている'
+  }[id];
+  const milestone={night:n,summary:describe,goal:NEW_LISTENER_SETTINGS[id].lifeTheme};
+  entry.milestones.push(milestone);entry.milestones=entry.milestones.slice(-9);
+  simMemory(p,{night:n,kind:'life',tag:'long_goal',importance:4,summary:describe});
+  privateRemember(id,describe); // 局には公開しない。
+ }
+}
+
 const REGULAR_MAIN=['cat','driver','fish','clock','terminal'];
 const REGULAR_SUPPORT=['bread','moon','anon','sugar'];
+const REGULAR_NEW=['umbrella','triangle','fridge'];
 function createRegularState(){return {schema:1,started:false,letterArchive:{},processedNights:[],latestThemes:{},lastMailed:{},mailHistory:[],routeActions:[],phase:'between_chapters'}}
 function migrateRegular(data){
  const base=createRegularState(),old=data.regular&&typeof data.regular==='object'?data.regular:{};
@@ -835,7 +1198,8 @@ function regularThemeLetter(id,n){
   driver:'夜の道路で一人になると、変な考えが浮かぶんですよね。',
   fish:'日記にも書いてみようと思います。',clock:'歳をとっても知らないことは多いものですね。',
   terminal:'答えは、今のところありません。',bread:'パンとは関係ありませんが、こういう話も好きです。',
-  moon:'なお、これが正しいかどうかは月に聞いてください。',anon:'聴いているだけの日も多いですが、今日は送ってみました。',sugar:'コーヒーが冷める前に、このへんで。'
+  moon:'なお、これが正しいかどうかは月に聞いてください。',anon:'聴いているだけの日も多いですが、今日は送ってみました。',sugar:'コーヒーが冷める前に、このへんで。',
+  umbrella:'花を並べながら、そんなことを考えました。',triangle:'まだまだ知らないことばかりです。',fridge:'厨房以外のことも考える夜でした。'
  };
  return {subject:theme[0]+'のこと',kind:'theme',tag:`theme-${(n-15)%REGULAR_THEMES.length}`,
   body:regularFirstSentence(id,n)+'\n\n今夜のテーマは「'+theme[0]+'」だそうですね。'+theme[1]+'について考えていたら、自分の今日と昨日を思い出しました。'+extras+'\n\n'+(endings[id]||'またお便りします。')};
@@ -859,7 +1223,7 @@ function createRegularLetters(n){
  const archive=s.regular.letterArchive;
  // 読み直しても新しい抽選をせず、確定済みの便箋を返す。
  const cached=s.letterSets[n];if(cached)return cached;
- const sorted=Object.keys(SIM_PROFILES).map(id=>{
+ const sorted=Object.keys(SIM_PROFILES).filter(id=>newListenerEligible(id,n)).map(id=>{
   const last=s.regular.lastMailed[id]||0;
   const p=s.simState?.people?.[id];
   const activity=p?.daily?.find(d=>d.night===n-1);
@@ -869,14 +1233,25 @@ function createRegularLetters(n){
   const noise=simHash(`reg:mail:${id}:${n}:${s.rng}`)%35;
   return {id,weight:quiet+trust+historyBoost+noise-(last===n-1?24:0)};
  }).sort((a,b)=>b.weight-a.weight||a.id.localeCompare(b.id));
- // 主要人物の声を残しつつ、サブリスナーも少しずつ現れる。
+ // 主要5人は毎夜最大3人。新規3人は一斉に登場させず、毎夜最大1通。
  const main=sorted.filter(x=>REGULAR_MAIN.includes(x.id)).slice(0,3);
  const support=sorted.filter(x=>REGULAR_SUPPORT.includes(x.id)).slice(0,2);
- const extras=sorted.filter(x=>!main.concat(support).some(y=>y.id===x.id)).slice(0,(n%3===0?2:1));
- const selected=[...main,...support,...extras].sort((a,b)=>b.weight-a.weight);
+ const eligibleNew=sorted.filter(x=>REGULAR_NEW.includes(x.id)&&newListenerEligible(x.id,n));
+ const newcomer=eligibleNew.filter(x=>!newListenerIntroduced(x.id,n)).sort((a,b)=>
+   s.newListeners.entries[a.id].arrivalNight-s.newListeners.entries[b.id].arrivalNight||a.id.localeCompare(b.id))[0];
+ // 初投稿候補があるときだけ一通を確保。既存のサブリスナーの居場所も残す。
+ const newCandidate=newcomer||eligibleNew.filter(x=>newListenerIntroduced(x.id,n))[0];
+ const selected=[...main,...support.slice(0,newCandidate?1:2),...(newCandidate?[newCandidate]:[])];
+ // 通常は5〜7通。新規の初投稿があっても同じ人を二通載せない。
+ const extras=sorted.filter(x=>!selected.some(y=>y.id===x.id)&&!REGULAR_NEW.includes(x.id))
+   .slice(0,n%3===0?2:1);
+ selected.push(...extras);
+ selected.sort((a,b)=>b.weight-a.weight||a.id.localeCompare(b.id));
  const ids=[];
  for(const {id} of selected){
-  const note=id===support[(n%2)%support.length]?.id?regularThemeLetter(id,n):regularCompose(id,n);
+  const first=REGULAR_NEW.includes(id)&&!newListenerIntroduced(id,n);
+  const note=first?newListenerFirstLetter(id,n):REGULAR_NEW.includes(id)?newListenerCompose(id,n):
+    id===support[(n%2)%support.length]?.id?regularThemeLetter(id,n):regularCompose(id,n);
   const uuid=`regular_${n}_${id}`;
   const special=n>=21&&(n-21)%7===0&&REGULAR_MAIN.includes(id)&&id===main[0]?.id;
   archive[uuid]={who:id,subject:note.subject,body:note.body,special,regular:true,kind:note.kind,tag:note.tag,
@@ -1189,7 +1564,10 @@ function specialSubmitBody(themeId,id,n){
     bread:'仕事でも暮らしでも、小さな達成は嬉しいものですね。',
     moon:'月が聞いていたかは知りませんが、自分としては成功です。',
     sugar:'コーヒーが冷める前に報告したくなりました。',
-    anon:'送信する勇気が出たことも、今夜のもう一つの自慢かもしれません。'
+    anon:'送信する勇気が出たことも、今夜のもう一つの自慢かもしれません。',
+    umbrella:'花屋を続けていても、こんな小さなことが嬉しいんです。',
+    triangle:'一人で勝手に嬉しかったので、ここで少し自慢させてください。',
+    fridge:'忙しい日でも、自分のことを一つできた気がします。'
    };
    story='昨日、'+action.activity.replace(/。+$/,'')+'。\n\n'+endings[id];
   }else{
@@ -1214,6 +1592,7 @@ function specialFinalizeAnnouncement(n){
  const theme=SPECIAL_THEMES[plan.themeId];
  const audience=[],submissions=[];
  for(const id of Object.keys(SIM_PROFILES)){
+  if(!newListenerIntroduced(id,n))continue;
   const p=s.simState?.people?.[id];if(!p)continue;
   const traits=SIM_PROFILES[id].traits;
   const trust=s.listeners[id]?.trust||25;
@@ -1251,6 +1630,7 @@ function specialCreateLetters(n){
  const maxSpecial=5;
  const selectedSpecial=specialIds.slice(0,maxSpecial);
  const fallback=allRegular.filter(uid=>!selectedSpecial.some(sid=>archive[sid]?.who===archive[uid]?.who));
+ fallback.sort((a,b)=>Number(archive[b]?.kind==='new-intro')-Number(archive[a]?.kind==='new-intro'));
  const chosen=[...selectedSpecial,...fallback.slice(0,Math.max(2,7-selectedSpecial.length))].slice(0,8);
  plan.createdIds=[...chosen];
  return chosen;
@@ -1415,13 +1795,19 @@ const CLIMATE_PERSONAL={
  sugar:{rain:'雨を眺めながら飲むコーヒーは、いつもより冷めるのが早い気がします。',clear:'晴れた夜は、コーヒーを飲みながら少しだけ窓を開けます。',snow:'雪の日は、砂糖をいつもより一杯増やしたくなります。',season:'季節によって、同じコーヒーが少し違う味に感じられます。'},
  anon:{rain:'雨の音に混じって、ラジオの声がよく聞こえる夜があります。',clear:'よく晴れた夜は、眠れない時間も少し静かに感じます。',snow:'窓の外が白くなると、ラジオの声が近く感じられます。',season:'季節が変わっても、毎晩同じ時刻にラジオをつけています。'}
 };
+// v2.5: 新しい住人も、それぞれの生活から季節を感じる。
+Object.assign(CLIMATE_PERSONAL,{
+ umbrella:{rain:'雨の日は花の水を少なめにします。店の外の傘を眺める時間も好きです。',clear:'晴れた日には、店先の鉢がいつもより元気に見えます。',snow:'寒い日には、花の置き場所をいつもより慎重に選びます。',season:'季節が変わると、花屋に並ぶ色も変わっていきます。'},
+ triangle:{rain:'雨の日は、ノートに街の地図を描きたくなります。',clear:'空の色を見ていると、天気の仕事も楽しそうだと思います。',snow:'雪の日の道は、いつもとは違う図形みたいです。',season:'季節が変わるたび、新しいことが気になってしまいます。'},
+ fridge:{rain:'雨の日は閉店後の厨房がいつもより静かです。',clear:'晴れた夜は、帰り道に少し遠回りしたくなります。',snow:'寒い日は、仕事が終わっても温かいものを作りたくなります。',season:'季節が変わると食材が変わります。自分のご飯は相変わらず簡単です。'}
+});
 function climateCreateLetter(n){
  if(n<29)return null;
  const c=climateForNight(n);
  // 主要エピソードと参加型特別放送の枠を守る。ときどき1通だけ差し込む。
  const chance=simHash(`v22:climate:mail:${n}`)%100;
  if(chance>=46)return null;
- const all=['cat','driver','fish','clock','terminal','bread','moon','sugar','anon'];
+ const all=['cat','driver','fish','clock','terminal','bread','moon','sugar','anon',...REGULAR_NEW.filter(id=>newListenerIntroduced(id,n))];
  const who=all[simHash(`v22:climate:sender:${n}`)%all.length];
  const intro=CLIMATE_PERSONAL[who];
  const kind=c.dayInSeason<=4?'season':c.weather;
@@ -1457,6 +1843,12 @@ for(const [themeId,info] of Object.entries(CLIMATE_SPECIAL_INFO)){
   const person=CLIMATE_PERSONAL[id];
   const thought=themeId==='rain'?person.rain:themeId==='season_winter'?(person.snow+'\n\n'+person.season):person.season;
   theme.letters[id]=[subject,thought+'\n\n今夜の特別放送に、そんな小さな話を送ってみました。'];
+ }
+ for(const id of REGULAR_NEW){
+  const person=CLIMATE_PERSONAL[id];
+  const thought=themeId==='rain'?person.rain:themeId==='season_winter'?person.snow+'\n\n'+person.season:person.season;
+  const whoLabel={umbrella:'花屋',triangle:'ノート',fridge:'閉店後'}[id];
+  theme.letters[id]=[whoLabel+'と'+({rain:'雨',season_spring:'春',season_summer:'夏',season_autumn:'秋',season_winter:'冬'}[themeId]||'季節')+'の話',thought+'\n\n今夜の特別放送に、そんな小さな話を送ってみました。'];
  }
  SPECIAL_THEMES[themeId]=theme;
 }

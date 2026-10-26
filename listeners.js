@@ -1,5 +1,5 @@
-const NAMES={cat:'夜明けの猫',clock:'古時計',bread:'眠れないパン屋',moon:'月の裏側',driver:'午前3時の配達員',fish:'透明な金魚',sugar:'砂糖を三杯',anon:'名前はまだありません',terminal:'終点のひとつ前',station:'番組スタッフ'};
-const defaultState=()=>({version:1,night:1,phase:'intro',tab:'studio',opening:null,chosen:[],played:[],cursor:0,current:null,replyStep:0,replyParts:[null,null,null],song:null,logs:[],events:[],listeners:{cat:{trust:30,reflection:30,agency:25,stress:65,memories:[],known:false},clock:{trust:30,reflection:45,agency:45,stress:25,memories:[],known:false},bread:{trust:30,reflection:40,agency:55,stress:20,memories:[],known:false},moon:{trust:30,reflection:50,agency:50,stress:10,memories:[],known:false},driver:{trust:35,reflection:40,agency:50,stress:35,memories:[],known:false},fish:{trust:20,reflection:40,agency:20,stress:60,memories:[],known:false},terminal:{trust:15,reflection:65,agency:28,stress:43,memories:[],known:false},anon:{trust:25,reflection:45,agency:45,stress:22,memories:[],known:false},sugar:{trust:25,reflection:45,agency:45,stress:18,memories:[],known:false}},flags:{},pending:[],contentVersion:13,climate:createClimateState(),special:createSpecialState(),storyPrograms:createStoryProgramsState(),chapter2:createChapter2State(),regular:createRegularState(),microWorld:createMicroWorldState(),lifePaths:createLifePaths(),storyState:initializeStoryState(),privateMemories:{},stationTone:{warmth:0,curiosity:0,quiet:0},letterSets:{},world:[],rng:20261026});
+const NAMES={cat:'夜明けの猫',clock:'古時計',bread:'眠れないパン屋',moon:'月の裏側',driver:'午前3時の配達員',fish:'透明な金魚',sugar:'砂糖を三杯',anon:'名前はまだありません',terminal:'終点のひとつ前',station:'番組スタッフ',umbrella:'逆さまの傘',triangle:'三角定規',fridge:'冷蔵庫の明かり'};
+const defaultState=()=>({version:1,night:1,phase:'intro',tab:'studio',opening:null,chosen:[],played:[],cursor:0,current:null,replyStep:0,replyParts:[null,null,null],song:null,logs:[],events:[],listeners:{cat:{trust:30,reflection:30,agency:25,stress:65,memories:[],known:false},clock:{trust:30,reflection:45,agency:45,stress:25,memories:[],known:false},bread:{trust:30,reflection:40,agency:55,stress:20,memories:[],known:false},moon:{trust:30,reflection:50,agency:50,stress:10,memories:[],known:false},driver:{trust:35,reflection:40,agency:50,stress:35,memories:[],known:false},fish:{trust:20,reflection:40,agency:20,stress:60,memories:[],known:false},terminal:{trust:15,reflection:65,agency:28,stress:43,memories:[],known:false},anon:{trust:25,reflection:45,agency:45,stress:22,memories:[],known:false},sugar:{trust:25,reflection:45,agency:45,stress:18,memories:[],known:false},umbrella:{trust:24,reflection:43,agency:53,stress:37,memories:[],known:false},triangle:{trust:20,reflection:57,agency:55,stress:31,memories:[],known:false},fridge:{trust:28,reflection:40,agency:59,stress:49,memories:[],known:false}},flags:{},pending:[],contentVersion:14,climate:createClimateState(),special:createSpecialState(),storyPrograms:createStoryProgramsState(),newListeners:createNewListenerState(),chapter2:createChapter2State(),regular:createRegularState(),microWorld:createMicroWorldState(),socialWorld:createSocialWorldState(),lifePaths:createLifePaths(),storyState:initializeStoryState(),privateMemories:{},stationTone:{warmth:0,curiosity:0,quiet:0},letterSets:{},world:[],rng:20261026});
 
 
 
@@ -99,6 +99,61 @@ const SIM_PROFILES = {
    ['greet','隣人と短い挨拶をした','social',12,'neighbor',{loneliness:-1},'誰かと短い挨拶を交わしました。']
  ]}
 };
+
+// v2.5: 三人とも自分の暮らし・目的・交流を持ち、放送で取り上げられなくても生活する。
+Object.assign(SIM_PROFILES,{
+ umbrella:{traits:[65,58,71,71],life:[63,64,53,51],mood:[43,39,12,29,52],
+  routine:['花屋のシャッターを上げた','水揚げした花の名前を確かめた','店先の小さな鉢を並べ直した'],
+  relations:{regular:['花を買いに来る常連',55,58,16],assistant:['週末に手伝う知人',48,55,23],neighbor:['向かいの店の人',52,53,18]},
+  actions:[
+   ['bouquet','店で季節の花束を一つ組んだ','creative',19,null,{hope:1,leisure:1},'売り物になる前の花束をひとつ作りました。'],
+   ['window','店の窓辺に小さな鉢を飾り直した','creative',16,null,{joy:2},'店先の鉢の置き方を変えてみました。'],
+   ['flowercustomer','店でお客さんの好みを聞いた','social',16,'regular',{joy:1,loneliness:-1},'お客さんの話から、花の色を選び直しました。'],
+   ['market','朝の市場で小さな花を仕入れた','duty',17,null,{work:1,health:-1},'朝の市場で、名前の知らない小さな花を見つけました。'],
+   ['assistanttalk','手伝いに来る知人と店の予定を話した','social',12,'assistant',{anxiety:-1,hope:1},'手伝いをお願いする曜日を考えました。'],
+   ['plantrest','店を閉めてから、枯れかけた鉢の手入れをした','rest',15,null,{health:1,hope:1},'花を売るより、育て直すほうが難しい日もあります。'],
+   ['neighborchat','向かいの店の人と短く立ち話をした','social',12,'neighbor',{loneliness:-1},'向かいの店と、通りの話をしました。']
+  ]},
+ triangle:{traits:[56,68,79,61],life:[45,77,48,58],mood:[47,41,12,23,66],
+  routine:['学校の時間割を確認した','ノートの端に図形を描いた','部活のない放課後をどう過ごすか考えた'],
+  relations:{friend:['クラスの友人',61,65,19],teacher:['学校の先生',49,55,24],family:['家族',65,70,23]},
+  actions:[
+   ['librarystudy','放課後、図書室で資料を読んだ','duty',17,null,{work:1,leisure:1},'放課後、図書室で知らない分野の本を読みました。'],
+   ['diagram','ノートに思いついた街の地図を描いた','creative',17,null,{joy:2,hope:1},'ノートの端に、まだない街の地図を描きました。'],
+   ['friends','友達と進路とは関係ない話をした','social',16,'friend',{joy:1,loneliness:-2},'友達と、明日の予定とは関係のない話をしました。'],
+   ['future','なりたい職業を三つ書いて、一つ消した','reflection',17,null,{hope:1,anxiety:1},'なりたい職業を三つ書いて、ひとつだけ消しました。'],
+   ['teacher','先生に気になる授業について質問した','social',12,'teacher',{hope:1,anxiety:-1},'学校で、気になった授業の続きを尋ねました。'],
+   ['freewalk','帰宅途中、いつもと違う道を選んだ','rest',15,null,{health:1,joy:1},'帰り道を少し変えたら、知らない看板を見つけました。'],
+   ['familydinner','家で夕食の支度を手伝った','social',13,'family',{joy:1,loneliness:-1},'夕食を並べながら、今日の話をしました。']
+  ]},
+ fridge:{traits:[47,67,61,76],life:[76,51,57,24],mood:[33,54,15,36,42],
+  routine:['厨房の火を落とした','使った包丁を研いだ','閉店後に冷蔵庫の明かりを確かめた'],
+  relations:{cookmate:['店の料理人仲間',59,58,27],sibling:['兄',49,57,31],supplier:['食材の仕入れ先',48,59,20]},
+  actions:[
+   ['prep','閉店後に翌日の仕込みを少し済ませた','duty',18,null,{work:1,health:-1},'厨房に残って、翌日の仕込みを少し済ませました。'],
+   ['konbini','仕事帰りのコンビニで、おにぎりを二つ買った','rest',19,null,{joy:1,health:1},'料理人なのに、仕事帰りはコンビニのおにぎりを選びました。'],
+   ['leftovers','家の冷蔵庫にあるもので短い料理を作った','creative',12,null,{leisure:1,joy:2},'家で、あり合わせのもので短い料理を作りました。'],
+   ['supply','早朝に食材の卸売店へ仕入れに出た','duty',16,'supplier',{work:1,health:-1},'早朝に食材を仕入れて、夜とは違う街を見ました。'],
+   ['cookmate','厨房で仲間に失敗談を一つ話した','social',15,'cookmate',{loneliness:-2,joy:1},'厨房の仲間と、焦がした料理の話で笑いました。'],
+   ['rest','家に帰って、何も作らず静かに座った','rest',17,null,{health:2,anxiety:-2},'帰宅して、何も作らずに休みました。'],
+   ['brother','兄に短い近況を送った','social',10,'sibling',{loneliness:-1,hope:1},'兄へ、短い近況だけ送りました。']
+  ]}
+});
+// 同じ時刻に複数の場所を訪れたことにはしない。追加の訪問も通常行動として選択される。
+SIM_PROFILES.cat.actions.push(['flowerstop','仕事の帰りに花屋の小さな鉢を眺めた','rest',12,null,{joy:1,leisure:1},'帰り道、花屋の鉢を少し眺めました。']);
+SIM_PROFILES.clock.actions.push(['morningmarket','朝の市場に寄り、季節の花を見た','rest',12,null,{joy:1,health:1},'朝の市場で、花の並びを眺めました。']);
+SIM_PROFILES.driver.actions.push(['conveniencestop','深夜のコンビニに寄って温かい飲み物を買った','rest',13,null,{health:1,joy:1},'深夜のコンビニで、温かい飲み物を買いました。']);
+SIM_PROFILES.bread.actions.push(['ingredientmarket','朝の仕入れ先で小麦粉と果物を選んだ','duty',13,null,{work:1,health:-1},'仕入れ先で、今日はいつもと違う果物を見つけました。']);
+
+// v2.4: 新たな行動を既存の自律生活の選択肢に統合する。行動が選ばれない日は、訪問したことにならない。
+SIM_PROFILES.cat.actions.push(['bakery','仕事帰りにパン屋へ寄り、夕食のパンを選んだ','rest',15,null,{joy:1,leisure:1},'帰り道に、お気に入りのパン屋へ寄りました。']);
+SIM_PROFILES.fish.actions.push(['libraryvisit','地域の図書室へ行き、好きな本を探した','rest',15,null,{joy:1,leisure:1},'地域の図書室で、少し本を読みました。']);
+SIM_PROFILES.clock.actions.push(['shopfront','昔の時計店があった通りを歩いた','reflection',13,null,{hope:1,loneliness:1},'昔の店があった通りを歩きました。']);
+SIM_PROFILES.clock.actions.push(['shopvisit','昔の時計店の窓を眺め、商店街をゆっくり歩いた','rest',13,null,{joy:1,loneliness:1},'昔の店の近くを歩きました。']);
+SIM_PROFILES.fish.actions.push(['librarystudy','地域の図書室で、レポートの資料を調べた','duty',14,null,{work:1,leisure:1},'図書室で資料を調べました。']);
+SIM_PROFILES.driver.actions.push(['shoproute','古い時計店のある通りへ荷物を届けた','duty',15,null,{work:1,health:-1},'昔の時計屋の通りへ配達に行きました。']);
+SIM_PROFILES.driver.actions.push(['stationdelivery','駅前の配送先へ荷物を届けた','duty',15,null,{work:1,health:-1},'駅前へ荷物を届けました。']);
+SIM_PROFILES.terminal.actions.push(['stationstop','帰宅途中、駅前でしばらく時刻表を眺めた','reflection',13,null,{hope:1},'帰りに駅前で時刻表を眺めました。']);
 const MOOD_KEYS=['joy','anxiety','anger','loneliness','hope'];
 const LIFE_KEYS=['work','health','finance','leisure'];
 const SIM_CATEGORIES=['duty','rest','creative','social','reflection'];
@@ -183,7 +238,7 @@ function simReplyImpact(id,choice,assembled,letterId){
  const mood=effects[choice]||[1,-1,0,0,1];
  MOOD_KEYS.forEach((k,i)=>simAdjust(p.emotion,k,mood[i]));
  if(assembled&&/嫌|つら|苦し|怖/.test(assembled))simAdjust(p.emotion,'anxiety',-1);
- const topic=(letterId||'').startsWith('regular_')?({cat:'creative',driver:'reconnect',fish:'boundaries',clock:'memories',terminal:'reconnect',bread:'creative',moon:'everyday'}[id]||'everyday'):simReplyTopic(letterId||'');
+ const topic=(letterId||'').startsWith('regular_')?({cat:'creative',driver:'reconnect',fish:'boundaries',clock:'memories',terminal:'reconnect',bread:'creative',moon:'everyday',umbrella:'creative',triangle:'creative',fridge:'everyday'}[id]||'everyday'):simReplyTopic(letterId||'');
  // 本人が考えるきっかけ。家族や友人の「信頼値」を放送だけで増やさない。
  p.signals[topic]=Math.min(8,(p.signals[topic]||0)+2);
  if(choice==='agency')p.signals.boundaries=Math.min(8,(p.signals.boundaries||0)+1);
@@ -234,7 +289,7 @@ function simCategoryWeight(p,action,night){
 }
 function simChooseAction(id,p,night){
  const actions=SIM_PROFILES[id].actions.filter(x=>simEligible(x,night));
- const candidates=actions.map(a=>[a,Math.max(.5,simCategoryWeight(p,a,night)+lifeDailyActionBias(id,a,night)+climateActionBias(id,a,night))]);
+ const candidates=actions.map(a=>[a,Math.max(.5,simCategoryWeight(p,a,night)+lifeDailyActionBias(id,a,night)+climateActionBias(id,a,night)+socialActionBias(id,a,night))]);
  const total=candidates.reduce((sum,x)=>sum+x[1],0);
  const seed=simHash(`${id}:${night}:${JSON.stringify(p.emotion)}:${JSON.stringify(p.life)}:${JSON.stringify(p.signals)}:${JSON.stringify(p.activityCounts)}`);
  let r=(seed/4294967296)*total;

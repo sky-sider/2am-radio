@@ -3,6 +3,8 @@ const SAVE='radio_2am_prototype_v1';
 let s=load();
 if(!s.simState)s.simState=createSimulationState();
 if(!s.microWorld)s.microWorld=createMicroWorldState();
+if(!s.socialWorld)s.socialWorld=createSocialWorldState();
+if(!s.newListeners)s.newListeners=createNewListenerState();
 if(!s.regular)s.regular=createRegularState();
 if(!s.special)s.special=createSpecialState();
 if(!s.storyPrograms)s.storyPrograms=createStoryProgramsState();
@@ -10,7 +12,7 @@ if(!s.climate)s.climate=createClimateState();
 function migrateState(data){
   if(!data||data.version!==1||!data.listeners||!data.flags)return null;
   const defaults=defaultState();
-  data.contentVersion=13;
+  data.contentVersion=14;
   migrateClimate(data);
   migrateSpecial(data);
   migrateStoryPrograms(data);
@@ -18,6 +20,8 @@ function migrateState(data){
   migrateChapter2(data);
   migrateMicroWorld(data);
   migrateSimulation(data);
+  migrateSocialWorld(data);
+  migrateNewListeners(data);
   migrateLifePaths(data);
   data.storyState=initializeStoryState(data.storyState);
   data.stationTone=data.stationTone||{warmth:0,curiosity:0,quiet:0};
@@ -56,7 +60,7 @@ function fmt(v){return esc(v).replace(/\n/g,'<br>')}
 function letter(id){let l=letterDB[id]||s.regular?.letterArchive?.[id];if(!l)return null;if(l.regular)return {...l,id};let body=l.body;if(id==='clock3')body=body.replace('{wife}',s.flags.clockWifeKnown?'妻なら知っていたでしょうが、私は花の名前には疎いもので。':'昔なら、名前を知っている人に聞けたのですが、今は自分で調べるしかありません。');if(id==='echo_driver_clock'&&s.microWorld?.links?.['old-clock-street']?.greeted)body=body.replace('お店は閉まっていました。','お店は閉まっていました。店の前で年配の人とすれ違い、軽く会釈しました。');if(id==='cat2'&&s.flags.catReply==='reflection')body=body.replace('今日、上司と話しました。','昨日、辞めたい理由と辞めたあとにしたいことは別だと言ってくれましたよね。あれから少し考えていました。\n\n今日、上司と話しました。');const late=lateLetterText(id,s);const lifeNote=lifeLetterNote(id,s);return {...l,...(late||{}),id,body:(relationLetterText(id,s)?.body??late?.body??body)+lifeNote+(l.special?'':(simRelationshipPostscript(l.who,s.night)||simLetterPostscript(l.who,s.night)))}}
 // v2.1.1: 同じ夜の「眠れないパン屋」は、手作り・日常・特別放送・持ち越しを合計して最大2通。
 // 放送中や放送済みの手紙には触れず、準備中・未開始の便箋だけ整理する。
-const NIGHTLY_LETTER_LIMITS={bread:2};
+const NIGHTLY_LETTER_LIMITS={bread:2,umbrella:1,triangle:1,fridge:1};
 function letterSenderId(id){return letterDB[id]?.who||s.regular?.letterArchive?.[id]?.who||null}
 function applyNightlyLetterLimits(n,ids){
   if(n<s.night||n===s.night&&!['intro','prepare'].includes(s.phase))return ids;
@@ -79,6 +83,7 @@ function nightLetters(n){
     const original=s.letterSets[n];
     const limited=applyNightlyLetterLimits(n,original);
     if(limited.length!==original.length){s.letterSets[n]=limited;save()}
+    newListenerOnLettersDelivered(n,s.letterSets[n]);
     return s.letterSets[n];
   }
   let fresh=[];
@@ -92,10 +97,19 @@ function nightLetters(n){
   // 前夜までに実際に起きた出来事をもとに書かれた新しいお便り。
   // 最大1通のみ。既存の主要な物語の枠は奪わない。
   const echoes=n>=2?(s.microWorld?.queued?.[n]||[]):[];
+  const socialMail=n>=29?(s.socialWorld?.queued?.[n]||[]):[];
   const aftermath=n>=29?(s.special?.followups?.[n]||[]):[];
   const climateMail=n>=29?climateCreateLetter(n):null;
-  const picked=[...new Set([...fresh,...aftermath,...echoes,...carried,...(climateMail?[climateMail]:[])])].filter(id=>letterDB[id]||s.regular?.letterArchive?.[id]);
+  // 自律関係の手紙は通常の日常投稿と置き換え、同じ人の声が重なりすぎるのを防ぐ。
+  const senders=new Set(socialMail.map(id=>letterSenderId(id)));
+  const duringSpecial=Boolean(specialActive(n));
+  const normalFresh=duringSpecial?fresh:fresh.filter(id=>!senders.has(letterSenderId(id)));
+  // 特別放送で募集した投稿は、日常の社会的な手紙より先に残す。
+  const supplemental=duringSpecial?socialMail.filter(id=>!fresh.some(x=>letterSenderId(x)===letterSenderId(id))):socialMail;
+  const order=duringSpecial?[...normalFresh,...supplemental]:[...supplemental,...normalFresh];
+  const picked=[...new Set([...order,...aftermath,...echoes,...carried,...(climateMail?[climateMail]:[])])].filter(id=>letterDB[id]||s.regular?.letterArchive?.[id]);
   s.letterSets[n]=applyNightlyLetterLimits(n,picked.slice(0,8));
+  newListenerOnLettersDelivered(n,s.letterSets[n]);
   save();
   return s.letterSets[n];
 }
@@ -104,7 +118,7 @@ function selectLetter(id){let i=s.chosen.indexOf(id);if(i>=0)s.chosen.splice(i,1
 function startNight(){s.phase='prepare';s.tab='studio';nightLetters(s.night);save();render()}
 function beginBroadcast(){if(!s.chosen.length||s.opening===null)return;recordOpening();s.phase='broadcast';s.cursor=0;save();render()}
 function chooseReply(i){let l=letter(s.current);let c=l.choices[i];applyReply(l,c[2],c[1])}
-function finishBroadcast(){if(s.song===null)return;s.phase='after';log('曲',`「${songs[s.song][0]}」を流した。`);applySongMood();const omitted=nightLetters(s.night).filter(id=>!s.chosen.includes(id));log('未紹介',omitted.length?omitted.map(id=>NAMES[letter(id).who]).join('、')+'のお便りは放送で紹介されなかった。':'今夜届いたお便りはすべて紹介した。');updatePendingLetters();if(s.night<=14)advanceWorld();if(s.night>=29)specialBeginAnnouncement(s.night);simulateDailyLives(s.night);if(s.night<=14){lifeAfterDaily(s.night);simulateMicroWorld(s.night)}else {regularAfterWorld(s.night);chapter2AfterWorld(s.night);specialProcessNight(s.night);storyProgramsAfterWorld(s.night)}save();render()}
+function finishBroadcast(){if(s.song===null)return;s.phase='after';log('曲',`「${songs[s.song][0]}」を流した。`);applySongMood();const omitted=nightLetters(s.night).filter(id=>!s.chosen.includes(id));log('未紹介',omitted.length?omitted.map(id=>NAMES[letter(id).who]).join('、')+'のお便りは放送で紹介されなかった。':'今夜届いたお便りはすべて紹介した。');updatePendingLetters();if(s.night<=14)advanceWorld();if(s.night>=29)specialBeginAnnouncement(s.night);simulateDailyLives(s.night);newListenerAfterDaily(s.night);simulateSocialWorld(s.night);if(s.night<=14){lifeAfterDaily(s.night);simulateMicroWorld(s.night)}else {regularAfterWorld(s.night);chapter2AfterWorld(s.night);specialProcessNight(s.night);storyProgramsAfterWorld(s.night)}save();render()}
 function nextNight(){
   if(s.night===28&&s.chapter2?.legacyThrough<28){s.phase='chapter2_complete';save();render();return}
   if(s.night===14){s.phase='complete';save();render();return}
@@ -120,7 +134,7 @@ function beginRegular(){
   s.current=null;s.replyStep=0;s.replyParts=[null,null,null];s.song=null;
   nightLetters(s.night);save();render();
 }
-function resetGame(){if(!confirm('進行状況を最初からやり直しますか？ 現在のセーブは消えます。'))return;s=defaultState();save();render()}
+function resetGame(){if(!confirm('進行状況を最初からやり直しますか？ 現在のセーブは消えます。'))return;s=defaultState();s.simState=createSimulationState();s.newListeners=createNewListenerState();save();render()}
 function downloadSave(){let blob=new Blob([JSON.stringify(s,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='radio_2am_save.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function importSave(input){
   const file=input.files?.[0];if(!file)return;
@@ -137,7 +151,7 @@ function importSave(input){
 }
 const dayTitles=['','はじめましての夜','誰かが聴いている','言えなかった言葉',
   '終点のひとつ前','いつもの道の途中','言いそびれた返事','ひとり分の余白','返事をしない自由','描かれなかった余白','窓の明かり','木曜日の駅','自分の声','返ってこない約束','それぞれの朝'];
-function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete',sp=specialActive(s.night);return `<header class="header"><div><div class="brand">MIDNIGHT LETTERS / A RADIO STORY</div><h1>午前2時のラジオ局</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':`第${s.night}夜　${regularDayTitle(s.night)}`}</div><div class="climate-meta">${esc(climateCaption(s.night))}</div></div><div class="chip">${s.phase==='broadcast'||s.phase==='reply'?'● ON AIR':'◌ OFF AIR'}</div></header><div class="studio ${sp?'studio-special':''} weather-${climateForNight(s.night).weather} season-${climateForNight(s.night).season}" role="img" aria-label="月明かりの差す深夜のラジオスタジオ。机にマイクとランプが置かれている"><div class="studio-caption">${sp?'SPECIAL PROGRAM · '+esc(SPECIAL_THEMES[sp.themeId].short):'02:00 AM · YOUR VOICE, SOMEWHERE'}</div><div class="climate-studio-label">${esc(climateCaption(s.night))}</div><div class="moon"></div><div class="lamp"></div><div class="mic"></div><div class="desk"></div><div class="onair">${s.phase==='broadcast'||s.phase==='reply'?'ON AIR':'STANDBY'}</div></div><div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}</div><div class="panel"><div class="overline">${sp?'特別放送':s.night>=15&&s.night<=28?'第2章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー"><button class="${s.tab==='studio'?'active':''}" onclick="setTab('studio')"><span>◉</span>放送</button><button class="${s.tab==='letters'?'active':''}" onclick="setTab('letters')"><span>✉</span>お便り</button><button class="${s.tab==='journal'?'active':''}" onclick="setTab('journal')"><span>▤</span>記録</button><button class="${s.tab==='listeners'?'active':''}" onclick="setTab('listeners')"><span>♧</span>リスナー</button><button class="${s.tab==='settings'?'active':''}" onclick="setTab('settings')"><span>⚙</span>設定</button></nav><div class="footer">『午前2時のラジオ局』v2.3 · 第1章／第2章・通常放送／特別放送 · オフライン対応</div>`}
+function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete',sp=specialActive(s.night);return `<header class="header"><div><div class="brand">MIDNIGHT LETTERS / A RADIO STORY</div><h1>午前2時のラジオ局</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':`第${s.night}夜　${regularDayTitle(s.night)}`}</div><div class="climate-meta">${esc(climateCaption(s.night))}</div></div><div class="chip">${s.phase==='broadcast'||s.phase==='reply'?'● ON AIR':'◌ OFF AIR'}</div></header><div class="studio ${sp?'studio-special':''} weather-${climateForNight(s.night).weather} season-${climateForNight(s.night).season}" role="img" aria-label="月明かりの差す深夜のラジオスタジオ。机にマイクとランプが置かれている"><div class="studio-caption">${sp?'SPECIAL PROGRAM · '+esc(SPECIAL_THEMES[sp.themeId].short):'02:00 AM · YOUR VOICE, SOMEWHERE'}</div><div class="climate-studio-label">${esc(climateCaption(s.night))}</div><div class="moon"></div><div class="lamp"></div><div class="mic"></div><div class="desk"></div><div class="onair">${s.phase==='broadcast'||s.phase==='reply'?'ON AIR':'STANDBY'}</div></div><div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}</div><div class="panel"><div class="overline">${sp?'特別放送':s.night>=15&&s.night<=28?'第2章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー"><button class="${s.tab==='studio'?'active':''}" onclick="setTab('studio')"><span>◉</span>放送</button><button class="${s.tab==='letters'?'active':''}" onclick="setTab('letters')"><span>✉</span>お便り</button><button class="${s.tab==='journal'?'active':''}" onclick="setTab('journal')"><span>▤</span>記録</button><button class="${s.tab==='listeners'?'active':''}" onclick="setTab('listeners')"><span>♧</span>リスナー</button><button class="${s.tab==='settings'?'active':''}" onclick="setTab('settings')"><span>⚙</span>設定</button></nav><div class="footer">『午前2時のラジオ局』v2.5 · 第1章／第2章・通常放送／特別放送 · オフライン対応</div>`}
 function navButtons(){return [['studio','◉ 放送'],['letters','✉ お便り'],['journal','▤ 放送日誌'],['listeners','♧ リスナー'],['settings','⚙ 設定・セーブ']].map(([id,t])=>`<button class="navbtn ${s.tab===id?'active':''}" onclick="setTab('${id}')">${t}</button>`).join('')}
 function intro(){
   if(s.night>=15&&s.night<=28)return chapter2Intro();
@@ -238,8 +252,8 @@ function journal(){
   const replies=s.played.filter(x=>x.night>=oldest&&x.night<=latest).slice().reverse();
   return `<section class="panel"><div class="overline">BROADCAST JOURNAL</div><h2>放送日誌</h2><p class="muted">放送で伝えた言葉を記録しています。生活の秘密や内部数値は表示されません。</p><div class="actions"><button class="btn secondary" ${s.journalPage>=maxPage?'disabled':''} onclick="s.journalPage++;save();render()">← 前の10夜</button><button class="btn secondary" ${s.journalPage===0?'disabled':''} onclick="s.journalPage--;save();render()">新しい10夜 →</button></div><p class="small">第${oldest}〜${latest}夜を表示（全${n}夜）</p>${content}<h3>あなたが届けた言葉</h3>${replies.length?replies.map(x=>`<div class="letter"><div class="small">第${x.night}夜 · ${esc(NAMES[x.who])}</div><b>${esc(x.subject)}</b><div class="quote">${fmt(x.response)}</div></div>`).join(''):'<p class="muted">この期間には返答の記録がありません。</p>'}</section>`;
 }
-function listeners(){let bios={cat:'会社員。仕事と創作への気持ちの間で揺れている。',clock:'元時計修理職人。古い時計と日々の思い出を大切にしている。',bread:'パン屋で働く。新しいパン作りに挑戦している。',moon:'少し変わった空想を投稿するリスナー。',driver:'夜間配送ドライバー。駐車場の猫を「主任」と呼んでいる。',fish:'大学生。友人との関係で、自分の気持ちを伝えられずにいる。',terminal:'木曜日、終点のひとつ前の駅を訪れる。待つ理由はまだわからない。',anon:'以前から番組を聴いている静かなリスナー。'};return `<section class="panel"><div class="overline">LISTENER ARCHIVE</div><h2>リスナーの記録</h2><p class="muted">放送やお便りでわかったことだけが記録されます。</p>${Object.keys(bios).map(id=>{let o=s.listeners[id],seen=s.played.some(x=>x.who===id)||o.known;return `<div class="listener"><b>${seen?esc(NAMES[id]):'まだよく知らないリスナー'}</b><div class="small">${seen?esc(bios[id]):'これからお便りが届くかもしれません。'}</div>${seen&&o.memories.length?`<hr class="divider"><div class="small">これまでにわかったこと</div>${o.memories.map(m=>`<div class="small">・${esc(m)}</div>`).join('')}`:''}</div>`}).join('')}</section>`}
-function settings(){return `<section class="panel"><div class="overline">SETTINGS</div><h2>設定・セーブデータ</h2><p>進行状況は、この端末のブラウザ内に自動保存されます。別の端末に引き継ぐ場合は、バックアップを書き出してください。</p><div class="actions"><button class="btn" onclick="downloadSave()">バックアップを保存</button><label class="btn secondary" style="cursor:pointer">バックアップを読み込む<input class="screen-reader" type="file" accept=".json,application/json" onchange="importSave(this)"></label></div><hr class="divider"><h3>最初から遊ぶ</h3><p class="small">現在のセーブデータを消して、第1夜からやり直します。必要なら先にバックアップしてください。</p><button class="btn secondary" onclick="resetGame()">進行状況をリセット</button><hr class="divider"><p class="small">バージョン 2.3 · 第1章14夜＋第2章14夜＋継続放送・特別放送・四季と天候・物語連動企画。音楽は文章演出のみで、音声は再生されません。画像・外部ライブラリを使用せず、オフラインで遊べます。</p></section>`}
+function listeners(){let bios={cat:'会社員。仕事と創作への気持ちの間で揺れている。',clock:'元時計修理職人。古い時計と日々の思い出を大切にしている。',bread:'パン屋で働く。新しいパン作りに挑戦している。',moon:'少し変わった空想を投稿するリスナー。',driver:'夜間配送ドライバー。駐車場の猫を「主任」と呼んでいる。',fish:'大学生。友人との関係で、自分の気持ちを伝えられずにいる。',terminal:'木曜日、終点のひとつ前の駅を訪れる。待つ理由はまだわからない。',anon:'以前から番組を聴いている静かなリスナー。',umbrella:'花屋の店主。花束を渡すのは得意だが、自分の休みを作るのはまだ練習中。',triangle:'高校生。将来の夢がいくつもあり、まだ一つに決めたくない。',fridge:'料理人。仕事では料理を作るが、自分の夕食は簡単に済ませることが多い。'};return `<section class="panel"><div class="overline">LISTENER ARCHIVE</div><h2>リスナーの記録</h2><p class="muted">放送で紹介されたお便りからわかったことだけが記録されます。人々の交流は、番組の外でも続いています。</p>${Object.keys(bios).filter(id=>!REGULAR_NEW.includes(id)||newListenerIntroduced(id,s.night)||s.played.some(x=>x.who===id)).map(id=>{let o=s.listeners[id],seen=s.played.some(x=>x.who===id)||o.known;return `<div class="listener"><b>${seen?esc(NAMES[id]):'まだよく知らないリスナー'}</b><div class="small">${seen?esc(bios[id]):'これからお便りが届くかもしれません。'}</div>${seen&&o.memories.length?`<hr class="divider"><div class="small">これまでにわかったこと</div>${o.memories.map(m=>`<div class="small">・${esc(m)}</div>`).join('')}`:''}</div>`}).join('')}</section>`}
+function settings(){return `<section class="panel"><div class="overline">SETTINGS</div><h2>設定・セーブデータ</h2><p>進行状況は、この端末のブラウザ内に自動保存されます。別の端末に引き継ぐ場合は、バックアップを書き出してください。</p><div class="actions"><button class="btn" onclick="downloadSave()">バックアップを保存</button><label class="btn secondary" style="cursor:pointer">バックアップを読み込む<input class="screen-reader" type="file" accept=".json,application/json" onchange="importSave(this)"></label></div><hr class="divider"><h3>最初から遊ぶ</h3><p class="small">現在のセーブデータを消して、第1夜からやり直します。必要なら先にバックアップしてください。</p><button class="btn secondary" onclick="resetGame()">進行状況をリセット</button><hr class="divider"><p class="small">バージョン 2.5 · 第1章14夜＋第2章14夜＋継続放送・特別放送・四季と天候・物語連動企画・自律的な出会いと再会・新リスナー3人。音楽は文章演出のみで、音声は再生されません。画像・外部ライブラリを使用せず、オフラインで遊べます。</p></section>`}
 function specialPlanningPanel(){
  const n=s.night;
  const p=s.special?.planned;
