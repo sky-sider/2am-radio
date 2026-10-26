@@ -1,5 +1,5 @@
 const NAMES={cat:'夜明けの猫',clock:'古時計',bread:'眠れないパン屋',moon:'月の裏側',driver:'午前3時の配達員',fish:'透明な金魚',sugar:'砂糖を三杯',anon:'名前はまだありません',terminal:'終点のひとつ前',station:'番組スタッフ'};
-const defaultState=()=>({version:1,night:1,phase:'intro',tab:'studio',opening:null,chosen:[],played:[],cursor:0,current:null,replyStep:0,replyParts:[null,null,null],song:null,logs:[],events:[],listeners:{cat:{trust:30,reflection:30,agency:25,stress:65,memories:[],known:false},clock:{trust:30,reflection:45,agency:45,stress:25,memories:[],known:false},bread:{trust:30,reflection:40,agency:55,stress:20,memories:[],known:false},moon:{trust:30,reflection:50,agency:50,stress:10,memories:[],known:false},driver:{trust:35,reflection:40,agency:50,stress:35,memories:[],known:false},fish:{trust:20,reflection:40,agency:20,stress:60,memories:[],known:false},terminal:{trust:15,reflection:65,agency:28,stress:43,memories:[],known:false},anon:{trust:25,reflection:45,agency:45,stress:22,memories:[],known:false},sugar:{trust:25,reflection:45,agency:45,stress:18,memories:[],known:false}},flags:{},pending:[],contentVersion:8,microWorld:createMicroWorldState(),lifePaths:createLifePaths(),storyState:initializeStoryState(),privateMemories:{},stationTone:{warmth:0,curiosity:0,quiet:0},letterSets:{},world:[],rng:20261026});
+const defaultState=()=>({version:1,night:1,phase:'intro',tab:'studio',opening:null,chosen:[],played:[],cursor:0,current:null,replyStep:0,replyParts:[null,null,null],song:null,logs:[],events:[],listeners:{cat:{trust:30,reflection:30,agency:25,stress:65,memories:[],known:false},clock:{trust:30,reflection:45,agency:45,stress:25,memories:[],known:false},bread:{trust:30,reflection:40,agency:55,stress:20,memories:[],known:false},moon:{trust:30,reflection:50,agency:50,stress:10,memories:[],known:false},driver:{trust:35,reflection:40,agency:50,stress:35,memories:[],known:false},fish:{trust:20,reflection:40,agency:20,stress:60,memories:[],known:false},terminal:{trust:15,reflection:65,agency:28,stress:43,memories:[],known:false},anon:{trust:25,reflection:45,agency:45,stress:22,memories:[],known:false},sugar:{trust:25,reflection:45,agency:45,stress:18,memories:[],known:false}},flags:{},pending:[],contentVersion:9,regular:createRegularState(),microWorld:createMicroWorldState(),lifePaths:createLifePaths(),storyState:initializeStoryState(),privateMemories:{},stationTone:{warmth:0,curiosity:0,quiet:0},letterSets:{},world:[],rng:20261026});
 
 
 
@@ -126,7 +126,7 @@ function createSimulationState(){
 function migrateSimulation(data){
  const base=createSimulationState();
  const sim=data.simState&&typeof data.simState==='object'?data.simState:{};
- sim.processedNights=Array.isArray(sim.processedNights)?[...new Set(sim.processedNights.filter(n=>Number.isInteger(n)&&n>=1&&n<=14))]:[];
+ sim.processedNights=Array.isArray(sim.processedNights)?[...new Set(sim.processedNights.filter(n=>Number.isInteger(n)&&n>=1&&n<=100000))]:[];
  sim.people=sim.people&&typeof sim.people==='object'?sim.people:{};
  for(const [id,b] of Object.entries(base.people)){
   const old=sim.people[id]||{},out={...b,...old};
@@ -183,7 +183,7 @@ function simReplyImpact(id,choice,assembled,letterId){
  const mood=effects[choice]||[1,-1,0,0,1];
  MOOD_KEYS.forEach((k,i)=>simAdjust(p.emotion,k,mood[i]));
  if(assembled&&/嫌|つら|苦し|怖/.test(assembled))simAdjust(p.emotion,'anxiety',-1);
- const topic=simReplyTopic(letterId||'');
+ const topic=(letterId||'').startsWith('regular_')?({cat:'creative',driver:'reconnect',fish:'boundaries',clock:'memories',terminal:'reconnect',bread:'creative',moon:'everyday'}[id]||'everyday'):simReplyTopic(letterId||'');
  // 本人が考えるきっかけ。家族や友人の「信頼値」を放送だけで増やさない。
  p.signals[topic]=Math.min(8,(p.signals[topic]||0)+2);
  if(choice==='agency')p.signals.boundaries=Math.min(8,(p.signals.boundaries||0)+1);
