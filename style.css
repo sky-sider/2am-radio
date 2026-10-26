@@ -284,3 +284,28 @@ body.guide-open{overflow:hidden}
 }
 @media(max-width:360px){.header-tools{gap:8px}.header-tools .chip{padding:3px 9px}.bottomnav{padding-left:4px;padding-right:4px}}
 @media(prefers-reduced-motion:reduce){.sidebar .navbtn{transition:none}}
+
+/* v4.0.4 : 設定画面の手引きボタンと説明文の間に余白を追加。 */
+.settings-guide-btn{margin:2px 0 14px;display:inline-flex;align-items:center;justify-content:center}
+.settings-save-note{margin-top:0!important}
+@media(max-width:760px){.settings-guide-btn{margin-bottom:16px}}
+
+/* v4.0.5 : 各画面の小さな余白を統一（文字サイズ・配色・進行は変更しない）。 */
+/* 放送日誌：ページ操作と、その説明行の境目を明確に。 */
+.journal-bookmark-actions{margin-top:18px}
+.journal-page-actions{margin-top:16px}
+.layout main .panel > .journal-page-caption{margin:11px 0 17px;color:var(--sub)}
+/* お便り：差出人と件名を一続きの文章に見せない。 */
+.letter > .letter-title + .small,.letter > .letter-top + .small{margin-top:5px}
+/* 設定：バックアップ操作を横幅に合わせて整える。 */
+.settings-backup-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.settings-backup-actions > .btn{display:flex;align-items:center;justify-content:center;text-align:center;min-width:0;box-sizing:border-box}
+/* 設定：演出のON/OFF、動きの選択、注記をそれぞれ分ける。 */
+.studio-setting + .settings-motion-modes{margin-top:10px;padding-top:5px;padding-bottom:7px;row-gap:10px}
+.layout main .panel > .settings-motion-note{margin-top:10px;margin-bottom:15px}
+/* リスナー記録：未発見リストの各行を適度に離す。 */
+.archive-unknown-grid{gap:10px}
+@media(max-width:440px){
+  .settings-backup-actions{grid-template-columns:minmax(0,1fr);gap:10px}
+  .settings-backup-actions > .btn{min-height:48px;white-space:nowrap}
+}
