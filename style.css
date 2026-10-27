@@ -546,3 +546,14 @@ body.guide-open{overflow:hidden}
 .reader-night-jump input{font:inherit;font-size:.82rem;width:108px;min-width:0;min-height:40px;padding:6px 9px;border:1px solid #687b90;border-radius:var(--ui-radius);background:#27394d;color:#f1e8da}
 .reader-night-jump input:focus-visible{outline:2px solid #e3bf83;outline-offset:2px}
 @media(max-width:360px){.reader-night-jump{flex-wrap:wrap}.reader-night-jump label{width:100%}.reader-night-jump input{flex:1;max-width:none}}
+
+/* v4.8.24: optional, quietly folded list of whimsical special programs */
+.special-whimsy-list{margin-top:18px;padding:13px;border:1px solid rgba(208,176,125,.38);border-radius:12px;background:rgba(201,169,119,.06)}
+.special-whimsy-list summary{cursor:pointer;color:#efd5ab;font-weight:600;line-height:1.6;min-height:32px}
+.special-whimsy-list summary:focus-visible{outline:2px solid #f0d19a;outline-offset:3px}
+.special-whimsy-list > .small{margin:8px 0 10px}
+.special-whimsy-list .choice{margin:9px 0}
+
+/* v4.8.28 — 特別放送の投稿を手動選出時に識別しやすくする。 */
+.prepare-special-guide{margin:11px 0 16px;padding:11px 13px;border-left:2px solid #cba776;border-radius:0 8px 8px 0;background:#2c394a;color:#e9dcc8;font-size:.82rem;line-height:1.75}
+.prepare-letters .letter .tag{font-size:11px;line-height:1.4;color:#e8ca98;max-width:48%;text-align:right}
