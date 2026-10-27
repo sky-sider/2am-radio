@@ -7,6 +7,7 @@ const MAIN_VIEW_KEY='radio_2am_main_view_v421'; // 表示専用。物語のセ�
 let activeProfile='main';
 try{if(localStorage.getItem(ACTIVE_PROFILE_KEY)==='reader'&&localStorage.getItem(READER_SAVE))activeProfile='reader'}catch(e){console.warn(e)}
 let readerBatch=false,readerSetupOpen=false,readerSaveWarning=false;
+let mainDataRevision=0; // 読書モードの表示操作とは独立した本編データの更新番号
 let s=load();
 if(!s.simState)s.simState=createSimulationState();
 if(!s.microWorld)s.microWorld=createMicroWorldState();
@@ -182,7 +183,7 @@ function validateReaderState(data){
  if(!Number.isFinite(r.scrollY)||r.scrollY<0)r.scrollY=0;
  return true;
 }
-// v4.8.22: タブと日誌ページは表示だけの状態。重い本編セーブに触れない。
+// v4.8.23: タブと日誌ページは表示だけの状態。重い本編セーブに触れない。
 function applyMainViewState(state){
  if(!state||activeProfile!=='main')return;
  try{
@@ -223,6 +224,7 @@ function load(){
 
 function save(){
  if(readerBatch)return true;
+ if(activeProfile==='main')mainDataRevision++; // 放送内容の更新時は部分描画を無効化する
  try{const raw=JSON.stringify(s);if(activeProfile==='reader')readerSaveRaw(raw);else{localStorage.setItem(SAVE,raw);saveMainViewState()}readerSaveWarning=false;return true}
  catch(e){console.warn('save failed',e);readerSaveWarning=true;return false}
 }
@@ -834,7 +836,7 @@ const UI_NAV=[['studio','radio','放送'],['letters','mail','お便り'],['journ
 
 const dayTitles=['','はじめましての夜','誰かが聴いている','言えなかった言葉',
   '終点のひとつ前','いつもの道の途中','言いそびれた返事','ひとり分の余白','返事をしない自由','描かれなかった余白','窓の明かり','木曜日の駅','自分の声','返ってこない約束','それぞれの朝'];
-function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete',done3=s.phase==='chapter3_complete',sp=specialActive(s.night);return `<header class="header"><div class="header-identity"><div class="brand">SOMEWHERE ON AIR</div><h1>午前二時の周波数</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':done3?'第3章 14夜 終了':`第${s.night}夜　${regularDayTitle(s.night)}`}</div><div class="climate-meta">${esc(climateCaption(s.night))}</div></div><div class="header-tools" aria-label="放送の補助操作と状態"><button class="guide-launch" type="button" onclick="openGuide()" aria-label="あそび方・手引きを開く">${uiIcon('help')}<span>あそび方</span></button><div class="chip" role="status" aria-label="放送状態">${s.phase==='broadcast'||s.phase==='reply'?'● ON AIR':'◌ OFF AIR'}</div></div></header>${studioScene(s.tab!=='studio'||readerSetupOpen)}<div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}${readerEntry()}</div><div class="panel"><div class="overline">${sp?'特別放送':s.night>=15&&s.night<=28?'第2章':chapter3IsNight(s.night)?'第3章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>放送スタイル</span><span>${s.phase==='intro'||s.phase==='prepare'?(s.broadcastModePref==='letters'?'おたより中心':'いつもの放送'):(isLettersMode()?'おたより中心':'いつもの放送')}</span></div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー">${UI_NAV.map(([id,icon,label])=>`<button type="button" class="${s.tab===id?'active':''}" ${s.tab===id?'aria-current="page"':''} onclick="setTab('${id}')">${uiIcon(icon)}<span class="nav-label">${label}</span></button>`).join('')}</nav><div class="footer">『午前二時の周波数』 · SOMEWHERE ON AIR · v4.8.22</div>`}
+function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete',done3=s.phase==='chapter3_complete',sp=specialActive(s.night);return `<header class="header"><div class="header-identity"><div class="brand">SOMEWHERE ON AIR</div><h1>午前二時の周波数</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':done3?'第3章 14夜 終了':`第${s.night}夜　${regularDayTitle(s.night)}`}</div><div class="climate-meta">${esc(climateCaption(s.night))}</div></div><div class="header-tools" aria-label="放送の補助操作と状態"><button class="guide-launch" type="button" onclick="openGuide()" aria-label="あそび方・手引きを開く">${uiIcon('help')}<span>あそび方</span></button><div class="chip" role="status" aria-label="放送状態">${s.phase==='broadcast'||s.phase==='reply'?'● ON AIR':'◌ OFF AIR'}</div></div></header>${studioScene(s.tab!=='studio'||readerSetupOpen)}<div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}${readerEntry()}</div><div class="panel"><div class="overline">${sp?'特別放送':s.night>=15&&s.night<=28?'第2章':chapter3IsNight(s.night)?'第3章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>放送スタイル</span><span>${s.phase==='intro'||s.phase==='prepare'?(s.broadcastModePref==='letters'?'おたより中心':'いつもの放送'):(isLettersMode()?'おたより中心':'いつもの放送')}</span></div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー">${UI_NAV.map(([id,icon,label])=>`<button type="button" class="${s.tab===id?'active':''}" ${s.tab===id?'aria-current="page"':''} onclick="setTab('${id}')">${uiIcon(icon)}<span class="nav-label">${label}</span></button>`).join('')}</nav><div class="footer">『午前二時の周波数』 · SOMEWHERE ON AIR · v4.8.23</div>`}
 function navButtons(){return UI_NAV.map(([id,icon,label])=>`<button type="button" class="navbtn ${s.tab===id?'active':''}" ${s.tab===id?'aria-current="page"':''} onclick="setTab('${id}')">${uiIcon(icon)}<span>${id==='journal'?'放送日誌':id==='settings'?'設定・セーブ':label}</span></button>`).join('')}
 
 function intro(){
@@ -989,7 +991,7 @@ function listeners(){
   const unknown=undiscovered.length?`<div class="archive-undiscovered"><h3>まだ出会っていない声</h3><p class="small">お便りを放送で紹介すると、その人の記録が開きます。まだ紹介していない人の名前や暮らしは、ここでは明かされません。</p><div class="archive-unknown-grid">${undiscovered.map(()=>`<div class="listener archive-unknown"><span class="archive-unknown-mark" aria-hidden="true">✧</span><span>まだよく知らないリスナー</span></div>`).join('')}</div></div>`:'';
   return `<section class="panel"><div class="overline">LISTENER ARCHIVE</div><h2>リスナーの記録</h2><p class="muted">放送で紹介したお便りからわかったことを記録します。お便りを紹介していない人の暮らしも、番組の外で続いています。</p>${published}${unknown}</section>`;
 }
-function settings(){return `<section class="panel"><div class="overline">SETTINGS</div><h2>設定・セーブデータ</h2><button class="btn secondary settings-guide-btn" type="button" onclick="openGuide()">${uiIcon('help')}<span>ラジオ局の手引きを読む</span></button><p class="settings-save-note">進行状況は、この端末のブラウザ内に自動保存されます。別の端末に引き継ぐ場合は、バックアップを書き出してください。「聴くだけの夜」の保存と復元は読書画面から別に行います。</p><div class="actions settings-backup-actions"><button class="btn" onclick="downloadSave()">バックアップを保存</button><label class="btn secondary" style="cursor:pointer">バックアップを読み込む<input class="screen-reader" type="file" accept=".json,application/json" onchange="importSave(this)"></label></div><hr class="divider"><h3>スタジオ演出</h3><p class="small">放送前後の静けさと、マイク横の小さなメーターです。効果音や音声はありません。</p><label class="studio-setting"><input type="checkbox" ${s.studioVisuals?.enabled!==false?'checked':''} onchange="setStudioVisuals('enabled',this.checked)"> スタジオ演出を表示する</label><div class="studio-setting-modes settings-motion-modes"><span class="small">アニメーション：</span>${[['normal','通常'],['reduced','控えめ'],['off','動きなし']].map(([id,name])=>`<label><input type="radio" name="studio-motion" value="${id}" ${s.studioVisuals?.motion===id?'checked':''} ${s.studioVisuals?.enabled===false?'disabled':''} onchange="setStudioVisuals('motion',this.value)"> ${name}</label>`).join('')}</div><p class="small settings-motion-note">動きを止めても、時計とON AIRの表示は残ります。端末で動きを減らす設定を使用している場合は、その設定が優先されます。</p><hr class="divider"><h3>最初から遊ぶ</h3><p class="small">現在のセーブデータを消して、第1夜からやり直します。必要なら先にバックアップしてください。</p><button class="btn secondary" onclick="resetGame()">進行状況をリセット</button><hr class="divider"><p class="small">バージョン 4.8.22</p></section>`}
+function settings(){return `<section class="panel"><div class="overline">SETTINGS</div><h2>設定・セーブデータ</h2><button class="btn secondary settings-guide-btn" type="button" onclick="openGuide()">${uiIcon('help')}<span>ラジオ局の手引きを読む</span></button><p class="settings-save-note">進行状況は、この端末のブラウザ内に自動保存されます。別の端末に引き継ぐ場合は、バックアップを書き出してください。「聴くだけの夜」の保存と復元は読書画面から別に行います。</p><div class="actions settings-backup-actions"><button class="btn" onclick="downloadSave()">バックアップを保存</button><label class="btn secondary" style="cursor:pointer">バックアップを読み込む<input class="screen-reader" type="file" accept=".json,application/json" onchange="importSave(this)"></label></div><hr class="divider"><h3>スタジオ演出</h3><p class="small">放送前後の静けさと、マイク横の小さなメーターです。効果音や音声はありません。</p><label class="studio-setting"><input type="checkbox" ${s.studioVisuals?.enabled!==false?'checked':''} onchange="setStudioVisuals('enabled',this.checked)"> スタジオ演出を表示する</label><div class="studio-setting-modes settings-motion-modes"><span class="small">アニメーション：</span>${[['normal','通常'],['reduced','控えめ'],['off','動きなし']].map(([id,name])=>`<label><input type="radio" name="studio-motion" value="${id}" ${s.studioVisuals?.motion===id?'checked':''} ${s.studioVisuals?.enabled===false?'disabled':''} onchange="setStudioVisuals('motion',this.value)"> ${name}</label>`).join('')}</div><p class="small settings-motion-note">動きを止めても、時計とON AIRの表示は残ります。端末で動きを減らす設定を使用している場合は、その設定が優先されます。</p><hr class="divider"><h3>最初から遊ぶ</h3><p class="small">現在のセーブデータを消して、第1夜からやり直します。必要なら先にバックアップしてください。</p><button class="btn secondary" onclick="resetGame()">進行状況をリセット</button><hr class="divider"><p class="small">バージョン 4.8.23</p></section>`}
 function specialPlanningPanel(){
  const n=s.night;
  const p=s.special?.planned;
@@ -1982,7 +1984,7 @@ function readerNightNavigation(r,index){
  const current=r.pages[index];
  if(!current)return '';
  const latest=index===r.pages.length-1;
- // v4.8.22: 1,000夜以上でも全夜分のoptionを再生成しない。離れた夜は番号で直接指定。
+ // v4.8.23: 1,000夜以上でも全夜分のoptionを再生成しない。離れた夜は番号で直接指定。
  const first=Math.max(0,index-18),end=Math.min(r.pages.length,index+19);
  const options=r.pages.slice(first,end).map((p,k)=>{const i=first+k;return `<option value="${i}" ${i===index?'selected':''}>第${p.night}夜${i===r.pages.length-1?' · 最新':''}</option>`}).join('');
  const latestButton=latest?'':`<button type="button" class="reader-nav-latest" onclick="readerGotoLatest()" title="最新の記録を表示">最新の夜へ</button>`;
@@ -2000,7 +2002,7 @@ function readerNightContents(entries){
  return `<details class="reader-contents"><summary><span class="reader-contents-title">${uiIcon('list')}今夜の目次</span><span class="reader-contents-summary-detail">おたより${entries.length}通・選曲・終幕</span></summary><nav class="reader-contents-links" aria-label="今夜の放送内を移動"><a href="#reader-introduction" onclick="readerJumpToSection('reader-introduction');return false"><span>OPENING</span><strong>放送のはじまり</strong></a>${items}<a href="#reader-ending" onclick="readerJumpToSection('reader-ending');return false"><span>FINAL SONG</span><strong>選曲と終幕</strong></a></nav></details>`;
 }
 function readerShell(content){
- return `<div class="reader-layout"><header class="reader-header"><div><div class="brand reader-brand">SOMEWHERE ON AIR</div><div class="reader-mode-label">${uiIcon('moon')}<span>ANOTHER FREQUENCY / 読書モード</span></div><h1>聴くだけの夜</h1><div class="small">誰かが選んだ言葉の、その先を読む</div></div><button class="btn secondary" type="button" onclick="switchToMain()">${uiIcon('radio')}<span>本編に戻る</span></button></header><main id="main" class="reader-main">${content}</main><footer class="reader-footer">本編の選択と記憶は変更されません · v4.8.22</footer></div>`;
+ return `<div class="reader-layout"><header class="reader-header"><div><div class="brand reader-brand">SOMEWHERE ON AIR</div><div class="reader-mode-label">${uiIcon('moon')}<span>ANOTHER FREQUENCY / 読書モード</span></div><h1>聴くだけの夜</h1><div class="small">誰かが選んだ言葉の、その先を読む</div></div><button class="btn secondary" type="button" onclick="switchToMain()">${uiIcon('radio')}<span>本編に戻る</span></button></header><main id="main" class="reader-main">${content}</main><footer class="reader-footer">本編の選択と記憶は変更されません · v4.8.23</footer></div>`;
 }
 function readerView(){
  const r=s.reader;
@@ -2023,7 +2025,25 @@ function readerReaderTools(){
 }
 window.addEventListener('pagehide',()=>{if(activeProfile==='reader'&&s?.reader){s.reader.scrollY=window.scrollY;readerSavePosition()}});
 
+// v4.8.23: 本編の閲覧専用タブ間は、ヘッダー・スタジオ・サイドバーを維持する。
+// 本編進行・読書モード・ガイド表示の更新は必ず従来の全体描画へフォールバックする。
 let lastViewKey=null;
+let lastMainRenderedTab=null;
+let lastMainRenderedReaderSetup=false;
+let lastMainRenderedRevision=-1;
+function updateMainNavActive(tab){
+  for(const menu of document.querySelectorAll('.bottomnav, .sidebar .panel')){
+    const buttons=menu.querySelectorAll('.bottomnav button, .navbtn');
+    if(buttons.length!==UI_NAV.length)continue;
+    buttons.forEach((button,i)=>{
+      const active=UI_NAV[i][0]===tab;
+      button.classList.toggle('active',active);
+      if(active)button.setAttribute('aria-current','page');
+      else button.removeAttribute('aria-current');
+    });
+  }
+}
+
 window.addEventListener('keydown',event=>{if(event.key==='Escape'&&guideOpen){event.preventDefault();closeGuide()}});
 function render(){
   if(readerBatch)return;
@@ -2033,6 +2053,7 @@ function render(){
     const guidePortal=document.getElementById('guide-portal');if(guidePortal)guidePortal.innerHTML='';
     document.body.classList.remove('guide-open');
     if(readerRestoring){readerRestoring=false;window.scrollTo(0,s.reader?.scrollY||0)}
+    lastMainRenderedTab=null;
     return;
   }
   ensureAutomaticBroadcastSelections();
@@ -2056,10 +2077,26 @@ function render(){
   const specialStepChanged=changed&&s.tab==='studio'&&s.phase==='reply'&&lastViewKey.startsWith('studio:reply:');
   const oldSource=document.getElementById('special-reply-letter');
   const oldSourceOpen=oldSource?oldSource.open:null;
-  document.getElementById('app').innerHTML=shell(decorated);
-  const portal=document.getElementById('guide-portal');
-  if(portal)portal.innerHTML=guideDialog();
-  document.body.classList.toggle('guide-open',!s.guidance.welcomeSeen||guideOpen);
+  // 閲覧タブ間の切替／日誌のページ送りでは本文だけを差し替える。
+  // 通常放送への切替、読書導入、ガイドの開閉には手を加えない。
+  const main=document.getElementById('main');
+  const partial=activeProfile==='main' && lastMainRenderedTab!==null
+    && lastMainRenderedTab!=='studio' && s.tab!=='studio'
+    && !lastMainRenderedReaderSetup && !readerSetupOpen
+    && !guideOpen && !!s.guidance.welcomeSeen && !!main
+    && lastMainRenderedRevision===mainDataRevision;
+  if(partial){
+    main.innerHTML=decorated;
+    updateMainNavActive(s.tab);
+  }else{
+    document.getElementById('app').innerHTML=shell(decorated);
+    const portal=document.getElementById('guide-portal');
+    if(portal)portal.innerHTML=guideDialog();
+    document.body.classList.toggle('guide-open',!s.guidance.welcomeSeen||guideOpen);
+  }
+  lastMainRenderedTab=s.tab;
+  lastMainRenderedReaderSetup=readerSetupOpen;
+  lastMainRenderedRevision=mainDataRevision;
   const newSource=document.getElementById('special-reply-letter');
   if(newSource&&oldSourceOpen!==null)newSource.open=oldSourceOpen;
   lastViewKey=key;
