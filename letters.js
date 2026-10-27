@@ -1454,6 +1454,41 @@ const QUIET_REPLY_34={
 };
 
 
+// v4.8.6: 継続放送の「今夜の話題に実際に触れる」返答候補。
+// 既存の4候補の順番は変えず、新しく届く通常便りにだけ追加する。
+// 物語の先を知っている前提、行動や達成の無根拠な断定を避ける。
+const LATE_REPLY_CHOICES_486={
+ art:[R('絵の余白に目を向ける','描くことを続けるかどうかも含めて、今夜はあなた自身の時間ですね。','space'),R('好きな色を聞く','いま頭に浮かんでいる色は、どんな色でしょう。','curiosity')],
+ work:[R('仕事の外の時間を思う','仕事の話の向こうにある、あなた自身の時間も大切にしてほしいです。','empathy'),R('今日の負担を聞く','今夜いちばん心に残ったのは、どの場面だったのでしょう。','curiosity')],
+ family:[R('言葉にしない時間も尊重する','家族だからこそ、今すぐ言葉にできないこともありますよね。','space'),R('伝える前の気持ちを聴く','その言葉を送るかどうか、ゆっくり考えてもいいと思います。','empathy')],
+ friends:[R('違う意見を大切にする','気持ちが同じでなくても、話した時間まで消えるわけではないですね。','reflection'),R('言わなかった言葉を尊重する','言えたことも、あえて言わなかったことも、あなたが選んだことなんですね。','space')],
+ school:[R('知らないことを楽しむ','まだ知らないことが残っているのは、少し楽しみでもありますね。','curiosity'),R('途中の考えを受け取る','今決まっている答えより、考えている途中の話を聞けるのがうれしいです。','empathy')],
+ books:[R('頁の先を想像する','本の話は、読み終えてから思い出すところも面白いですよね。','reflection'),R('読み方に目を向ける','どんなふうに読んだかも、その人だけの思い出になりますね。','space')],
+ bakery:[R('店の時間を受け取る','厨房や売り場で過ごした時間が、言葉から少し伝わってくるようです。','empathy'),R('パン屋のユーモア','この時間にパンの話を聞くと、ラジオの時計よりお腹の時計が正確になります。','humor')],
+ mistakes:[R('結果以外に目を向ける','結果だけではわからないことも、今日の出来事にはあったのかもしれません。','reflection'),R('急いで意味を付けない','失敗だった、のひと言で全部を片づけなくてもいいと思います。','space')],
+ cooking:[R('自分の皿を大切にする','人に見せるためではない食事の話も、聞いていてほっとします。','empathy'),R('食卓の余白を思う','きれいに整っていない食卓にも、その日らしさがありますね。','space')],
+ flowers:[R('花を選ぶ目を想像する','同じ花を見ても、人によって残る色は違うのでしょうね。','reflection'),R('花屋の一日の話を聞く','その花の話を、もう少し聞いてみたくなりました。','curiosity')],
+ clock:[R('時計の外の時間を思う','時計が測る時間とは別に、あなたの中に残る時間もあるんでしょうね。','reflection'),R('小さな手入れを受け取る','古いものに向き合う時間を、今夜も分けてくれてありがとうございます。','empathy')],
+ station:[R('ホームの外を想像する','駅の外にも、その日だけの暮らしが続いているんですよね。','reflection'),R('待つ人の時間を尊重する','待つことも、別の道を歩くことも、急いで名前を付けなくていいと思います。','space')],
+ memory:[R('思い出の揺れを受け取る','同じ記憶を思い返しても、その日の気持ちで少し違って聞こえますね。','reflection'),R('今の声を大切にする','思い出の話を、今のあなたの言葉で聞けてうれしいです。','empathy')],
+ moon:[R('空想の続きを楽しむ','その話には月面の担当者から異議が出そうです。続報を待っています。','humor'),R('月の議事録に残す','空想だとわかっていても、つい続きを想像したくなります。','curiosity')],
+ pudding:[R('冷蔵庫の秘密に乗る','プリンに秘密保持契約が必要になる日も近いですね。','humor'),R('小さな相談を楽しむ','大事件ではないからこそ、家で相談したくなることもありますね。','empathy')],
+ rest:[R('休まなかった時間も否定しない','休める日もそうでない日も、体の声を聞くことは大切ですね。','space'),R('無理のない明日を願う','明日は、いまより少し気楽な時間がありますように。','empathy')],
+ travel:[R('寄り道の自由を思う','目的地が同じでも、そこまでの道はひとつじゃないですね。','reflection'),R('道の小さな発見','帰り道のお便りから、こちらも少し散歩した気分になりました。','empathy')],
+ coffee:[R('飲み物の話に微笑む','その一杯を飲んでいる時間まで、少し届いたような気がします。','empathy'),R('カップの中の寄り道','深夜ラジオの議事録には、コーヒーの湯気も入れておきたいですね。','humor')],
+ smalljoy:[R('小さく祝う','こんな出来事を聞けるのは、深夜のマイクのいいところですね。','celebrate'),R('余韻を大切にする','うれしかったことは、無理に大きな出来事にしなくても残りますね。','reflection')],
+ awkward:[R('会話の余韻を尊重する','終わった会話をあとから考える時間にも、無理に答えを付けなくていいと思います。','space'),R('伝えきれなさを受け取る','言葉にならなかった部分まで、今夜は聞かせてくれた気がします。','empathy')],
+ listen:[R('届いた声を覚える','同じ放送が、別々の場所に届いているのを知ると不思議な気持ちになります。','reflection'),R('聴いていた夜を受け取る','何かを変えなくても、聴いてくれていた時間がうれしいです。','empathy')],
+ ordinary:[R('ふつうの夜を歓迎する','大きなニュースのない夜のお便りも、ここでは大切な一通です。','empathy'),R('何でもないことを残す','今夜の話は、いまのあなたの声でしか聞けなかったんでしょうね。','reflection')]
+};
+function lateReplyChoices486(l,key,base){
+ const m=String(l.id||'').match(/^regular_(\d+)_/);
+ if(!l.regular||!m||Number(m[1])<90)return base;
+ // special, curated, culture, thread など、既存の固有シナリオには介入しない。
+ if(l.kind==='culture'||l.kind==='variety'||l.kind==='radio-memory'||l.kind==='long-echo'||l.kind==='daily-thread'||l.kind==='relation-thread'||l.kind==='surprise46')return base;
+ const extra=LATE_REPLY_CHOICES_486[key]||LATE_REPLY_CHOICES_486.ordinary;
+ return [...base,...extra].map(row=>[...row]);
+}
 function replyTopicChoices(l){
  if(l.kind==='variety'&&Array.isArray(l.choices)&&l.choices.length>=3)return l.choices.map(x=>[...x]);
  if(l.kind==='culture'&&l.culture){
@@ -1479,24 +1514,24 @@ function replyTopicChoices(l){
   if(action&&action[1]){
    let phrase=action[1].replace(/[。！!]+$/,'');
    const first=R('今日したことを受け止める',`${phrase}んですね。そんな一日だったことを、聞かせてくれてありがとうございます。`,'empathy');
-   return [first,...base.slice(1)].map(row=>[...row]);
+   return lateReplyChoices486(l,key,[first,...base.slice(1)]);
   }
  }
  // テーマの手紙ではテーマ名にも具体的に触れ、毎日同じ返答に聞こえないようにする。
  if(l.kind==='theme'){
   const subject=String(l.subject||'').replace(/のこと$/,'');
   const first=R('今夜のテーマを受け取る',`「${subject}」というテーマで、あなたが今日思い出したことを聞けて嬉しいです。`,'empathy');
-  return [first,...base.slice(1)].map(row=>[...row]);
+  return lateReplyChoices486(l,key,[first,...base.slice(1)]);
  }
  // 手作りの章は筋を勝手に決めず、件名を手がかりにして本来の話題に触れる。
  if(l.chapter2||l.chapter3){
   const subject=String(l.subject||'');
   if(subject){
    const first=R('このお便りを受け止める',`「${subject}」というお便り、今夜も聞かせてくれてありがとうございます。`,'empathy');
-   return [first,...base.slice(1)].map(row=>[...row]);
+   return lateReplyChoices486(l,key,[first,...base.slice(1)]);
   }
  }
- return base.map(row=>[...row]);
+ return lateReplyChoices486(l,key,base);
 }
 function isGenericReplySet(l){
  if(l.special)return false;

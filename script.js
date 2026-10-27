@@ -1,5 +1,10 @@
 'use strict';
-const SAVE='radio_2am_prototype_v1';
+const SAVE='radio_2am_prototype_v1'; // 本編の従来キーは変更しない
+const READER_SAVE='radio_2am_reader_v48';
+const ACTIVE_PROFILE_KEY='radio_2am_active_profile_v48';
+let activeProfile='main';
+try{if(localStorage.getItem(ACTIVE_PROFILE_KEY)==='reader'&&localStorage.getItem(READER_SAVE))activeProfile='reader'}catch(e){console.warn(e)}
+let readerBatch=false,readerSetupOpen=false,readerSaveWarning=false;
 let s=load();
 if(!s.simState)s.simState=createSimulationState();
 if(!s.microWorld)s.microWorld=createMicroWorldState();
@@ -87,13 +92,17 @@ function migrateState(data){
 }
 function load(){
   try{
-    const raw=localStorage.getItem(SAVE);
+    const raw=localStorage.getItem(activeProfile==='reader'?READER_SAVE:SAVE);
     const data=raw?migrateState(JSON.parse(raw)):null;
     if(data)return data;
   }catch(e){console.warn('セーブデータの読込に失敗しました',e)}
   return defaultState();
 }
-function save(){try{localStorage.setItem(SAVE,JSON.stringify(s))}catch(e){console.warn('save failed',e)}}
+function save(){
+ if(readerBatch)return true;
+ try{localStorage.setItem(activeProfile==='reader'?READER_SAVE:SAVE,JSON.stringify(s));readerSaveWarning=false;return true}
+ catch(e){console.warn('save failed',e);readerSaveWarning=true;return false}
+}
 function rand(){s.rng=(Math.imul(s.rng,1664525)+1013904223)>>>0;return s.rng/4294967296}
 function clamp(v){return Math.max(0,Math.min(100,v))}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -265,7 +274,7 @@ function studioAfterQuiet(){
  if(!s.studioVisuals?.enabled)return '';
  return `<div class="studio-after-quiet"><div class="overline">03:00 / OFF AIR</div><p>マイクの灯りが消え、スタジオに静けさが戻る。</p><span>机の上には、今夜読んだ手紙が残っている。</span></div>`;
 }
-function setTab(tab){s.tab=tab;save();render()}
+function setTab(tab){readerSetupOpen=false;s.tab=tab;save();render()}
 function selectLetter(id){let i=s.chosen.indexOf(id);if(i>=0)s.chosen.splice(i,1);else if(s.chosen.length<3)s.chosen.push(id);save();render()}
 function startNight(){s.phase='prepare';s.tab='studio';nightLetters(s.night);for(const id of s.letterSets[s.night]||[])letter(id);save();render()}
 function beginBroadcast(){
@@ -330,7 +339,7 @@ function setBroadcastMode(mode){
 }
 function broadcastModePicker(){
  const active=s.broadcastModePref;
- return `<div class="broadcast-mode-picker" role="group" aria-label="今夜の放送スタイル"><div class="overline">BROADCAST STYLE / 今夜の放送スタイル</div><div class="broadcast-mode-options"><button type="button" class="broadcast-mode-option ${active==='manual'?'is-active':''}" aria-pressed="${active==='manual'}" onclick="setBroadcastMode('manual')"><strong>◉ いつもの放送</strong><span>挨拶・つなぎの言葉・曲・締めを自分で選ぶ</span></button><button type="button" class="broadcast-mode-option ${active==='letters'?'is-active':''}" aria-pressed="${active==='letters'}" onclick="setBroadcastMode('letters')"><strong>✉ おたより中心</strong><span>演出の選択はおまかせ。手紙と返答は自分で選ぶ</span></button></div><p class="broadcast-mode-tip">選んだスタイルは次の夜にも引き継がれます。放送開始後は今夜のスタイルを変更できません。</p></div>`;
+ return `<div class="broadcast-mode-picker" role="group" aria-label="今夜の放送スタイル"><div class="overline">BROADCAST STYLE / 今夜の放送スタイル</div><div class="broadcast-mode-options"><button type="button" class="broadcast-mode-option ${active==='manual'?'is-active':''}" aria-pressed="${active==='manual'}" onclick="setBroadcastMode('manual')"><strong>◉ いつもの放送</strong><span>挨拶・つなぎの言葉・曲・締めを自分で選ぶ</span></button><button type="button" class="broadcast-mode-option ${active==='letters'?'is-active':''}" aria-pressed="${active==='letters'}" onclick="setBroadcastMode('letters')"><strong>✉ おたより中心</strong><span>演出の選択はおまかせ。手紙と返答は自分で選ぶ</span></button></div><p class="broadcast-mode-tip">選んだスタイルは次の夜にも引き継がれます。放送開始後は今夜のスタイルを変更できません。</p><button class="reader-inline-entry" type="button" onclick="openReaderSetup()">☾ 今夜は聴くだけにする <span>別の物語として読みます</span></button></div>`;
 }
 // 物語を動かす乱数を消費しない、放送演出専用の安定した選択。
 function automaticStyleHash(value){
@@ -607,6 +616,7 @@ const GUIDE_SECTIONS=[
   ['lives','リスナーたちの暮らし','リスナーたちは仕事や学校へ行き、誰かと会い、迷いながら自分で行動します。忙しかったり、一人で考えたかったりして、しばらくお便りが届かないこともあります。あなたの言葉がきっかけになることはあっても、彼らの人生すべてを決めるわけではありません。'],
   ['history','変化を見つけるには？','放送日誌やリスナーの記録を読み返してみてください。以前は仕事のことばかり話していた人が、いつの間にか好きなことの話をしているかもしれません。気に入った放送には、しおりを付けておけます。'],
   ['style','放送のスタイルは？','「いつもの放送」は挨拶や幕間・曲・締めを自分で選び、「おたより中心」はそれらの選択をおまかせにできます。手紙と返答はどちらも自分で選びます。どれも攻略上の正解ではなく、自分らしいラジオ局を作るための選択です。'],
+  ['listening','聴くだけの夜って？','ときには、ラジオ局の向こう側で放送を聴いてみませんか。「聴くだけの夜」では、別のDJがお便りも返答も演出も選びます。あなたは一人のリスナーとして、その夜の放送を小説のように読み進められます。放送画面の「☾ 今夜は聴くだけにする」から始められ、第1夜から読むことも、本編の途中から別の物語として分岐することもできます。読書用の進行と記憶は本編とは別に保存されるので、自分の放送は変わりません。'],
   ['community','番組で生まれるつながり','放送で読まれた話を、その夜実際に聴いていた人が覚えることがあります。何日か後に別の人から似た話題の手紙が届いても、必ず誰かが反応するわけではありません。リスナーたちは放送を聴いていない夜の話までは知りません。']
 ];
 function openGuide(){guideOpen=true;render();document.getElementById('guide-dialog')?.focus()}
@@ -667,7 +677,7 @@ function bookmarkArchive(){
 
 const dayTitles=['','はじめましての夜','誰かが聴いている','言えなかった言葉',
   '終点のひとつ前','いつもの道の途中','言いそびれた返事','ひとり分の余白','返事をしない自由','描かれなかった余白','窓の明かり','木曜日の駅','自分の声','返ってこない約束','それぞれの朝'];
-function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete',done3=s.phase==='chapter3_complete',sp=specialActive(s.night);return `<header class="header"><div class="header-identity"><div class="brand">SOMEWHERE ON AIR</div><h1>午前二時の周波数</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':done3?'第3章 14夜 終了':`第${s.night}夜　${regularDayTitle(s.night)}`}</div><div class="climate-meta">${esc(climateCaption(s.night))}</div></div><div class="header-tools" aria-label="放送の補助操作と状態"><button class="guide-launch" type="button" onclick="openGuide()" aria-label="あそび方・手引きを開く">？ あそび方</button><div class="chip" role="status" aria-label="放送状態">${s.phase==='broadcast'||s.phase==='reply'?'● ON AIR':'◌ OFF AIR'}</div></div></header>${studioScene()}<div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}</div><div class="panel"><div class="overline">${sp?'特別放送':s.night>=15&&s.night<=28?'第2章':chapter3IsNight(s.night)?'第3章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>放送スタイル</span><span>${s.phase==='intro'||s.phase==='prepare'?(s.broadcastModePref==='letters'?'おたより中心':'いつもの放送'):(isLettersMode()?'おたより中心':'いつもの放送')}</span></div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー"><button class="${s.tab==='studio'?'active':''}" onclick="setTab('studio')"><span>◉</span>放送</button><button class="${s.tab==='letters'?'active':''}" onclick="setTab('letters')"><span>✉</span>お便り</button><button class="${s.tab==='journal'?'active':''}" onclick="setTab('journal')"><span>▤</span>記録</button><button class="${s.tab==='listeners'?'active':''}" onclick="setTab('listeners')"><span>♧</span>リスナー</button><button class="${s.tab==='settings'?'active':''}" onclick="setTab('settings')"><span>⚙</span>設定</button></nav><div class="footer">『午前二時の周波数』 · SOMEWHERE ON AIR · v4.7.2</div>`}
+function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete',done3=s.phase==='chapter3_complete',sp=specialActive(s.night);return `<header class="header"><div class="header-identity"><div class="brand">SOMEWHERE ON AIR</div><h1>午前二時の周波数</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':done3?'第3章 14夜 終了':`第${s.night}夜　${regularDayTitle(s.night)}`}</div><div class="climate-meta">${esc(climateCaption(s.night))}</div></div><div class="header-tools" aria-label="放送の補助操作と状態"><button class="guide-launch" type="button" onclick="openGuide()" aria-label="あそび方・手引きを開く">？ あそび方</button><div class="chip" role="status" aria-label="放送状態">${s.phase==='broadcast'||s.phase==='reply'?'● ON AIR':'◌ OFF AIR'}</div></div></header>${studioScene()}<div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}${readerEntry()}</div><div class="panel"><div class="overline">${sp?'特別放送':s.night>=15&&s.night<=28?'第2章':chapter3IsNight(s.night)?'第3章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>放送スタイル</span><span>${s.phase==='intro'||s.phase==='prepare'?(s.broadcastModePref==='letters'?'おたより中心':'いつもの放送'):(isLettersMode()?'おたより中心':'いつもの放送')}</span></div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー"><button class="${s.tab==='studio'?'active':''}" onclick="setTab('studio')"><span>◉</span>放送</button><button class="${s.tab==='letters'?'active':''}" onclick="setTab('letters')"><span>✉</span>お便り</button><button class="${s.tab==='journal'?'active':''}" onclick="setTab('journal')"><span>▤</span>記録</button><button class="${s.tab==='listeners'?'active':''}" onclick="setTab('listeners')"><span>♧</span>リスナー</button><button class="${s.tab==='settings'?'active':''}" onclick="setTab('settings')"><span>⚙</span>設定</button></nav><div class="footer">『午前二時の周波数』 · SOMEWHERE ON AIR · v4.8.14</div>`}
 function navButtons(){return [['studio','◉ 放送'],['letters','✉ お便り'],['journal','▤ 放送日誌'],['listeners','♧ リスナー'],['settings','⚙ 設定・セーブ']].map(([id,t])=>`<button class="navbtn ${s.tab===id?'active':''}" onclick="setTab('${id}')">${t}</button>`).join('')}
 function intro(){
   if(s.night>=15&&s.night<=28)return chapter2Intro();
@@ -806,7 +816,7 @@ function listeners(){
   const unknown=undiscovered.length?`<div class="archive-undiscovered"><h3>まだ出会っていない声</h3><p class="small">お便りを放送で紹介すると、その人の記録が開きます。まだ紹介していない人の名前や暮らしは、ここでは明かされません。</p><div class="archive-unknown-grid">${undiscovered.map(()=>`<div class="listener archive-unknown"><span class="archive-unknown-mark" aria-hidden="true">✧</span><span>まだよく知らないリスナー</span></div>`).join('')}</div></div>`:'';
   return `<section class="panel"><div class="overline">LISTENER ARCHIVE</div><h2>リスナーの記録</h2><p class="muted">放送で紹介したお便りからわかったことを記録します。お便りを紹介していない人の暮らしも、番組の外で続いています。</p>${published}${unknown}</section>`;
 }
-function settings(){return `<section class="panel"><div class="overline">SETTINGS</div><h2>設定・セーブデータ</h2><button class="btn secondary settings-guide-btn" type="button" onclick="openGuide()">？ ラジオ局の手引きを読む</button><p class="settings-save-note">進行状況は、この端末のブラウザ内に自動保存されます。別の端末に引き継ぐ場合は、バックアップを書き出してください。</p><div class="actions settings-backup-actions"><button class="btn" onclick="downloadSave()">バックアップを保存</button><label class="btn secondary" style="cursor:pointer">バックアップを読み込む<input class="screen-reader" type="file" accept=".json,application/json" onchange="importSave(this)"></label></div><hr class="divider"><h3>スタジオ演出</h3><p class="small">放送前後の静けさと、マイク横の小さなメーターです。効果音や音声はありません。</p><label class="studio-setting"><input type="checkbox" ${s.studioVisuals?.enabled!==false?'checked':''} onchange="setStudioVisuals('enabled',this.checked)"> スタジオ演出を表示する</label><div class="studio-setting-modes settings-motion-modes"><span class="small">アニメーション：</span>${[['normal','通常'],['reduced','控えめ'],['off','動きなし']].map(([id,name])=>`<label><input type="radio" name="studio-motion" value="${id}" ${s.studioVisuals?.motion===id?'checked':''} ${s.studioVisuals?.enabled===false?'disabled':''} onchange="setStudioVisuals('motion',this.value)"> ${name}</label>`).join('')}</div><p class="small settings-motion-note">動きを止めても、時計とON AIRの表示は残ります。端末で動きを減らす設定を使用している場合は、その設定が優先されます。</p><hr class="divider"><h3>最初から遊ぶ</h3><p class="small">現在のセーブデータを消して、第1夜からやり直します。必要なら先にバックアップしてください。</p><button class="btn secondary" onclick="resetGame()">進行状況をリセット</button><hr class="divider"><p class="small">バージョン 4.7.2</p></section>`}
+function settings(){return `<section class="panel"><div class="overline">SETTINGS</div><h2>設定・セーブデータ</h2><button class="btn secondary settings-guide-btn" type="button" onclick="openGuide()">？ ラジオ局の手引きを読む</button><p class="settings-save-note">進行状況は、この端末のブラウザ内に自動保存されます。別の端末に引き継ぐ場合は、バックアップを書き出してください。</p><div class="actions settings-backup-actions"><button class="btn" onclick="downloadSave()">バックアップを保存</button><label class="btn secondary" style="cursor:pointer">バックアップを読み込む<input class="screen-reader" type="file" accept=".json,application/json" onchange="importSave(this)"></label></div><hr class="divider"><h3>スタジオ演出</h3><p class="small">放送前後の静けさと、マイク横の小さなメーターです。効果音や音声はありません。</p><label class="studio-setting"><input type="checkbox" ${s.studioVisuals?.enabled!==false?'checked':''} onchange="setStudioVisuals('enabled',this.checked)"> スタジオ演出を表示する</label><div class="studio-setting-modes settings-motion-modes"><span class="small">アニメーション：</span>${[['normal','通常'],['reduced','控えめ'],['off','動きなし']].map(([id,name])=>`<label><input type="radio" name="studio-motion" value="${id}" ${s.studioVisuals?.motion===id?'checked':''} ${s.studioVisuals?.enabled===false?'disabled':''} onchange="setStudioVisuals('motion',this.value)"> ${name}</label>`).join('')}</div><p class="small settings-motion-note">動きを止めても、時計とON AIRの表示は残ります。端末で動きを減らす設定を使用している場合は、その設定が優先されます。</p><hr class="divider"><h3>最初から遊ぶ</h3><p class="small">現在のセーブデータを消して、第1夜からやり直します。必要なら先にバックアップしてください。</p><button class="btn secondary" onclick="resetGame()">進行状況をリセット</button><hr class="divider"><p class="small">バージョン 4.8.14</p></section>`}
 function specialPlanningPanel(){
  const n=s.night;
  const p=s.special?.planned;
@@ -876,12 +886,917 @@ function beginAfterChapter2(){
  nightLetters(29);save();render();
 }
 
+
+// --- v4.8 「聴くだけの夜」: 本編と別の世界を読む。将来の出来事・非公開感情は選択に使わない。 ---
+let readerRestoring=activeProfile==='reader';
+function readerEntry(){
+ if(!['intro','after','complete','chapter2_complete','chapter3_complete'].includes(s.phase))return '';
+ return `<div class="reader-subtle-entry"><button type="button" class="reader-entry-button" onclick="openReaderSetup()">☾ 今夜は聴くだけにする <span>別のDJの放送を、物語として読む</span></button></div>`;
+}
+function openReaderSetup(){
+ if(activeProfile!=='main'||!['intro','prepare','after','complete','chapter2_complete','chapter3_complete'].includes(s.phase))return;
+ readerSetupOpen=true;render();
+}
+function closeReaderSetup(){readerSetupOpen=false;render()}
+function readerSetupScreen(){
+ let exists=false,night=1;
+ try{let data=JSON.parse(localStorage.getItem(READER_SAVE)||'null');exists=!!migrateState(data);if(exists)night=data.night}catch(e){}
+ return `<section class="panel reader-setup"><div class="overline">A LITTLE DETOUR / 聴くだけの夜</div><h2>今夜は、誰かの放送を聴く</h2><p>別のパーソナリティがおたよりを選び、言葉を返します。あなたの本編には影響しません。</p><p class="small">選択によって、その世界のリスナーも少しずつ変わります。先の展開を読む場合があります。</p>
+ ${exists?`<div class="reader-setup-choice"><button class="btn" onclick="switchToReader()">続きから読む（第${night}夜付近） →</button></div>`:''}
+ <div class="reader-setup-choice"><h3>新しい読書用データを作る</h3><p class="small">${exists?'既存の読書用データは上書きされます。先に専用バックアップを保存してください。':'本編は変更しません。'}</p>
+ ${s.phase==='prepare'?'<p class="small">本編から分岐する場合は、今夜の放送を終えてから選んでください。</p>':''}<div class="actions"><button class="btn secondary" onclick="createReader('fresh')">第1夜から読む</button><button class="btn secondary" ${s.phase==='prepare'?'disabled':''} onclick="createReader('branch')">本編のこの時点から分岐する</button></div></div>
+ <div class="reader-setup-choice"><h3>読書用バックアップを読み込む</h3><label class="btn secondary" style="cursor:pointer">読書用JSONを選ぶ<input class="screen-reader" type="file" accept=".json,application/json" onchange="importReaderSave(this)"></label></div>
+ <div class="actions"><button class="btn secondary" onclick="closeReaderSetup()">本編に戻る</button></div></section>`;
+}
+function makeReaderState(base){
+ const copy=JSON.parse(JSON.stringify(base));
+ copy.guidance||={welcomeSeen:true,seen:{}};copy.guidance.welcomeSeen=true;
+ if(!copy.simState)copy.simState=createSimulationState();
+ copy.broadcastModePref='letters';copy.nightBroadcastMode=null;copy.tab='studio';
+ copy.reader={schema:1,pages:[],viewIndex:-1,scrollY:0,dj:{tags:[],lastPlanNight:-999}};
+ return copy;
+}
+function createReader(kind){
+ if(activeProfile!=='main'||!readerSetupOpen||!['fresh','branch'].includes(kind))return;
+ if(kind==='branch'&&!['intro','after','complete','chapter2_complete','chapter3_complete'].includes(s.phase))return;
+ const old=localStorage.getItem(READER_SAVE);
+ if(old&&!confirm('保存済みの「聴くだけの夜」を上書きします。続けますか？'))return;
+ if(!save()){alert('本編の保存に失敗しました。バックアップを取ってからお試しください。');return}
+ const source=kind==='fresh'?defaultState():s;
+ const newState=makeReaderState(source);
+ try{localStorage.setItem(READER_SAVE,JSON.stringify(newState))}catch(e){alert('読書用の保存領域を確保できませんでした。データは変更していません。');return}
+ switchToReader();
+}
+function switchToReader(){
+ if(activeProfile!=='main')return;
+ if(!save()){alert('本編の保存に失敗したため、切り替えません。');return}
+ let data;
+ try{data=migrateState(JSON.parse(localStorage.getItem(READER_SAVE)||'null'))}catch(e){}
+ if(!data||!data.reader?.schema){alert('読書用データが見つかりません。');return}
+ try{localStorage.setItem(ACTIVE_PROFILE_KEY,'reader')}catch(e){alert('保存できないため切り替えられません。');return}
+ activeProfile='reader';s=data;readerSetupOpen=false;lastViewKey=null;readerRestoring=true;render();
+}
+function switchToMain(){
+ if(activeProfile!=='reader')return;
+ s.reader.scrollY=window.scrollY;
+ if(!save()){alert('読書用の保存に失敗しました。バックアップを書き出してから切り替えてください。');return}
+ let data;
+ try{data=migrateState(JSON.parse(localStorage.getItem(SAVE)||'null'))}catch(e){}
+ if(!data)data=defaultState();
+ try{localStorage.setItem(ACTIVE_PROFILE_KEY,'main')}catch(e){alert('切り替え情報を保存できません。');return}
+ activeProfile='main';s=data;lastViewKey=null;readerSetupOpen=false;render();
+}
+function downloadReaderSave(){
+ if(activeProfile!=='reader')return;
+ let blob=new Blob([JSON.stringify({kind:'radio_2am_reader_v1',state:s},null,2)],{type:'application/json'});
+ let url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='radio_2am_reader_save.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function importReaderSave(input){
+ const file=input.files?.[0];if(!file)return;
+ const reader=new FileReader();reader.onload=()=>{
+  try{
+   const parsed=JSON.parse(reader.result);
+   if(parsed?.kind!=='radio_2am_reader_v1'||!parsed.state?.reader?.schema)throw Error('読書用バックアップではありません');
+   const data=migrateState(parsed.state);if(!data)throw Error('不正な形式');
+   if(!confirm('既存の読書用データを上書きしますか？ 本編は変更しません。'))return;
+   localStorage.setItem(READER_SAVE,JSON.stringify(data));
+   if(activeProfile==='reader'){s=data;readerRestoring=true;render()}else{render()}
+  }catch(e){console.warn(e);alert('読書用バックアップを読み込めませんでした。')}
+ };reader.readAsText(file);
+}
+function readerTextFromPanel(html){
+ const box=document.createElement('div');box.innerHTML=html;
+ const root=box.querySelector('section.panel')||box;
+ const heading=root.querySelector('h2')?.textContent?.trim()||'今夜の放送';
+ const paragraphs=Array.from(root.querySelectorAll(':scope > p')).slice(0,2).map(x=>{const copy=x.cloneNode(true);copy.querySelectorAll('br').forEach(br=>br.replaceWith('\n'));return copy.textContent.trim()});
+ return {title:heading,text:paragraphs.join('\n\n')};
+}
+// 読書版の語りは、操作説明を地の文に混ぜない。手紙や返答の本文は改変しない。
+function readerEditorialScene(input,kind,night){
+ let text=String(input||'');
+ const cuts=[
+  '企画しないまま、いつもの放送を続けても大丈夫です。募集は今夜、本番は翌夜です。',
+  '第2章も一区切りを迎えた。でも、ラジオはまだ続いている。',
+  '読む手紙は、まだ決まっていない。',
+  'リスナーたちは、それぞれの一日を過ごします。変化の一部は、次の放送で届くかもしれません。'
+ ];
+ for(const phrase of cuts)text=text.split(phrase).join('');
+ // 特別放送の制作メモは地の文ではなく、任意で開く注記へ。
+ // 昔の読書セーブ内に保存された本文にも、表示時だけ適用する。
+ if(kind==='outro'){
+  text=text.replace(/(?:\n\s*)?きっかけ：第\d+夜に紹介した「[^」\n]*」/g,'');
+  text=text.replace('聴いた人の記憶や、明日届くかもしれない感想は、放送後の世界に残ります。','');
+ }
+ // プレイヤーでなく、別のDJの番組を聴いていることに合わせる。
+ text=text.replace('今夜、あなたの言葉を聴いた人がいる。','今夜、この放送に耳を傾けた人がいる。');
+ text=text.replace(/\n{3,}/g,'\n\n').trim();
+ if(kind==='outro'&&night>=29){
+  // 通常放送で毎夜同じ説明を繰り返すより、その夜の風景だけを残す。
+  text=text.replace('声が届いた人も、届かなかった人もいる。\n\n放送の外では、今日もそれぞれの暮らしが続いている。','').trim();
+ }
+ return text;
+}
+// 通常放送の見出しは、その夜の実際のテーマを使う。既存の章タイトルは変えない。
+function readerEditorialTitle(title,night){
+ if(night>=29&&!chapter3IsNight(night)&&title==='今日も、午前2時'){
+  const theme=regularTheme(night)?.[0];
+  return theme||title;
+ }
+ return title;
+}
+function autoDJNoise(value){return (automaticStyleHash(`${s.night}:${value}`)%10000)/10000}
+function autoDJLetterMood(l){return stationAutoMood({subject:l.subject,body:l.body})}
+function autoDJPickLetters(ids){
+ const pool=ids.map(id=>letter(id)).filter(Boolean),picked=[];
+ const prior=s.played||[];
+ while(picked.length<Math.min(3,pool.length)){
+  const ranked=pool.filter(l=>!picked.includes(l.id)).map(l=>{
+   const recent=prior.filter(p=>p.who===l.who);
+   const last=recent.at(-1);
+   const timeGap=last?s.night-last.night:20;
+   const continuity=last&&timeGap<=42?1.65:0;
+   const gapBonus=Math.min(1.45,timeGap/15);
+   const repeatInNight=picked.some(id=>letter(id)?.who===l.who)?-5:0;
+   const mood=autoDJLetterMood(l);
+   const selectedMoods=picked.map(id=>autoDJLetterMood(letter(id)));
+   let sameTone=selectedMoods.some(x=>(x.heavy>=2)===(mood.heavy>=2)&&(x.playful>=1.5)===(mood.playful>=1.5));
+   const varied=selectedMoods.length&&!sameTone?1.1:0;
+   const topicMatch=selectedMoods.some(x=>x.reflective>=1.5&&mood.reflective>=1.5)?0.35:0;
+   const special=l.special?1.0:0;
+   // 同じ題材でも本文が変われば別の近況。まったく同じ手紙の短期再紹介だけ抑える。
+   const identical=prior.slice().reverse().find(p=>p.who===l.who&&p.subject===l.subject&&p.body===l.body);
+   const exactGap=identical?s.night-identical.night:Infinity;
+   const seenExact=exactGap<=10?-5.5:exactGap<=30?-3.5:exactGap<=80?-1.5:prior.some(p=>p.id===l.id)?-.9:0;
+   const score=2.0+continuity+gapBonus+varied+topicMatch+special+repeatInNight+seenExact+autoDJNoise(`letter:${l.id}`)*1.65;
+   return {id:l.id,score};
+  }).sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id));
+  if(!ranked.length)break;
+  picked.push(ranked[0].id);
+ }
+ return picked;
+}
+function autoDJOptionTag(title,response){
+ const words=String(title||'')+' '+String(response||'');
+ if(/冗談|笑い話|茶化し|ふざけ/.test(words))return 'humor';
+ if(/おめでとう|祝福|嬉しいですね|うれしいですね/.test(words))return 'celebrate';
+ if(/無理に|急がなく|安心|寄り添|受け止め|休んで|休む|気持ちを聞/.test(words))return 'empathy';
+ if(/振り返|思い返|考えてみ|気づ|気付|整理/.test(words))return 'reflection';
+ if(/問い|聞いて|どうして|どんな|なぜ|教えて/.test(words))return 'curiosity';
+ if(/自分で|選んで|始めて|一歩|試して/.test(words))return 'agency';
+ return 'space';
+}
+// v4.8.3: 自動DJと「相手」との距離感。舞台裏の人格値は参照せず、
+// この放送で実際に紹介した手紙と口にした返答だけを記憶する。
+// 人物ごとの傾向は小さな加点にとどめ、今夜の文脈を最優先する。
+const AUTO_DJ_LISTENER_TONES={
+ cat:['reflection','agency'],driver:['curiosity','humor'],clock:['reflection','space'],
+ bread:['celebrate','curiosity'],moon:['curiosity','humor'],fish:['empathy','agency'],
+ sugar:['humor','agency'],anon:['space','empathy'],terminal:['reflection','space'],
+ umbrella:['agency','curiosity'],triangle:['curiosity','reflection'],fridge:['empathy','agency']
+};
+function autoDJTone(tag){
+ const t=String(tag||'');
+ if(['past','followup','reflection','reflective'].includes(t))return 'reflection';
+ if(['question','curiosity'].includes(t))return 'curiosity';
+ if(['celebration','celebrate'].includes(t))return 'celebrate';
+ if(['comfort','caution','empathy'].includes(t))return 'empathy';
+ if(t==='humor'||t==='agency'||t==='space')return t;
+ return 'space';
+}
+function autoDJContactHistory(l){
+ const all=(s.played||[]).filter(p=>p.who===l.who);
+ const saved=s.reader?.dj?.replyTones?.[l.who]||[];
+ const recent=all.slice(-8).map(p=>{
+  const exact=saved.findLast(x=>x.night===p.night&&(x.id?x.id===p.id:(x.subject===p.subject&&x.response===p.response)));
+  return {night:p.night,subject:p.subject,tone:exact?.tone||autoDJTone(autoDJOptionTag('',p.response))};
+ });
+ return {count:all.length,recent,lastNight:all.length?all[all.length-1].night:null};
+}
+function autoDJRelationshipScore(l,title,response,tag){
+ const tone=autoDJTone(tag),h=autoDJContactHistory(l);
+ const last=h.recent.slice(-3),same=last.filter(x=>x.tone===tone).length;
+ const voice=AUTO_DJ_LISTENER_TONES[l.who]||[];
+ const mood=autoDJLetterMood(l);
+ // 相手の「キャラクターらしさ」よりも、今夜の実際の話題を優先する。
+ const suitable=tone==='humor'?(mood.playful>=1.0&&mood.heavy<1.5):
+  tone==='celebrate'?(mood.bright>=.65):true;
+ let value=voice.includes(tone)&&suitable?(h.count>=4?.75:.38):0;
+ // 初めてのお便りには、必要以上に親しげな前提を置かない。
+ if(h.count===0){
+  if(['space','curiosity','empathy'].includes(tone))value+=.3;
+  if(/(?:前にも|この前(?:の放送)?|前にお便りを|いつもお便りを|以前の放送で)/.test(String(response||''))
+    &&!/(?:前|以前|あれから|また|続き|先日|この前)/.test(String(l.body||'')))value-=3.0;
+ }else{
+  const callback=/(?:前|以前|あれから|また|続き|その後|この前|先日|覚えて)/.test(String(l.subject||'')+' '+String(l.body||''));
+  // 交流を重ねた相手でも「親密さ」を強制せず、過去の続きに目を向けやすくする。
+  const familiarity=Math.min(1,h.count/7);
+  if(['reflection','curiosity'].includes(tone))value+=.4*familiarity+(callback?.52:0);
+  if(h.lastNight!==null&&s.night-h.lastNight>=20&&['space','curiosity'].includes(tone))value+=.25;
+  // 同じリスナーにだけ毎回同じ返し方をしない。深刻な相談では文脈側の加点が勝つ。
+  value-=same===3?1.65:same===2?1.05:same===1?.25:0;
+ }
+ return value;
+}
+function autoDJRememberReply(l,title,response,tag){
+ const dj=s.reader?.dj;if(!dj)return;
+ dj.replyTones||={};dj.replyTones[l.who]||=[];
+ const list=dj.replyTones[l.who];
+ list.push({night:s.night,id:l.id,tone:autoDJTone(tag)});
+ if(list.length>12)list.splice(0,list.length-12);
+}
+// v4.8.4: 読書モードの返答は、今夜の手紙に書かれた行動を優先する。
+// 件名・本文のうち実際に届いた文章だけで判定する。人物の職業や未公開の内部状態から
+// 「作った」「書き直した」などの出来事を推測してはいけない。
+// これはLLMによる意味解析ではなく、事実を断定する言い回しを慎重に扱う限定的な規則。
+function autoDJFactualFit(l,response){
+ const source=String(l.subject||'')+'\n'+String(l.body||'');
+ const text=String(response||'');
+ let penalty=0;
+ const has=(re)=>re.test(source);
+ // 食べたり買ったりしただけのパンを、作り手の試作・焼成の話に変えない。
+ const baking=/(?:焼い|焼く|焼け|焼き上|作っ|作った|作り|試作|仕込|配合|発酵|オーブン|生地|材料|新作のパン|パン作り|パン.{0,25}試す|新しいパンを試す)/;
+ if(/(?:パンができるまで|パンを作る|パンを焼|そのパンは.{0,15}(?:味|形)|パンの(?:味|形)|焼き直|試作品|新作の(?:味|形))/.test(text)&&!has(baking))penalty+=12;
+ // 売り場の札や値札を書いた話に、焼いたパンの感想を持ち込まない。
+ if(/(?:値札|売り場の札|札を書|札の言葉|札を直)/.test(source)&&
+    /(?:そのパンは.{0,18}(?:味|形)|どんな(?:味|形)|作るまで|試作|焼き上がり)/.test(text)&&!has(baking))penalty+=9;
+ // 絵を描くことと本を読むことは別の行動。題材に「先生」がいても本の話とは限らない。
+ const books=/(?:本を|本の|本屋|絵本|読書|図書|文庫|読み終|読みかけ|読み返|読んだ|読んで|ページ|本棚|しおり)/;
+ if(/(?:本の話|本を(?:読|開)|読書|本のページ|本から始まった|本の中)/.test(text)&&!has(books))penalty+=12;
+ // v4.8.11: 本・図書室が本文にないのに、読書を前提として語る返答は不可。
+ // 「本当」は本の話ではない。特別放送の企画名だけで題材を決めつけない。
+ if(/(?:その本|面白い本|本や図書室|本(?:を|の|から|について|で|に|と)|読書|図書(?:室|館)|文庫|本棚|本屋|本のページ|本の中)/.test(text)&&!has(books))penalty+=24;
+ // 返信を考えたり連絡を受けただけでは、文章を書き直したことにはならない。
+ const edits=/(?:書き直|書き換|書き足|下書き|推敲|消し|消さ|削っ|残した(?:言葉|文|一文)|書きかけ|書き残|書いた(?:言葉|文)|文面を直|文章を直|書いては|何度も書)/;
+ if(/(?:書き直|書き換|書き足|消さなかった|残した(?:言葉|文|一文)|書き残|下書き|文章を直|言葉を選び直|書きかけ|文面を直)/.test(text)&&!has(edits))penalty+=12;
+ // 描いていない絵を完成させた扱いにしない。
+ if(/(?:描いた(?:絵|もの)|描き終|描き直|絵が完成)/.test(text)&&
+    !has(/(?:描い|描き|描く|書いた絵|絵を描|絵が完成)/))penalty+=9;
+ // 「下書きをした」と「書き直した」、「読んだ」と「返事を書いた」は異なる。
+ if(/(?:書き直しても|書き換えても)/.test(text)&&!has(/(?:書き直|書き換|推敲|何度も書|半分くらい消|書き足|文章を直)/))penalty+=12;
+ if(/(?:消さなかった|残した(?:言葉|文|一文))/.test(text)&&!has(/(?:消さず|消さな|残し|残した|残った|そこだけは|消えなかった)/))penalty+=10;
+ // 何かを確認しただけで、仕事のやり方を「変えてみた」ことにはしない。
+ if(/(?:仕事の進め方を変え|やり方を変えて|働き方を変えて|試せたことがあった)/.test(text)&&
+    !has(/(?:変え|変わ|違うやり方|試し|試せ|新しい方法|工夫|改善|やり方を見直)/))penalty+=11;
+ // 休んだと断定したり、達成したと祝ったりするには、本文に根拠が必要。
+ if(/(?:休んでいるあいだ|休めたあと|休んだことで)/.test(text)&&!has(/(?:休ん|休め|眠っ|寝た|休息|仮眠|ひと息|一息)/))penalty+=10;
+ if(/(?:いちばん「やった」|達成した瞬間|その成功を)/.test(text)&&
+    !has(/(?:できた|やれた|達成|成功|完成|売れ|終わっ|間に合|嬉し|うれし)/))penalty+=9;
+ if(/(?:昔のことを思い出した日|そのころのこと|思い出を無理に整理)/.test(text)&&
+    !has(/(?:昔|以前|懐かし|思い出|思い返|振り返|あのころ|そのころ)/))penalty+=8;
+ if(/(?:休んだ日を|休みの日を|休むことで)/.test(text)&&
+    !has(/(?:休ん|休め|休み|眠っ|寝た|休息|仮眠|ひと息|一息)/))penalty+=10;
+ // 今夜の手紙にない具体的な出来事を「前に話した」かのように扱うのを抑える。
+ // 過去の放送への明示的な参照は別途関係性スコアで評価する。
+ return penalty;
+}
+// 事実に合う候補がない場合だけ使う、読書モード限定の控えめな返答。
+// 返答候補や本編のシナリオ本文を変更しない。
+function autoDJNeutralReply(l){
+ const source=String(l.subject||'')+'\n'+String(l.body||'');
+ if(/(?:議長も議事録係|満場一致のはず)/.test(source))return ['ひとり会議の報告を楽しむ','議長も議事録係も同じ人だと、議事録を閉じるタイミングが難しそうですね。','humor'];
+ if(/(?:売り場の札|値札|札を書)/.test(source))return ['伝える言葉を受け止める','売り場に置く言葉のことも、聞かせてくれてありがとうございます。','empathy'];
+ if(/(?:妹|家族)/.test(source)&&/(?:返事|連絡|返信)/.test(source))return ['返信する時間を受け止める','返事をするまでにも、人それぞれの時間がありますね。','space'];
+ if(/(?:絵を描|絵を描く|描いた|描く時間)/.test(source))return ['絵の時間を受け止める','描く時間のことを聞かせてくれて、ありがとうございます。','empathy'];
+ if(/(?:パンを買|パンを選)/.test(source))return ['選んだ時間を受け止める','どのパンにしようか選ぶのも、小さな楽しみですよね。','empathy'];
+ const subject=String(l.subject||'').trim();
+ const title=subject&&subject.length<=28?`「${subject}」のお便り`:'今夜のお便り';
+ return ['今夜の言葉を受け止める',`${title}、聞かせてくれてありがとうございます。続きがあれば、また聞かせてください。`,'empathy'];
+}
+// v4.8.5: 手紙を「解釈しすぎない」ための読書用チェック。
+// 選択済み／公開済みのおたよりだけから判断し、リスナーの非公開値を参照しない。
+const AUTO_DJ_CONCRETE_TOPICS=[
+ ['猫主任',/(?:猫主任|主任の猫|猫の主任|例の猫|主任)/,/(?:猫主任|主任の猫|主任|その猫)/],
+ ['プリン',/プリン/,/プリン/],['パン',/(?:パン|くるみと蜂蜜|小麦|生地|焼き上が)/,/(?:パン|くるみ|蜂蜜|生地|焼き上が)/],
+ ['時計',/(?:時計|針|ねじ|修理)/,/(?:時計|針|ねじ|修理)/],
+ ['絵',/(?:絵を|絵の|描[いかきくけこ]|スケッチ|鉛筆|絵の具)/,/(?:絵を|絵の|描[いかきくけこ]|スケッチ|鉛筆|絵の具)/],
+ ['本',/(?:本を|本の|読書|図書|文庫|読んだ|ページ|本棚)/,/(?:本を|本の|読書|図書|文庫|読んだ|ページ|本棚)/],
+ ['駅',/(?:駅|電車|終点|切符|時刻表|ホーム)/,/(?:駅|電車|終点|切符|時刻表|ホーム)/],
+ ['コーヒー',/(?:コーヒー|砂糖|マグカップ)/,/(?:コーヒー|砂糖|マグカップ)/],
+ ['冷蔵庫',/(?:冷蔵庫|野菜室|食材)/,/(?:冷蔵庫|野菜室|食材)/],
+ ['花',/(?:花|鉢植え|花屋|水やり)/,/(?:花|鉢植え|花屋|水やり)/],
+ ['家族',/(?:妹|弟|父|母|家族|奥様|妻|息子|娘|兄|姉)/,/(?:妹|弟|父|母|家族|奥様|妻|息子|娘|兄|姉)/],
+ ['友人',/(?:友人|友達|同僚|仲間|相手|関係|連絡)/,/(?:友人|友達|同僚|仲間|相手|関係|連絡)/],
+ ['手紙',/(?:手紙|お便り|返信|返事|メッセージ|書い|下書き|言葉)/,/(?:手紙|お便り|返信|返事|メッセージ|書き直|書き足)/]
+];
+function autoDJNoAnswerRequested(l){
+ // 「返事がまだない」「返事を待つ」は依頼ではない。断りの言葉に限る。
+ return /(?:返事|返信|お返事|答え|質問への答え).{0,9}(?:いりません|いらない|不要です|求めていません|なくても(?:大丈夫|いい))/.test(String(l.body||''));
+}
+function autoDJAsksQuestion(text){
+ return /[？?]|(?:どんな|何を|何が|何か|いつ|誰が|どこ|なぜ|どう|いかが).{0,34}(?:ですか|ますか|ましたか|でしょうか|いいですか)|(?:教えてください|聞かせてください|問いかけ)/.test(String(text||''));
+}
+function autoDJSpecificityFit(l,response){
+ const source=String(l.subject||'')+'\n'+String(l.body||'');
+ const text=String(response||'');
+ let score=0;
+ for(const [name,fromLetter,inReply] of AUTO_DJ_CONCRETE_TOPICS){
+  // 「本」は「本当」などと誤認しない、主題を言及した返答だけ適度に優先。
+  if(fromLetter.test(source)&&inReply.test(text))score+=name==='手紙'?.22:1.05;
+ }
+ // 今夜、人間関係について書かれていないのに関係論を語る汎用文を抑える。
+ if(/(?:誰かとの関係|人との距離|会えなかったこと|相手への気持ち)/.test(text)&&
+    !/(?:友達|友人|家族|妹|弟|母|父|妻|夫|恋人|同僚|相手|誰か|会う|会えな|関係|連絡|返信|言い争)/.test(source))score-=9;
+ // 「するつもり」を既に成し遂げたかのように言わない（前の絵の経験は尊重）。
+ if(/(?:これから|今度|明日|いつか|もう一度|また).{0,28}(?:描こ|描く|描きた|描いてみ|描けたら)/.test(source)&&
+    !/(?:実際に描い|描いてみた|描き終え|絵を描きました|描いた絵|描き上げ)/.test(source)&&
+    /(?:その絵を描いた時間|その絵を描き始めた|描いたものが|描き終えた)/.test(text))score-=12;
+ // 予定している絵と、すでに描き終えた絵を混同しない。
+ if(/(?:これから|今度|明日|いつか|もう一度|また).{0,38}(?:描こ|描く|描きた|描いてみ|描けたら)/.test(source)&&
+    !/(?:この絵を描いた|その絵を描き終えた|完成した絵|描き上げた|絵を描きました)/.test(source)&&
+    /(?:その絵は.{0,15}描いた|その絵を描いた|その絵は.{0,15}描いたもの|その絵を描き始めた)/.test(text))score-=15;
+ // 完了していない決断を「決めた後」と扱わない。具体的な相談には残せる。
+ if(/(?:決めたあと|昨日の選択|選んだあと|選んできたこと)/.test(text)&&
+    !/(?:決めた|決めて|選んだ|選んで|決断|選択|決まり|決め直|あのときの言葉)/.test(source))score-=10;
+ // 休息や食事を実際に話していないのに「休めた時間」を事実として持ち込まない。
+ if(/(?:今日食べたものや休めた時間|休めた時間もあなたの暮らし)/.test(text)&&
+    !/(?:食べ|食事|ご飯|夕飯|朝食|昼食|休め|休ん|仮眠|寝た|眠っ)/.test(source))score-=9;
+ // 返信を望まない声は、まず受け取る。返答そのものを無言にするわけではない。
+ if(autoDJNoAnswerRequested(l)){
+  if(autoDJAsksQuestion(text))score-=15;
+  if(/(?:ありがとう|受け取り|聴いて|聞いて|大切に|置いて|そのまま)/.test(text))score+=1.7;
+ }
+ return Math.max(-18,Math.min(4.0,score));
+}
+function autoDJRepeatSaturation(response,l){
+ const text=String(response||'');
+ const historical=(s.played||[]).filter(p=>p.response===text);
+ const recent=historical.filter(p=>s.night-p.night<=35);
+ const thisListener=historical.filter(p=>p.who===l.who);
+ // 同じ言葉が本当に合う夜は残すが、30夜の短い間に定型文を何度も使わない。
+ return Math.min(3.1,Math.max(0,historical.length-6)*.16+Math.max(0,recent.length-2)*.38+
+     Math.max(0,thisListener.length-2)*.24);
+}
+// v4.8.11: 「今夜、何が心に残りましたか」のような質問の役割を見る。
+// 話題が違っても実質的に同じ問いが並ぶときだけ、多様性を小さく優先する。
+// 返答の事実整合性・返信不要の尊重は従来の足切り処理を先に通す。
+function autoDJQuestionRole(response){
+ const t=String(response||'');
+ // 一般の質問判定で漏れやすい「何でしたか」「どの場面だったのでしょう」も拾う。
+ const question=autoDJAsksQuestion(t)||/(?:何|どの|どんな|いちばん|一番).{0,36}(?:でしたか|でしょう|ですか|ますか)|(?:でしょうか|ませんか)/.test(t);
+ if(!question)return '';
+ if(/(?:どんな話|どんな言葉|どんな場面|何が|何を|いちばん|一番).{0,24}(?:印象|心に残|残っ|覚え|思い出)|(?:印象|心に残|覚え).{0,25}(?:何|どんな)/.test(t))return 'recollection';
+ if(/(?:どんな|何を|なぜ|どうして|どこ|いつ|誰が|どちら|どう).{0,40}(?:でしょう|ですか|ますか|ましたか)/.test(t))return 'question';
+ return 'question';
+}
+function autoDJNightVarietyScore(response){
+ if(activeProfile!=='reader')return 0;
+ const prior=(s.played||[]).filter(p=>p.night===s.night).slice(-2);
+ if(!prior.length)return 0;
+ if(prior.some(p=>p.response===String(response||'')))return -12;
+ const role=autoDJQuestionRole(response);
+ if(!role)return 0;
+ const previous=prior.map(p=>autoDJQuestionRole(p.response));
+ // 内容のある具体的な質問までまとめて禁止しない。
+ if(role==='recollection'&&previous.includes('recollection'))return -4.1;
+ if(previous.filter(Boolean).length>=2)return -2.2;
+ if(previous.some(Boolean))return -.9;
+ return 0;
+}
+function autoDJRankChoices(l,choices){
+ const ranked=choices.map((o,i)=>({i,score:autoDJReplyScore(l,o[0],o[1],o[2],i)+(o[3]==='grounded'?1.65:0),penalty:autoDJFactualFit(l,o[1])}));
+ const safe=ranked.filter(x=>x.penalty===0&&(!autoDJNoAnswerRequested(l)||!autoDJAsksQuestion(choices[x.i][1])));
+ if(safe.length)return safe.sort((a,b)=>b.score-a.score||a.i-b.i);
+ return [{i:-1,score:0,penalty:0}];
+}
+function autoDJSpecialCoherence(l,parts,indices){
+ const chosen=parts.map((p,i)=>p.options[indices[i]]);
+ const texts=chosen.map(o=>String(o[1]||''));
+ let score=0;
+ const together=texts.join('\n\n');
+ // 特別返答は各文を単独で採点せず、三文を通して矛盾・話題ずれを確認する。
+ // 汎用的な美辞麗句だけの組み合わせより、根拠ある具体性を一つ以上含むものを優先。
+ score+=Math.min(2,Math.max(0,autoDJSpecificityFit(l,together))*.5);
+ if(texts.filter(t=>/[？?]|教えてください|どんな.*でしょう/.test(t)).length>=2)score-=2.6;
+ if(texts.filter(t=>/(?:今すぐ|急いで|まずは)/.test(t)).length>=2)score-=.8;
+ for(let i=1;i<texts.length;i++){
+  if(texts[i]===texts[i-1])score-=4;
+  if(/(?:決めなくても|無理に決め)/.test(texts[i-1])&&/(?:決めるべき|すぐ決めて)/.test(texts[i]))score-=8;
+ }
+ return score;
+}
+function autoDJSelectSpecialParts(l,parts){
+ // 3段階 × 各4択なら64通り。全組合せを見て、前後が自然な原稿を選ぶ。
+ // 選択番号は原作の分岐ロジックに渡すため、選択肢そのものは書き換えない。
+ let best=null;
+ const walk=(indices,score)=>{
+  if(indices.length===parts.length){
+   const total=score+autoDJSpecialCoherence(l,parts,indices);
+   if(!best||total>best.score)best={indices:indices.slice(),score:total};
+   return;
+  }
+  const k=indices.length;
+  for(let j=0;j<parts[k].options.length;j++){
+   const o=parts[k].options[j],text=String(o[1]||'');
+   const tag=autoDJOptionTag(o[0],text);
+   const value=autoDJReplyScore(l,o[0],text,tag,k*17+j);
+   walk([...indices,j],score+value-(autoDJNoAnswerRequested(l)&&autoDJAsksQuestion(text)?40:0)-(k>0&&j===indices[k-1]?.25:0));
+  }
+ };
+ walk([],0);
+ return best?.indices||parts.map(()=>0);
+}
+function autoDJReplyScore(l,title,response,tag,offset=0){
+ const mood=autoDJLetterMood(l),text=String(response||''),past=s.reader?.dj?.tags||[];
+ const last=past.slice(-5).filter(x=>x===tag).length;
+ let score=3;
+ if(['empathy','space','caution'].includes(tag))score+=mood.heavy>1.4?2.4:0.5;
+ if(['reflection','past','followup','question','curiosity'].includes(tag))score+=mood.reflective>1.0?1.8:.75;
+ if(['agency'].includes(tag))score+=mood.heavy<2.2?1.0:.2;
+ if(['celebrate'].includes(tag))score+=mood.bright>1.2?2.8:-2.0;
+ if(tag==='humor')score+=mood.heavy>1.7?-7.0:(mood.playful>1.0?2.2:0.1);
+ if(mood.heavy>=2.3&&/(?:笑ってしまい|冗談|笑い飛ば)/.test(text))score-=4;
+ if(mood.bright>=1.5&&/(?:おめでとう|良かった|よかった|嬉しい)/.test(text))score+=1.1;
+ if(mood.heavy>2&&/(?:焦ら|急が|無理|少しずつ|聞かせて|休)/.test(text))score+=.7;
+ if(/(?:どうして|なぜ)[、？?]/.test(text)&&mood.heavy>2.3)score-=.8;
+ // 具体的な事実を言い切る返答は、手紙に根拠がある場合だけ優先する。
+ const evidence=String(l.subject||'')+'\n'+String(l.body||'');
+ if(/(?:猫主任|猫)/.test(evidence)&&/(?:その人と|相手と).{0,20}(?:言葉を交わ|話した)/.test(text)&&!/(?:友達|友人|家族|兄|姉|店員).{0,16}(?:話|会話|言葉)/.test(evidence))score-=6;
+ if(/(?:昨日|先週|このあいだ|前の日)/.test(evidence)&&!/(?:今日は|今日、|今朝)/.test(evidence)&&/(?:今日はいつもどおり|今日は.{0,20}言葉を交わした)/.test(text))score-=4;
+
+ // DJ が以前に口にした文面の使い回しを控える。適切な候補が一つしかなければ選べる。
+ const exact=s.played.slice().reverse().find(p=>p.response===text);
+ if(exact){
+  const gap=s.night-exact.night;
+  score-=gap<=3?3.5:gap<=7?2.5:gap<=14?1.65:gap<=30?.65:0;
+  if(exact.who===l.who&&gap<=18)score-=1.25;
+ }
+ return score-autoDJFactualFit(l,text)+autoDJSpecificityFit(l,text)+autoDJGenericContextScore(l,text)-autoDJRepeatSaturation(text,l)+autoDJRelationshipScore(l,title,text,tag)+autoDJNightVarietyScore(text)-Math.min(1.8,last*.5)+autoDJNoise(`${l.id}:reply:${offset}:${tag}:${title}`)*1.4;
+}
+// v4.8.11: 後半の読書モードに、本人の実際の話題だけから選べる返答を追加。
+// 通常プレイの選択肢数は増やさず、別DJの声の細かな違いを作る。
+// 一段落目の定型挨拶は判定に使わない（例：猫主任の名前だけで猫の話と決めない）。
+const AUTO_DJ_LATE_PERSONAL_486={
+ cat:[[/絵|描|スケッチ|鉛筆|画用紙/,[['机の時間を大切に','その紙に向かうかどうかを、自分で決められる時間があるのはいいですね。','space'],['絵の続きを楽しみに','まだ形になっていない話も、こうして聞かせてくれてうれしいです。','empathy']]]],
+ driver:[[/猫主任|駐車場の猫|例の猫/,[['主任の採点を待つ','主任からの評価は厳しそうですが、こちらでは今夜の報告を歓迎しています。','humor'],['仕事の合間を受け取る','配送の合間に出会った小さな話を聞けて、こちらも少し楽しくなりました。','empathy']]]],
+ fish:[[/日記|ノート|書き|文章|言葉/,[['言葉になる前を大切に','ノートの上だけに置いておきたい言葉も、あるのかもしれませんね。','space'],['自分の言葉を受け取る','今夜のあなたが選んだ言葉として、大切に聞きたいです。','empathy']]]],
+ clock:[[/時計|ねじ|針/,[['止まる針の話を聴く','時計の話を聞くと、針の音だけではない時間まで感じられます。','reflection'],['いまの時間を聞く','時計にまつわる話の中にも、いまのあなたの暮らしが見えてくるんですね。','reflection']]],[/図書室|子ども|しおり/,[['図書室の景色を思う','図書室で交わされる小さな言葉も、誰かには一日の出来事ですね。','reflection'],['本棚の向こうを想像する','本だけではなく、そこへ来た人の話も聞けるのがいいですね。','empathy']]]],
+ terminal:[[/駅|切符|時刻表|ホーム/,[['駅の外に目を向ける','ホームで過ごす時間の外にも、ちゃんと一日が続いているんですよね。','reflection'],['行き先を急かさない','どこへ向かうか決めない日にも、駅はそこにあってくれますね。','space']]]],
+ bread:[[/パン|小麦|生地|売り場|店長/,[['厨房の話を楽しむ','厨房の話を聞くと、目に見えない段取りまで想像してしまいます。','curiosity'],['パン屋の報告書に笑う','深夜にこの話を聞いた責任は、明日の朝ごはんで取ることになりそうです。','humor']]]],
+ moon:[[/月|宇宙|議事録|会議/,[['月面の公式見解を想像','月面の委員会が聞いたら、きっと議論が長引くでしょうね。','humor'],['空想の続きを待つ','この世界の決まりごとを、もう少し聞きたくなってしまいます。','curiosity']]],[/プリン|冷蔵庫/,[['冷蔵庫の警備を心配する','今夜の報告で、冷蔵庫の警備体制が少し気になってきました。','humor'],['身近な空想を歓迎する','冷蔵庫ひとつでこんな物語になるのが、あなたのお便りの面白さですね。','empathy']]]],
+ sugar:[[/コーヒー|砂糖|カップ/,[['一杯の違いを楽しむ','同じカップでも、話すことが違えば少し違う夜になりますね。','reflection'],['コーヒーの採点は保留','甘さの採点はご本人にお任せして、私は今夜のお便りを楽しみます。','humor']]]],
+ anon:[[/廊下|隣|挨拶|扉|部屋|メモ/,[['小さな報告を歓迎する','こんなささやかな声が届くのも、この時間のよさだと思います。','empathy'],['届いた言葉を大切に','書いてみようと思ったこと自体を、まず受け取りたいです。','space']]]],
+ umbrella:[[/花|鉢|店先|花束/,[['花屋の時間を受け取る','花のことを話す言葉にも、忙しい日の呼吸が少し残るのでしょうね。','empathy'],['花の色を思い浮かべる','店先の色を想像しながら、今夜のお便りを聞いています。','reflection']]]],
+ triangle:[[/ノート|地図|線|定規|図/,[['ノートの余白を楽しむ','ノートの端から話が広がっていくのが、なんだかいいですね。','empathy'],['答えを増やす','答えがまだ一つにならない時間も、立派な観察期間かもしれません。','reflection']]]],
+ fridge:[[/料理|夕食|ご飯|食材|厨房|皿/,[['自分の食卓を尊重する','誰かのための献立とは別に、自分の食卓の話ができるのもいいですね。','empathy'],['料理人の休憩を考える','仕事のレシピにない時間の使い方も、あっていいと思います。','space']]]]
+};
+function autoDJLatePersonalChoices(l){
+ if(s.night<90||!l.regular||['culture','variety','radio-memory','long-echo','daily-thread','relation-thread','surprise46','broadcast','special_echo'].includes(l.kind))return [];
+ const paragraphs=String(l.body||'').split(/\n\s*\n/);
+ const evidence=(paragraphs.length>1?paragraphs.slice(1).join('\n'):paragraphs.join('\n'))+'\n'+String(l.subject||'');
+ const groups=AUTO_DJ_LATE_PERSONAL_486[l.who]||[];
+ const match=groups.find(([pattern])=>pattern.test(evidence));
+ return match?match[1].map(x=>x.slice()):[];
+}
+// v4.8.11: 「誰かから教わったこと」は企画テーマだけで「本」の返答を選ばない。
+// 本文に現れた題材だけを用い、同じ企画でも人によって違う返答を選べるようにする。
+// 読書用の自動DJだけに適用。通常の手動返答と既存の放送履歴は変更しない。
+const AUTO_DJ_TAUGHT_DETAILS=[
+ [/(?:花の水|花は毎日|水を替|水やり)/,[
+  ['花の手入れを思う','花の水を替える、その小さな仕事にも、誰かから受け取った知恵が残っているんですね。','reflection'],
+  ['忘れそうな日を受け止める','忙しいほど忘れそうになるというところも、暮らしの正直な話ですね。','empathy']]],
+ [/(?:三角定規|角度|違う角度|同じ線)/,[
+  ['角度の違いを楽しむ','同じ線も見る角度で違ってくるという話、ラジオにも似合いますね。','curiosity'],
+  ['教わった発見を喜ぶ','教わった使い方が、そのままあなたの好きな見方にもなっているんですね。','empathy']]],
+ [/(?:猫主任|昼寝の場所|車の陰|猫から学)/,[
+  ['主任の休息指導に乗る','猫主任の授業は、どうやら休憩場所の選び方から始まるようですね。','humor'],
+  ['休む場所を思う','風を避けられる場所を探すことも、立派な暮らしの知恵ですね。','reflection']]],
+ [/(?:生地を休|パンのほうが休|生地も休)/,[
+  ['生地の休憩を思う','生地にも休む時間が必要だという教え、忙しい人間にも届いてほしいですね。','empathy'],
+  ['パンのほうが上手に休む','パンに休憩の予定表を作ってもらうのも、悪くないかもしれません。','humor']]],
+ [/(?:火を止め|休ませる鍋|料理は火)/,[
+  ['火を止めた後を思う','火を止めたあとにも料理が変わるという話、時間の使い方を考えさせられますね。','reflection'],
+  ['休むことを急かさない','料理と人間を比べてみたくなる気持ち、今夜はそのまま聞いていたいです。','empathy']]],
+ [/(?:ねじを外|小さなねじ|話す速度|教えることも練習)/,[
+  ['教える速さを受け止める','ねじを外す手つきだけでなく、伝える速さも考えた一日だったんですね。','empathy'],
+  ['教える側の発見を喜ぶ','教えるつもりが自分も練習になる、その気づきがいいですね。','reflection']]],
+ [/(?:ノートの端|ノートの余白|空白を残|あとから思いついた)/,[
+  ['余白の役目に目を向ける','あとから書き足せる余白、ノートにも暮らしにも残しておきたいですね。','reflection'],
+  ['自分の言葉を歓迎する','教わった余白に、自分の言葉を書いているという話がうれしいです。','empathy']]],
+ [/(?:鉛筆|消す前|絵の先生)/,[
+  ['消す前の時間を思う','消す前に一度眺める。そのひと呼吸が、いまも残っているんですね。','reflection'],
+  ['昔の教えを受け取る','絵の先生の言葉が、仕事の文章を見直す時間にもつながっているんですね。','empathy']]],
+ [/(?:駅員|終電|普通の案内)/,[
+  ['駅員の言葉を思う','何でもない終電の案内が、長く記憶に残ることもあるんですね。','reflection'],
+  ['小さな記憶を喜ぶ','教訓というほどではない言葉を、今夜聞かせてくれたことがうれしいです。','empathy']]],
+ [/(?:月は毎日|月の読み方|先生はそんな使い方|違って見える)/,[
+  ['月の観察を楽しむ','教わった月の見方を、あなた流に楽しんでいるんですね。','curiosity'],
+  ['先生の想像を超える','先生も、月の形をそんなふうに楽しんでもらえるとは思わなかったかもしれませんね。','humor']]],
+ [/(?:お湯の温度|コーヒーの淹れ|ひと手間だけ)/,[
+  ['温度のひと手間を思う','コーヒーを淹れる前のひと手間が、いまも習慣に残っているんですね。','reflection'],
+  ['砂糖の話を楽しむ','お湯の温度は教わっても、砂糖の量はご自身の流儀なんですね。','humor']]],
+ [/(?:相手が黙|静かな時間を|話を終わらせなく|以前ラジオで)/,[
+  ['静かな時間を受け取る','相手が黙っている時間にも、急がないでいられるようになったんですね。','empathy'],
+  ['昔の放送の余韻を思う','誰の言葉だったか忘れても、残っているものがあるんですね。','reflection']]]
+];
+function autoDJTaughtChoices(l){
+ if(!l.programSpecial||l.themeId!=='story_taught'||l.special)return null;
+ const evidence=String(l.subject||'')+'\n'+String(l.body||'');
+ const match=AUTO_DJ_TAUGHT_DETAILS.find(([re])=>re.test(evidence));
+ const detailed=match?match[1].map(row=>[...row,'grounded']):[];
+ const general=[
+  ['教わったことを受け止める','誰かから受け取った小さな知恵が、今の暮らしの中にも残っているんですね。','empathy'],
+  ['今の自分の使い方を思う','教わったことを、そのままではなく自分なりに使っているのが面白いですね。','reflection'],
+  ['日常の続きを願う','そんな小さな発見を、またいつか聞かせてもらえたらうれしいです。','space'],
+  ['気づきを大切にする','教わったときとは別の場面で、ふと思い出すこともあるのでしょうね。','reflection']
+ ];
+ return [...detailed,...general];
+}
+// v4.8.11: 何度も同じ汎用返答になりやすい「他のリスナーの放送を聴いた」便り。
+// 本文に実在する名前・件名・日常の行動だけを使って、DJ専用の返答候補を補う。
+// ラジオ局がまだ紹介していない手紙を知っているかのように語らないため、
+// 「昨日、...のお便りを放送で聴きました」という明示的な記述がある時のみ使用する。
+function autoDJHeardLetterChoices(l){
+ if(l.special)return [];
+ const body=String(l.body||'');
+ const found=body.match(/昨日、([^\n「」]{1,28})さんの「([^「」\n]{1,48})」というお便りを放送で聴きました/);
+ if(!found)return [];
+ const sender=found[1].trim(),subject=found[2].trim();
+ if(!sender||!subject)return [];
+ const options=[
+  ['昨日の言葉を一緒に受け取る',`${sender}さんの「${subject}」のお便りが、あなたの夜にも届いていたんですね。`,'empathy','grounded'],
+  ['声が巡ることを思う',`「${subject}」というお便りを聴いた人から、こうしてまた別の声が届く。それもラジオの面白さですね。`,'reflection','grounded'],
+  ['一通がつながる時間を思う',`「${subject}」という一通が、別の一通につながったんですね。こうして聴けるのがうれしいです。`,'empathy','grounded'],
+  ['ひとつの題名の余韻を受け止める',`昨日の「${subject}」の話を、今夜あなたの言葉でも聞くことができました。`,'reflection','grounded'],
+  ['誰かの夜の続きを大切に',`${sender}さんの話を聴いたあとの、あなた自身の夜について教えてくれてありがとうございます。`,'empathy','grounded'],
+  ['声が向こう岸へ届くのを思う',`「${subject}」が放送のあとにも誰かの心に残る。そんなことがあるのが、深夜ラジオの面白いところですね。`,'curiosity','grounded'],
+  ['聴き手からの手紙を歓迎する',`「${subject}」を聴いていた時間まで、今夜のお便りから少し見えた気がします。`,'reflection','grounded'],
+  ['ふたつの声を受け止める',`${sender}さんの声に続いて、今夜はあなたの声も届きました。どちらも大切な一通です。`,'empathy','grounded']
+ ];
+ if(/(?:返事はいりません|返事は不要|返信はいりません|お返事は不要)/.test(body)){
+  options.push(['返事のいらない言葉を受け取る','返事はいらない、と書いてくれた言葉を、今夜はそのまま受け取ります。ありがとうございます。','space','grounded']);
+ }
+ if(/降りる駅まで/.test(body)){
+  options.push(['帰り道の余韻を受け取る','降りる駅まで、ひとつのお便りが心に残っていたんですね。','reflection','grounded']);
+ }
+ if(/(?:お茶を淹れ|茶を淹れ)/.test(body)){
+  options.push(['お茶の時間に寄り添う','お茶を淹れた時間にも、昨日聴いた声が残っていたんですね。','reflection','grounded']);
+ }
+ if(/コーヒーを淹れ/.test(body)){
+  options.push(['コーヒーの時間に寄り添う','コーヒーを淹れた時間にも、昨日聴いた声が残っていたんですね。','reflection','grounded']);
+ }
+ if(/(?:本を閉じたあと|本を閉じてから)/.test(body)){
+  options.push(['本を閉じたあとの声を思う','本を閉じたあとにも、ラジオで聴いた声を思い返していたんですね。','reflection','grounded']);
+ }
+ if(/(?:荷物を積んだまま|配送の途中で|運転中も)/.test(body)){
+  options.push(['仕事のあいだの余韻を思う','仕事のあいだにも、別の誰かの夜のことを考えた時間があったんですね。','reflection','grounded']);
+ }
+ return options;
+}
+// v4.8.11: 何気ない会話や一日の小さな行動に、手紙で確認できた事実で返す。
+// 発言しなかった・会釈しただけ・話して笑った、をひとまとめにしない。
+// 企画放送・特別返答は対象外。本編の返答候補を変更せず、読書DJだけに渡す。
+function autoDJEverydayChoices(l){
+ if(!l.regular||l.special||l.programSpecial)return [];
+ const body=String(l.body||'');
+ const rows=[];
+ const add=(title,text,tag)=>rows.push([title,text,tag,'grounded']);
+ const line=body.match(/(?:昨日|その日|今日)、([^。\n]{1,35}?)と話しました/);
+ const silent=!line&&/(?:会釈(?:だけ|を交わ)|挨拶(?:だけ|を交わ)|声はかけ(?:ません|なかった)|話(?:は|を)?(?:しません|さなかった)|それ以上は話(?:さず|しません)|すれ違いました)/.test(body);
+ // 話さなかった日を「会話できた日」に書き換えない。
+ if(silent){
+  if(/会釈/.test(body)&&!/会釈(?:しな|できな)/.test(body)){
+   add('会釈の距離を受け取る','会釈だけで終わったことも、今夜のお便りにはちゃんと残っていますね。','space');
+   add('短い合図を大切に','言葉を交わさない日にも、相手に気づいた小さな瞬間はありますね。','reflection');
+  }else if(/挨拶/.test(body)){
+   add('短い挨拶の余韻','挨拶を交わした、その短い時間のことを聞かせてくれてありがとうございます。','empathy');
+  }else if(/見かけ|すれ違/.test(body)){
+   add('声をかけなかった道','声をかけなかったことも含めて、その日の景色だったんですね。','space');
+  }
+ }
+ if(line){
+  const person=line[1].trim();
+  // 受け取った本文の呼び名だけを使い、相手の気持ちは推測しない。
+  if(/(?:返事を考えているあいだ|言葉が途中|言い残|言えなかった|別の言い方|気まず)/.test(body)){
+   add('言葉にならなかった部分','話し終えたあとに残る言葉もありますね。今夜は、その続きまで聞かせてもらえた気がします。','empathy');
+   add('返事を急がせない','その場で言えたことと、あとから考えたこと。どちらもその日の会話なんですね。','reflection');
+  }else if(/(?:笑って思い出|少し笑|笑ってしま|口元がゆる)/.test(body)){
+   add('帰り道の笑いを受け取る','話したあとで思い出して笑えるような時間があったんですね。','empathy');
+   if(l.who==='moon'&&/委員会|議事録|交流実験/.test(body))add('月面の記録に乗る','その報告が月面の議事録に載ったら、ずいぶんにぎやかになりそうですね。','humor');
+  }else if(l.who==='moon'&&/(?:なぞなぞ|委員会|交流実験)/.test(body)){
+   add('地球での報告を楽しむ','地球での何でもない会話まで月面の報告になるところが、なんだか楽しいです。','humor');
+  }else if(/(?:特別な話じゃ|特別な話では|いつもどおり|短いやり取り|もう一度考え)/.test(body)){
+   add('何でもない話を聴く','大きな出来事ではなかった、と書いてくれたところまで含めて受け取りたいです。','space');
+   add('会話のあとに残ったもの','話の内容だけでなく、話し終えたあとの時間も心に残ることがありますね。','reflection');
+  }
+  if(/帰りの車で一人になってから/.test(body)){
+   add('帰りの車に残った会話','一人になった車の中でも、さっきの会話が少し続いていたんですね。','reflection');
+  }
+  if(/(?:話し終えてから|話し終わってから).{0,25}(?:顔が少し違|見え方が変)/.test(body)){
+   add('話したあとの見え方','話し終えたあと、同じ人が少し違って見えたという話が心に残ります。','reflection');
+  }
+  if(/自分の言葉を聞いてもらえた気が/.test(body)){
+   add('聞いてもらえた感覚を尊重','聞いてもらえた気がした、という手応えをそのまま大切にしたいです。','empathy');
+  }
+  if(/(?:同じ質問に答える人がいる|同じ質問でも)/.test(body)){
+   add('同じ質問を楽しむ','同じ質問に違う答えを持つ人がいる、という発見が面白いですね。','curiosity');
+  }
+  if(/面と向かうと案外言えない/.test(body)){
+   add('面と向かう難しさを受け止める','頭の中では言えることも、顔を合わせると違ってくるんですね。','empathy');
+  }
+ }
+ if(/(?:友人|友達|家族|妹|兄|姉|同僚|仲間|お客さん)/.test(body)){
+  if(/(?:看板の話|看板を|看板の絵)/.test(body))add('看板の話題を楽しむ','看板の話だけで一緒に歩く時間が少し変わるのも、面白いですね。','curiosity');
+  if(/(?:一緒に|二人で).{0,16}(?:歩|帰)/.test(body))add('並んで歩いた時間','一緒に歩いた道のことまで、お便りから少し見えてきます。','reflection');
+ }
+ // 行動を明示している生成日常便りにのみ、確定した具体的な事実への反応を足す。
+ if(['daily','new-life'].includes(l.kind)){
+  if(/(?:日記|メモ|ノート).{0,18}一行書/.test(body)){
+   add('一行の時間を受け取る','一行だけ書いてみたという話を、今夜はそのまま大切に聴きたいです。','empathy');
+  }else if(/(?:日記|メモ|ノート).{0,18}書き足/.test(body)){
+   add('書き足した時間を受け取る','あとから書き足した言葉がある、という今日の報告もいいですね。','reflection');
+  }
+  if(l.who==='fridge'&&/(?:家の冷蔵庫|冷蔵庫にあるもの).{0,22}(?:料理|作った)/.test(body)){
+   add('家の食卓の話を聴く','仕事の料理とは違う、家の冷蔵庫から始まる一皿だったんですね。','reflection');
+  }
+  if(/(?:昔の時計店|商店街|散歩道).{0,35}(?:歩い|眺め)/.test(body)){
+   add('歩いた道を受け取る','歩いて見た道の景色まで、今夜のお便りから少し伝わってきます。','space');
+  }
+ }
+ return rows;
+}
+// 手紙に根拠のないテーマへの質問を、単なるバリエーション目的で増やさない。
+// 機能の対象は「聴くだけの夜」専用。元の返答候補と手動放送は変更しない。
+function autoDJGenericContextScore(l,response){
+ const src=String(l.subject||'')+'\n'+String(l.body||'');
+ const text=String(response||'');
+ let score=0;
+ // 本人が明確に返答を求めていない場合は、すでにある質問回避規則を優先する。
+ // 長期的な頻出文は、具体的な題材を拾える候補がある時だけ小さく不利にする。
+ if(/^(?:昨日の放送の、どんな言葉が|会ったことのない人の言葉が|同じ放送が、別々の場所に|何かを始めなくても、聴いていた時間は|何かを変えなくても、聴いてくれていた時間が)/.test(text)&&
+    /昨日、[^\n「」]{1,28}さんの「[^「」\n]{1,48}」というお便りを放送で聴きました/.test(src))score-=.8;
+ return score;
+}
+function autoDJReply(l){
+ if(l.special){
+  const parts=partsForLetter(l),indices=autoDJSelectSpecialParts(l,parts);
+  s.replyParts=indices;s.replyStep=2;
+  const body=parts.map((p,i)=>p.options[indices[i]][1]).join('\n\n');
+  for(let k=0;k<parts.length;k++)s.reader.dj.tags.push(autoDJOptionTag(parts[k].options[indices[k]][0],parts[k].options[indices[k]][1]));
+  autoDJRememberReply(l,'特別返答',body,autoDJOptionTag('',body));
+  return {tag:'special',response:body};
+ }
+ const choices=autoDJTaughtChoices(l)||[...(l.choices||[]),...autoDJLatePersonalChoices(l),...autoDJHeardLetterChoices(l),...autoDJEverydayChoices(l)];
+ const ranked=autoDJRankChoices(l,choices);
+ let c=ranked[0]?.i===-1?autoDJNeutralReply(l):choices[ranked[0]?.i??0];
+ // 同じ夜の別の手紙に全文一致の返答を繰り返さない。
+ // 根拠のある別候補がない場合だけ、事実を付け足さない控えめな返答にする。
+ const already=(text)=>(s.played||[]).some(p=>p.night===s.night&&p.response===text);
+ if(c&&already(c[1])){
+  const alt=ranked.find(row=>row.i>=0&&!already(choices[row.i][1]));
+  c=alt?choices[alt.i]:autoDJNeutralReply(l);
+ }
+ if(!c)throw Error('返答候補がありません: '+l.id);
+ s.reader.dj.tags.push(c[2]);autoDJRememberReply(l,c[0],c[1],c[2]);return {tag:c[2],response:c[1]};
+}
+function autoDJMaybePlan(){
+ if(s.night<29||!s.special||['announced','ready'].includes(s.special.planned?.status)||specialActive(s.night))return;
+ const options=specialAvailable(s.night);if(!options.length)return;
+ const isAnniversary=options.includes('anniversary');
+ if(!isAnniversary&&s.night-s.reader.dj.lastPlanNight<17)return;
+ const story=options.find(id=>id.startsWith('story_'));
+ if(isAnniversary||story||s.night%13===4){
+  const chosen=isAnniversary?'anniversary':story||options[automaticStyleHash(`special:${s.night}`)%options.length];
+  specialPlan(chosen);s.reader.dj.lastPlanNight=s.night;
+ }
+}
+// v4.8.14: 読書モード専用の「DJのひとこと」。
+// 本編のオープニング・幕間・締めの選択肢を変更せず、一夜に多くても一度だけ声を添える。
+// 既に紹介した手紙だけを参照し、生活や交流の新たな事実を作らない。
+const READER_DJ_VOICE={
+ opening:[
+  {text:'手紙を三通、机の端に並べました。今夜も、一通ずつ。',tone:'gentle'},
+  {text:'原稿の隅をそろえていたら、もうこんな時間です。小さな準備ほど、時間を忘れますね。',tone:'light'},
+  {text:'マイクの前に座ると、封筒を開ける音まで大事にしたくなります。',tone:'gentle'},
+  {text:'今夜はいつもより少しゆっくり読んでみます。時計の針には内緒で。',tone:'light'},
+  {text:'言葉を急いで選ぶより、まず手紙を開いてみることにします。',tone:'gentle'},
+  {text:'まだ起きている誰かに届くように、声の高さを少しだけ整えました。',tone:'gentle'},
+  {text:'机の上には三つの違う一日があります。さて、最初の一通です。',tone:'gentle'},
+  {text:'ペンを持ったまま挨拶しそうになりました。いったん置いて、始めましょう。',tone:'light'},
+  {text:'いつも通りの午前二時ですが、同じ手紙が届く夜はありません。',tone:'gentle'},
+  {text:'返事を考える前に、最後の行まできちんと読みたいと思います。',tone:'gentle'}
+ ],
+ bridge:[
+  {text:'最後の一行を、もう一度だけ目で追いました。',tone:'gentle'},
+  {text:'いまの言葉は、少し机の上に残しておきましょう。',tone:'gentle'},
+  {text:'封筒を伏せて、ペンを持ち直します。',tone:'gentle'},
+  {text:'返事を終えたあとにも、考えたくなることがありますね。',tone:'gentle'},
+  {text:'手紙を一通読み終えるたび、今夜が少しずつ違う形になります。',tone:'gentle'},
+  {text:'うまく言葉にできないところは、いまは静かなままにしておきます。',tone:'gentle'},
+  {text:'誰かの小さな出来事が、こちらの一日にも少し残ることがあります。',tone:'gentle'},
+  {text:'猫主任の査定基準は、今夜も非公開のままのようです。',tone:'playful',pattern:/猫主任|主任.{0,9}猫|猫.{0,9}主任/},
+  {text:'プリンの隠し場所については、番組では捜索を請け負っておりません。',tone:'playful',pattern:/プリン/},
+  {text:'パンの話のあとは、深夜の空腹が少し困ります。',tone:'playful',pattern:/パン/},
+  {text:'時計の話を聞くと、ついスタジオの時計まで見てしまいます。',tone:'light',pattern:/時計/},
+  {text:'月の秘密については、まだ番組にも正式な報告が来ていません。',tone:'playful',pattern:/月.{0,12}(?:秘密|裏側)|秘密.{0,12}月/}
+ ],
+ ending:[
+  {text:'三通の手紙が並ぶと、同じ夜にもいろいろな速さがあるとわかります。',tone:'gentle'},
+  {text:'うまく返せたかどうかは、マイクを切ってからも考えることにします。',tone:'gentle'},
+  {text:'ひとつの答えにまとめられない夜があっても、いいですね。',tone:'gentle'},
+  {text:'今日も、聞いたことの続きを自分の中に少し残して帰ります。',tone:'gentle'},
+  {text:'三通とも、違う場所で過ごされた一日でした。今夜はそこが好きです。',tone:'gentle'},
+  {text:'誰かの話を聴いたあと、すぐ次のことを考えられない夜もあります。',tone:'gentle'},
+  {text:'手紙を閉じる音が、今日は少しゆっくり聞こえた気がします。',tone:'gentle'},
+  {text:'放送を終えるときは、いつもほんの少しだけ名残惜しいものです。',tone:'gentle'},
+  {text:'今日もわからないことは残りました。無理に答えにしないまま、おやすみなさい。',tone:'gentle'},
+  {text:'ささやかなことほど、誰かに話してみると形が見えてきますね。',tone:'gentle'},
+  {text:'猫主任の夜勤が終わるのは、いったい何時なのでしょう。',tone:'playful',pattern:/猫主任|主任.{0,9}猫|猫.{0,9}主任/},
+  {text:'プリンの無事については、明日の報告を気長に待つことにしましょう。',tone:'playful',pattern:/プリン/},
+  {text:'パンの話を聞いた夜に、お腹が空かない方法があれば知りたいですね。',tone:'light',pattern:/パン/},
+  {text:'時計の話が届く夜は、時間を忘れるわけにもいきませんね。',tone:'light',pattern:/時計/}
+ ]
+};
+// v4.8.14: 「DJのひとこと」が5夜周期で機械的に現れることを避ける。
+// 物語用の乱数とセーブ本文を触らず、今夜の紹介済み手紙と演出履歴だけで決める。
+function readerDJVoiceValue(page){
+ const v=page?.djVoice;
+ return v?.opening||v?.ending||(Array.isArray(v?.interludes)?v.interludes.find(Boolean):'')||'';
+}
+// v4.8.14: あいさつの定型文は「今夜のおたよりの主題」とは別に扱う。
+// たとえば配達員の猫主任、月の裏側のプリン、古時計の時計の音。
+// ここにしかない題材を根拠に、DJが唐突な冗談を差し込まない。
+function readerDJVoiceTopicText(item){
+ const subject=String(item?.subject||'');
+ let body=String(item?.body||'');
+ body=body.replace(/^こんばんは。猫主任からの評価は、今日も保留です。[\t ]*(?:\n+|$)/,'');
+ body=body.replace(/^こんばんは。冷蔵庫のプリンは、まだ無事です。[\t ]*(?:\n+|$)/,'');
+ body=body.replace(/^こんばんは。今夜は時計の音がよく聞こえます。[\t ]*(?:\n+|$)/,'');
+ // ラジオで聴いた別の送り主の名前だけを、パンや時計の話題と誤認しない。
+ const distinctNames=/眠れないパン屋さん|古時計さん|月の裏側さん/g;
+ return subject.replace(distinctNames,'')+'\n'+body.replace(distinctNames,'');
+}
+function readerDJChooseVoice(){
+ const night=s.night,all=(s.played||[]).filter(p=>p.night===night);
+ const blank={opening:'',interludes:['',''],ending:''};
+ if(all.length!==3)return blank;
+ const previous=(s.reader?.pages||[]);
+ // ひとことを喋った翌夜は、あえて何も追加しない。
+ if(readerDJVoiceValue(previous.at(-1)))return blank;
+ // 話す夜・話す場所は固定周期にしない。長い無言が続いた場合だけ少し選びやすくする。
+ const key=all.map(p=>p.id).join('|');
+ const schedule=automaticStyleHash(`voice-cadence-v4813:${night}:${key}`)/4294967296;
+ const twoSilent=previous.length>=2&&!readerDJVoiceValue(previous.at(-2));
+ if(schedule>=(twoSilent?.72:.57))return blank;
+ const mood=all.map(p=>stationAutoMood({subject:p.subject,body:p.body},p.response||''));
+ const serious=mood.some(m=>m.heavy>=2.0);
+ const slotHash=automaticStyleHash(`voice-position-v4813:${night}:${key}`);
+ let slot=['opening','bridge','ending'][slotHash%3];
+ let index=(slotHash>>>4)%2;
+ // 無言の幕間には割り込まない。もう一方の幕間が使えるならそちらを選ぶ。
+ if(slot==='bridge'&&s.broadcastStyle.interludes[index+1]===-1){
+  if(s.broadcastStyle.interludes[2-index]!==-1)index=1-index;
+  else slot='ending';
+ }
+ const anchor=slot==='bridge'?all[index]:null;
+ const context=slot==='bridge'?readerDJVoiceTopicText(anchor):all.map(readerDJVoiceTopicText).join('\n');
+ const earlier=previous.slice(-85).map(p=>p.djVoice).filter(Boolean).flatMap(x=>[x.opening,x.ending,...(Array.isArray(x.interludes)?x.interludes:[])]).filter(Boolean);
+ const options=READER_DJ_VOICE[slot].filter(x=>(!x.pattern||x.pattern.test(context))&&(!serious||x.tone==='gentle')&&(!(slot==='bridge'&&x.tone==='playful'&&mood[index]?.heavy>=1.0))&&(!(slot==='ending'&&x.tone==='playful'&&mood[2]?.heavy>=1.0)));
+ if(!options.length)return blank;
+ // 話題が一致する候補も、同文が最近使われた場合は新鮮な候補を優先。
+ const fresh=options.filter(x=>!earlier.includes(x.text));
+ const pool=fresh.length?fresh:options;
+ const ranked=pool.map((x,i)=>{
+  const used=earlier.filter(t=>t===x.text).length;
+  let score=(automaticStyleHash(`reader-dj:${night}:${slot}:${x.text}`)%10000)/10000*1.8;
+  if(x.pattern)score+=2.1;
+  if(x.tone==='playful'&&!serious)score+=.8;
+  if(serious&&x.tone==='gentle')score+=.6;
+  // 候補を使い切った後も、つい数夜前の同じ一文を再使用しない。
+  const lastIndex=previous.findLastIndex(p=>readerDJVoiceValue(p)===x.text);
+  const gap=lastIndex<0?999:night-previous[lastIndex].night;
+  score-=used*8+Math.max(0,75-gap)*.65;
+  return {i,score};
+ }).sort((a,b)=>b.score-a.score||a.i-b.i);
+ const text=pool[ranked[0].i].text;
+ if(slot==='opening')blank.opening=text;
+ else if(slot==='ending')blank.ending=text;
+ else blank.interludes[index]=text;
+ return blank;
+}
+function readerProduceNight(){
+ if(activeProfile!=='reader'||readerBatch)return;
+ const r=s.reader;
+ if(r.viewIndex<r.pages.length-1){readerGotoPage(r.viewIndex+1);return}
+ const backup=JSON.stringify(s);
+ readerBatch=true;
+ try{
+  // 第14夜・28夜・第3章の終わりは、既存の章移行処理を使用。
+  if(s.phase==='after')nextNight();
+  if(s.phase==='complete')beginRegular();
+  if(s.phase==='chapter2_complete')beginAfterChapter2();
+  if(s.phase==='chapter3_complete')beginAfterChapter3();
+  if(s.phase!=='intro'&&s.phase!=='prepare')throw Error('読書用の夜の開始位置が不正です: '+s.phase);
+  if(s.phase==='intro')autoDJMaybePlan();
+  const introduction=readerTextFromPanel(s.phase==='intro'?intro():'<section class="panel"><h2>今夜の放送</h2></section>');
+  if(s.phase==='intro')startNight();
+  const ids=nightLetters(s.night),selected=autoDJPickLetters(ids);
+  if(!selected.length)throw Error('紹介できるおたよりがありません');
+  s.chosen=selected;s.broadcastModePref='letters';s.opening=null;
+  beginBroadcast();
+  const specialIntroText=specialActive(s.night)?SPECIAL_THEMES[s.special.planned.themeId].opening:'';
+  while(s.cursor<s.chosen.length){
+   const l=letter(s.chosen[s.cursor]);
+   if(!l)throw Error('おたよりがありません');
+   s.current=l.id;s.phase='reply';
+   const picked=autoDJReply(l);applyReply(l,picked.tag,picked.response);
+   ensureAutomaticBroadcastSelections();
+  }
+  ensureAutomaticBroadcastSelections();
+  if(s.song===null||s.broadcastStyle.closing===null)throw Error('最後の演出が決定しませんでした');
+  readerChooseClosing();
+  finishBroadcast();
+  if(s.phase!=='after')throw Error('放送が終了できませんでした');
+  const outro=readerTextFromPanel(after());
+  const night=s.night;
+  const source=s.special?.planned?.night===night?s.special.planned.storySource:null;
+  const specialOrigin=source&&Number.isInteger(source.originNight)?{night:source.originNight,subject:String(source.sourceSubject||'')}:null;
+  const djVoice=readerDJChooseVoice();
+  const page={night,djVoice,title:readerEditorialTitle(introduction.title,night),intro:readerEditorialScene(introduction.text,'intro',night),outro:readerEditorialScene(outro.text,'outro',night),specialOrigin,specialIntro:specialIntroText,
+   opening:opening[s.opening]||'',song:songs[s.song]?.slice(0,2)||[],closing:STATION_CLOSINGS[s.broadcastStyle.closing]?.[1]||'',
+   interludes:s.chosen.slice(1).map((id,i)=>s.broadcastStyle.interludes[i+1]??-1),letterIds:s.chosen.slice()};
+  r.pages.push(page);r.viewIndex=r.pages.length-1;r.scrollY=0;
+  if(r.dj.tags.length>40)r.dj.tags.splice(0,r.dj.tags.length-40);
+  readerBatch=false;
+  if(!save())throw Error('保存容量を超えたか、保存できませんでした。読書用データをバックアップしてください');
+  render();window.scrollTo(0,0);
+ }catch(e){
+  readerBatch=false;s=JSON.parse(backup);console.error('reader night failed',e);
+  alert('この夜の生成を完了できませんでした。状態は変更していません。\n'+e.message);
+  render();
+ }
+}
+// 保存済みの読書原稿は改変せず、旧版の本文からも出典を復元できる。
+function readerOriginFromPage(page){
+ const direct=page?.specialOrigin;
+ if(direct&&Number.isInteger(direct.night)&&typeof direct.subject==='string')return direct;
+ const legacy=String(page?.outro||'').match(/きっかけ：第(\d+)夜に紹介した「([^」\n]*)」/);
+ return legacy?{night:Number(legacy[1]),subject:legacy[2]}:null;
+}
+function readerOriginFootnote(page){
+ const origin=readerOriginFromPage(page);
+ if(!origin)return '';
+ return `<details class="reader-origin-note"><summary>この特別放送のきっかけ</summary><p>第${origin.night}夜に紹介した「${esc(origin.subject)}」から生まれた企画です。</p></details>`;
+}
+// 朗読用だけの終幕選択。直前の終わり方との重なりを減らし、
+// 最後の手紙が重い日は軽い冗談の締めを弱く避ける（強制はしない）。
+function readerChooseClosing(){
+ const recent=(s.reader?.pages||[]).slice(-5).map(p=>p.closing);
+ const letters=(s.chosen||[]).map(id=>letter(id)).filter(Boolean);
+ const heavy=letters.some(l=>autoDJLetterMood(l).heavy>=2.4);
+ const ranked=STATION_CLOSINGS.map((entry,i)=>{
+  const used=recent.filter(t=>t===entry[1]).length;
+  let score=autoDJNoise(`reader-closing:${i}`)*1.3-used*2.15;
+  if(heavy&&i===4)score-=1.6;
+  if(heavy&&[1,2].includes(i))score+=.55;
+  // 特別な夜だけは余韻を少し長めにする。
+  if(specialActive(s.night)&&[1,2,5].includes(i))score+=.3;
+  return {i,score};
+ }).sort((a,b)=>b.score-a.score||a.i-b.i);
+ s.broadcastStyle.closing=ranked[0].i;
+}
+function readerGotoPage(index){
+ if(activeProfile!=='reader'||!Number.isInteger(index)||index<0||index>=s.reader.pages.length)return;
+ s.reader.viewIndex=index;s.reader.scrollY=0;if(!save()){alert('表示位置の保存に失敗しました。')}render();window.scrollTo(0,0);
+}
+function readerShell(content){
+ return `<div class="reader-layout"><header class="reader-header"><div><div class="overline">SOMEWHERE ON AIR · ANOTHER FREQUENCY</div><h1>聴くだけの夜</h1><div class="small">誰かが選んだ言葉の、その先を読む</div></div><button class="btn secondary" type="button" onclick="switchToMain()">本編に戻る</button></header><main id="main" class="reader-main">${content}</main><footer class="reader-footer">本編の選択と記憶は変更されません · v4.8.14</footer></div>`;
+}
+function readerView(){
+ const r=s.reader;
+ if(!r)return '<section class="panel">読書データの形式が違います。本編に戻り、バックアップを確認してください。</section>';
+ if(r.pages.length===0)return `<section class="reader-paper"><div class="overline">BEFORE THE FIRST PAGE</div><h2>もうひとつの午前二時</h2><p>この世界では、別のパーソナリティがマイクの前に座ります。返す言葉の先に、どんな日々が続くのでしょう。</p><p>物語が進んでも、あなた自身の放送は変わりません。</p><div class="reader-actions"><button class="btn" onclick="readerProduceNight()">最初の放送を読む →</button></div></section>${readerReaderTools()}`;
+ const p=r.pages[Math.max(0,Math.min(r.viewIndex,r.pages.length-1))],entries=p.letterIds.map(id=>s.played.find(x=>x.night===p.night&&x.id===id)).filter(Boolean);
+ const djVoice=p.djVoice||{};
+ const displayIntro=readerEditorialScene(p.intro,'intro',p.night),displayOutro=readerEditorialScene(p.outro,'outro',p.night),displayTitle=readerEditorialTitle(p.title,p.night);
+ let content=`<div class="reader-page-head"><div class="overline">第${p.night}夜 / THE NIGHT'S VOICES</div><h2>${esc(displayTitle||'今夜の放送')}</h2><p>${fmt(displayIntro||'午前二時。マイクの灯りがともる。')}</p><p class="reader-mic">${fmt(p.opening)}</p>${djVoice.opening?`<p class="reader-dj-voice">${fmt(djVoice.opening)}</p>`:''}${p.specialIntro?`<p class="reader-special-line">${fmt(p.specialIntro)}</p>`:''}</div>`;
+ entries.forEach((entry,i)=>{
+  const bridge=i===0?'':p.interludes[i-1]===-1?'少しのあいだ、言葉のない時間が流れた。':STATION_INTERLUDES[p.interludes[i-1]]?.[1]||'次の手紙を開く。';
+  content+=`${i?`<p class="reader-transition">${esc(bridge)}</p>${djVoice.interludes?.[i-1]?`<p class="reader-dj-voice reader-dj-between">${fmt(djVoice.interludes[i-1])}</p>`:''}`:''}<article class="reader-letter"><div class="overline">LETTER ${i+1} / ${entries.length}</div><h3>${esc(NAMES[entry.who]||entry.who)}　「${esc(entry.subject)}」</h3><div class="reader-letter-body">${fmt(entry.body||'')}</div><div class="reader-response-label">パーソナリティからの返答</div><div class="reader-response">${fmt(entry.response||'')}</div></article>`;
+ });
+ content+=`<section class="reader-ending"><div class="overline">02:53 / A FINAL SONG</div><p>♪ ${esc(p.song?.[0]||'')}</p><p class="small">${esc(p.song?.[1]||'')}</p>${djVoice.ending?`<p class="reader-dj-voice reader-dj-final">${fmt(djVoice.ending)}</p>`:''}<p>${fmt(p.closing||'')}</p><div class="overline">03:00 / OFF AIR</div><p>${fmt(displayOutro||'今夜も放送が終わった。')}</p>${readerOriginFootnote(p)}</section>`;
+ const i=r.viewIndex;
+ return `<section class="reader-paper">${content}<div class="reader-actions"><button class="btn secondary" ${i<=0?'disabled':''} onclick="readerGotoPage(${i-1})">← 前の夜</button><button class="btn" onclick="readerProduceNight()">${i<r.pages.length-1?'次の記録を読む':'次の夜へ →'}</button></div><p class="reader-page-count">${i+1} / ${r.pages.length} 夜分の記録</p></section>${readerReaderTools()}`;
+}
+function readerReaderTools(){
+ return `<section class="reader-tools"><h3>読書の記録</h3><p>この世界は本編とは独立しています。読書用バックアップは、こちらで保存してください。</p>${readerSaveWarning?'<p class="notice">保存に失敗しました。容量を確認し、バックアップを保存してください。</p>':''}<div class="actions"><button class="btn secondary" onclick="downloadReaderSave()">読書用バックアップを保存</button><label class="btn secondary" style="cursor:pointer">読書用を復元<input class="screen-reader" type="file" accept=".json,application/json" onchange="importReaderSave(this)"></label></div><button class="reader-return" onclick="switchToMain()">自分の放送に戻る</button></section>`;
+}
+window.addEventListener('pagehide',()=>{if(activeProfile==='reader'&&s?.reader){s.reader.scrollY=window.scrollY;save()}});
+
 let lastViewKey=null;
 window.addEventListener('keydown',event=>{if(event.key==='Escape'&&guideOpen){event.preventDefault();closeGuide()}});
 function render(){
+  if(readerBatch)return;
+  if(activeProfile==='reader'){
+    const app=document.getElementById('app');
+    app.innerHTML=readerShell(readerView());
+    const guidePortal=document.getElementById('guide-portal');if(guidePortal)guidePortal.innerHTML='';
+    document.body.classList.remove('guide-open');
+    if(readerRestoring){readerRestoring=false;window.scrollTo(0,s.reader?.scrollY||0)}
+    return;
+  }
   ensureAutomaticBroadcastSelections();
   if(!['studio','letters','journal','listeners','settings'].includes(s.tab))s.tab='studio';
-  const content=s.tab==='letters'?lettersTab():s.tab==='journal'?journal():s.tab==='listeners'?listeners():s.tab==='settings'?settings():
+  const content=readerSetupOpen?readerSetupScreen():s.tab==='letters'?lettersTab():s.tab==='journal'?journal():s.tab==='listeners'?listeners():s.tab==='settings'?settings():
     s.phase==='intro'?intro():s.phase==='prepare'?prepare():s.phase==='broadcast'?broadcast():s.phase==='reply'?reply():s.phase==='after'?after():s.phase==='chapter2_complete'?chapter2Complete():s.phase==='chapter3_complete'?chapter3Complete():complete();
   let decorated=s.tab==='studio'&&s.phase==='intro'?climateIntroText(s.night)+content:content;
   if(s.tab==='studio'&&s.phase==='prepare')decorated=hideableHint('choose','気になる手紙を選んでみましょう。紹介しなかった人も、その後の生活を続けます。')+decorated;
