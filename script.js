@@ -246,12 +246,12 @@ function studioWeatherText(n){
   const weather=climateForNight(n).weather;
   return ({clear:'窓の向こうに、遠くの街灯が見える。',cloudy:'今夜は、月の場所がよくわからない。',rain:'窓を伝う雨粒が、外の灯りをぼかしている。',snow:'窓の外では、白いものがゆっくり降っている。'})[weather]||'窓の外にも、まだ眠らない灯りがある。';
 }
-function studioScene(){
+function studioScene(compact=false){
  const phase=studioDisplayPhase(),on=['opening','speaking','bridging','silent','music'].includes(phase);
  const time=phase==='finished'?'03:00':phase==='preparing'?(s.phase==='prepare'?'01:59':'01:48'):phase==='opening'?'02:00':phase==='music'?'02:53':phase==='bridging'?'02:34':phase==='silent'?'02:35':s.phase==='reply'?'02:23':'02:18';
  const visuals=normalizeStudioVisuals(s.studioVisuals),climate=climateForNight(s.night),sp=specialActive(s.night);
  const meter=visuals.enabled?`<div class="studio-level" aria-hidden="true">${Array.from({length:7},(_,i)=>`<span class="studio-level-bar" style="--bar:${i};--bar-height:${[10,17,25,20,29,15,12][i]}px"></span>`).join('')}</div>`:'';
- return `<div class="studio ${sp?'studio-special':''} weather-${climate.weather} season-${climate.season} studio-phase-${phase} ${!visuals.enabled?'studio-minimal':''} studio-motion-${visuals.motion}" role="group" aria-label="スタジオ・${time}・${on?'放送中':'放送外'}"><div class="studio-caption">${sp?'SPECIAL PROGRAM · '+esc(SPECIAL_THEMES[sp.themeId].short):'SOMEWHERE ON AIR · STUDIO'}</div><div class="climate-studio-label">${esc(climateCaption(s.night))}</div><div class="moon"></div><div class="lamp"></div><div class="mic"></div><div class="desk"></div><div class="studio-clock" aria-label="スタジオ時刻">${time}</div><div class="onair" aria-label="${on?'ON AIR':'OFF AIR'}"><span class="onair-light" aria-hidden="true"></span>${on?'ON AIR':'OFF AIR'}</div>${meter}</div>`;
+ return `<div class="studio ${compact?'studio-compact ':''}${sp?'studio-special':''} weather-${climate.weather} season-${climate.season} studio-phase-${phase} ${!visuals.enabled?'studio-minimal':''} studio-motion-${visuals.motion}" role="group" aria-label="スタジオ・${time}・${on?'放送中':'放送外'}"><div class="studio-caption">${sp?'SPECIAL PROGRAM · '+esc(SPECIAL_THEMES[sp.themeId].short):'SOMEWHERE ON AIR · STUDIO'}</div><div class="climate-studio-label">${esc(climateCaption(s.night))}</div><div class="moon"></div><div class="lamp"></div><div class="mic"></div><div class="desk"></div><div class="studio-clock" aria-label="スタジオ時刻">${time}</div><div class="onair" aria-label="${on?'ON AIR':'OFF AIR'}"><span class="onair-light" aria-hidden="true"></span>${on?'ON AIR':'OFF AIR'}</div>${meter}</div>`;
 }
 function studioPrelude(){
  if(!s.studioVisuals?.enabled)return '';
@@ -274,9 +274,18 @@ function studioAfterQuiet(){
  if(!s.studioVisuals?.enabled)return '';
  return `<div class="studio-after-quiet"><div class="overline">03:00 / OFF AIR</div><p>マイクの灯りが消え、スタジオに静けさが戻る。</p><span>机の上には、今夜読んだ手紙が残っている。</span></div>`;
 }
+// v4.8.18: 準備画面の表示段階のみを管理。選んだ手紙・演出は従来どおりセーブに保存する。
+let prepareStepUI='letters';
+let prepareStepNight=null;
+function prepareUIStage(stage){
+ if(s.phase!=='prepare'||s.tab!=='studio'||!['letters','style'].includes(stage))return;
+ if(stage==='style'&&!s.chosen.length)return;
+ prepareStepUI=stage;
+ render();
+}
 function setTab(tab){readerSetupOpen=false;s.tab=tab;save();render()}
 function selectLetter(id){let i=s.chosen.indexOf(id);if(i>=0)s.chosen.splice(i,1);else if(s.chosen.length<3)s.chosen.push(id);save();render()}
-function startNight(){s.phase='prepare';s.tab='studio';nightLetters(s.night);for(const id of s.letterSets[s.night]||[])letter(id);save();render()}
+function startNight(){prepareStepUI='letters';prepareStepNight=s.night;s.phase='prepare';s.tab='studio';nightLetters(s.night);for(const id of s.letterSets[s.night]||[])letter(id);save();render()}
 function beginBroadcast(){
  if(s.phase!=='prepare'||!s.chosen.length)return;
  if(s.broadcastModePref==='letters')s.opening=automaticStylePick('opening',opening.length);
@@ -339,7 +348,7 @@ function setBroadcastMode(mode){
 }
 function broadcastModePicker(){
  const active=s.broadcastModePref;
- return `<div class="broadcast-mode-picker" role="group" aria-label="今夜の放送スタイル"><div class="overline">BROADCAST STYLE / 今夜の放送スタイル</div><div class="broadcast-mode-options"><button type="button" class="broadcast-mode-option ${active==='manual'?'is-active':''}" aria-pressed="${active==='manual'}" onclick="setBroadcastMode('manual')"><strong>◉ いつもの放送</strong><span>挨拶・つなぎの言葉・曲・締めを自分で選ぶ</span></button><button type="button" class="broadcast-mode-option ${active==='letters'?'is-active':''}" aria-pressed="${active==='letters'}" onclick="setBroadcastMode('letters')"><strong>✉ おたより中心</strong><span>演出の選択はおまかせ。手紙と返答は自分で選ぶ</span></button></div><p class="broadcast-mode-tip">選んだスタイルは次の夜にも引き継がれます。放送開始後は今夜のスタイルを変更できません。</p><button class="reader-inline-entry" type="button" onclick="openReaderSetup()">☾ 今夜は聴くだけにする <span>別の物語として読みます</span></button></div>`;
+ return `<div class="broadcast-mode-picker" role="group" aria-label="今夜の放送スタイル"><div class="overline">BROADCAST STYLE / 今夜の放送スタイル</div><div class="broadcast-mode-options"><button type="button" class="broadcast-mode-option ${active==='manual'?'is-active':''}" aria-pressed="${active==='manual'}" onclick="setBroadcastMode('manual')"><strong>◉ いつもの放送</strong><span>挨拶・つなぎの言葉・曲・締めを自分で選ぶ</span></button><button type="button" class="broadcast-mode-option ${active==='letters'?'is-active':''}" aria-pressed="${active==='letters'}" onclick="setBroadcastMode('letters')"><strong>✉ おたより中心</strong><span>演出の選択はおまかせ。手紙と返答は自分で選ぶ</span></button></div><p class="broadcast-mode-tip">選んだスタイルは次の夜にも引き継がれます。放送開始後は今夜のスタイルを変更できません。</p><button class="reader-inline-entry" type="button" onclick="openReaderSetup()">${uiIcon('moon')}<span class="reader-entry-copy">今夜は聴くだけにする <small>別の物語として読みます</small></span></button></div>`;
 }
 // 物語を動かす乱数を消費しない、放送演出専用の安定した選択。
 function automaticStyleHash(value){
@@ -675,10 +684,27 @@ function bookmarkArchive(){
  return `<section class="panel"><div class="overline">BOOKMARKED LETTERS</div><h2>心に残ったお便り</h2><p class="muted">好きだった言葉を、あとから読み返すための場所です。しおりは物語の分岐やリスナーの気持ちに影響しません。</p><div class="actions"><button class="btn secondary" onclick="toggleBookmarksView()">← 通常の放送日誌に戻る</button></div>${saved.length?saved.map(x=>`<article class="letter"><div class="small">第${x.night}夜 · ${esc(NAMES[x.who]||'リスナー')}</div><h3>${esc(x.subject)}</h3>${x.body?`<div class="letter-text">${fmt(x.body)}</div>`:'<p class="small">以前のバージョンの記録です。手紙の全文は保存されていません。</p>'}<div class="quote">${fmt(x.response)}</div>${bookmarkButton(x)}</article>`).join(''):'<p class="notice">まだしおりを付けたお便りはありません。放送日誌から、好きな手紙を選べます。</p>'}</section>`;
 }
 
+// v4.8.18 — 通常画面と読書モードで共通の線画アイコンを使う。
+function uiIcon(kind){
+ const icons={
+  radio:'<circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.48M7.76 16.24a6 6 0 0 1 0-8.48M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14"/>',
+  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  settings:'<path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.07.07-1.91 1.91-.07-.07A1.7 1.7 0 0 0 16 18.45a1.7 1.7 0 0 0-1.13 1.57V21h-5.74v-.98A1.7 1.7 0 0 0 8 18.45a1.7 1.7 0 0 0-1.83.34l-.07.07-1.91-1.91.07-.07A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.57-1.13H2v-3.74h1.03A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.07-.07 1.91-1.91.07.07A1.7 1.7 0 0 0 8 5.55a1.7 1.7 0 0 0 1.13-1.57V3h5.74v.98A1.7 1.7 0 0 0 16 5.55a1.7 1.7 0 0 0 1.83-.34l.07-.07 1.91 1.91-.07.07A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.57 1.13H22v3.74h-1.03A1.7 1.7 0 0 0 19.4 15Z"/>',
+  moon:'<path d="M20.9 13a9 9 0 0 1-9.9-9.9A9 9 0 1 0 20.9 13Z"/>',
+  help:'<circle cx="12" cy="12" r="10"/><path d="M9.2 9a3 3 0 0 1 5.7 1.2c0 2-2.9 2.5-2.9 4.4"/><path d="M12 17.4h.01"/>',
+  list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>'
+ };
+ return `<svg class="ui-icon" aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${icons[kind]||icons.radio}</svg>`;
+}
+const UI_NAV=[['studio','radio','放送'],['letters','mail','お便り'],['journal','book','記録'],['listeners','users','リスナー'],['settings','settings','設定']];
+
 const dayTitles=['','はじめましての夜','誰かが聴いている','言えなかった言葉',
   '終点のひとつ前','いつもの道の途中','言いそびれた返事','ひとり分の余白','返事をしない自由','描かれなかった余白','窓の明かり','木曜日の駅','自分の声','返ってこない約束','それぞれの朝'];
-function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete',done3=s.phase==='chapter3_complete',sp=specialActive(s.night);return `<header class="header"><div class="header-identity"><div class="brand">SOMEWHERE ON AIR</div><h1>午前二時の周波数</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':done3?'第3章 14夜 終了':`第${s.night}夜　${regularDayTitle(s.night)}`}</div><div class="climate-meta">${esc(climateCaption(s.night))}</div></div><div class="header-tools" aria-label="放送の補助操作と状態"><button class="guide-launch" type="button" onclick="openGuide()" aria-label="あそび方・手引きを開く">？ あそび方</button><div class="chip" role="status" aria-label="放送状態">${s.phase==='broadcast'||s.phase==='reply'?'● ON AIR':'◌ OFF AIR'}</div></div></header>${studioScene()}<div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}${readerEntry()}</div><div class="panel"><div class="overline">${sp?'特別放送':s.night>=15&&s.night<=28?'第2章':chapter3IsNight(s.night)?'第3章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>放送スタイル</span><span>${s.phase==='intro'||s.phase==='prepare'?(s.broadcastModePref==='letters'?'おたより中心':'いつもの放送'):(isLettersMode()?'おたより中心':'いつもの放送')}</span></div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー"><button class="${s.tab==='studio'?'active':''}" onclick="setTab('studio')"><span>◉</span>放送</button><button class="${s.tab==='letters'?'active':''}" onclick="setTab('letters')"><span>✉</span>お便り</button><button class="${s.tab==='journal'?'active':''}" onclick="setTab('journal')"><span>▤</span>記録</button><button class="${s.tab==='listeners'?'active':''}" onclick="setTab('listeners')"><span>♧</span>リスナー</button><button class="${s.tab==='settings'?'active':''}" onclick="setTab('settings')"><span>⚙</span>設定</button></nav><div class="footer">『午前二時の周波数』 · SOMEWHERE ON AIR · v4.8.14</div>`}
-function navButtons(){return [['studio','◉ 放送'],['letters','✉ お便り'],['journal','▤ 放送日誌'],['listeners','♧ リスナー'],['settings','⚙ 設定・セーブ']].map(([id,t])=>`<button class="navbtn ${s.tab===id?'active':''}" onclick="setTab('${id}')">${t}</button>`).join('')}
+function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete',done3=s.phase==='chapter3_complete',sp=specialActive(s.night);return `<header class="header"><div class="header-identity"><div class="brand">SOMEWHERE ON AIR</div><h1>午前二時の周波数</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':done3?'第3章 14夜 終了':`第${s.night}夜　${regularDayTitle(s.night)}`}</div><div class="climate-meta">${esc(climateCaption(s.night))}</div></div><div class="header-tools" aria-label="放送の補助操作と状態"><button class="guide-launch" type="button" onclick="openGuide()" aria-label="あそび方・手引きを開く">${uiIcon('help')}<span>あそび方</span></button><div class="chip" role="status" aria-label="放送状態">${s.phase==='broadcast'||s.phase==='reply'?'● ON AIR':'◌ OFF AIR'}</div></div></header>${studioScene(s.tab!=='studio'||readerSetupOpen)}<div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}${readerEntry()}</div><div class="panel"><div class="overline">${sp?'特別放送':s.night>=15&&s.night<=28?'第2章':chapter3IsNight(s.night)?'第3章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>放送スタイル</span><span>${s.phase==='intro'||s.phase==='prepare'?(s.broadcastModePref==='letters'?'おたより中心':'いつもの放送'):(isLettersMode()?'おたより中心':'いつもの放送')}</span></div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー">${UI_NAV.map(([id,icon,label])=>`<button type="button" class="${s.tab===id?'active':''}" ${s.tab===id?'aria-current="page"':''} onclick="setTab('${id}')">${uiIcon(icon)}<span class="nav-label">${label}</span></button>`).join('')}</nav><div class="footer">『午前二時の周波数』 · SOMEWHERE ON AIR · v4.8.18</div>`}
+function navButtons(){return UI_NAV.map(([id,icon,label])=>`<button type="button" class="navbtn ${s.tab===id?'active':''}" ${s.tab===id?'aria-current="page"':''} onclick="setTab('${id}')">${uiIcon(icon)}<span>${id==='journal'?'放送日誌':id==='settings'?'設定・セーブ':label}</span></button>`).join('')}
+
 function intro(){
   if(s.night>=15&&s.night<=28)return chapter2Intro();
   if(chapter3IsNight(s.night))return chapter3Intro();
@@ -703,7 +729,18 @@ function intro(){
   const times=['','01:48','01:42','01:36','01:43','01:45','01:39','01:41','01:44','01:40','01:46','01:38','01:43','01:37','01:49'];
   return `<section class="panel"><div class="overline">${times[t]} / STUDIO</div><h2>${dayTitles[t]}</h2><p>${fmt(texts[t])}</p><div class="actions"><button class="btn" onclick="startNight()">お便りを確認する →</button></div></section>`;
 }
-function prepare(){let ids=nightLetters(s.night);return `<section class="panel"><div class="overline">BEFORE BROADCAST / 01:59</div><h2>今夜のお便り</h2>${broadcastModePicker()}${studioPrelude()}${s.night>=15?`<div class="notice">${s.night<=28?'第2章：'+esc(CH2_NIGHTS[s.night][0]):chapter3IsNight(s.night)?'第3章：'+esc(CH3_DAYS[chapter3Offset(s.night)][0]):specialActive(s.night)?'特別放送：'+esc(SPECIAL_THEMES[s.special.planned.themeId].title):'今夜のテーマ：'+esc(regularTheme(s.night)[0])+' · '+esc(regularTheme(s.night)[1])}</div>`:""}<p class="muted">最大3通を紹介できます。読まなかったお便りの送り主も、明日を生きていきます。まずお便りを選びましょう。</p>${ids.map(id=>{let l=letter(id),selected=s.chosen.includes(id);return `<div class="letter"><div class="letter-top"><span class="letter-title">${esc(NAMES[l.who])}</span><span class="tag">${l.special?'特別返答':''}</span></div><div class="small">${esc(l.subject)}</div><hr class="divider"><div class="letter-text">${fmt(l.body)}</div><div class="actions"><button class="btn ${selected?'secondary':'ghost'}" onclick="selectLetter('${id}')" ${!selected&&s.chosen.length>=3?'disabled':''}>${selected?'✓ 紹介する予定':'＋ このお便りを紹介'}</button></div></div>`}).join('')}<div class="notice">紹介予定：${s.chosen.length} / 3通　${s.chosen.map(id=>NAMES[letter(id).who]).join('・')||'まだ選んでいません'}</div>${specialActive(s.night)?`<div class="notice">${esc(SPECIAL_THEMES[s.special.planned.themeId].opening)}<br><span class="small">この言葉は特別放送の冒頭で紹介します。</span></div>`:''}${s.broadcastModePref==='letters'?`<div class="broadcast-auto-explain"><strong>オープニングはおまかせ</strong><p>今夜の挨拶は放送開始時に自動で決まります。文章は放送中に表示されます。</p></div>`:`<h3>オープニングの言葉</h3><p class="muted station-tiny-hint">今夜、どんな声で番組を始めますか？　放送の正解や評価はありません。</p><div class="station-choice-grid">${opening.map((o,i)=>`<button type="button" class="choice station-compact-choice ${s.opening===i?'selected':''}" aria-pressed="${s.opening===i}" onclick="chooseOpening(${i})"><strong>${['あたたかく','ねぎらい','問いかけ','静かな夜','帰り道に','街の声'][i]}</strong><span>${esc(o)}</span></button>`).join('')}</div>${s.night>3?`<p class="station-habit">${fmt(stationHabitText())}</p>`:''}`}<div class="actions"><button class="btn" ${s.chosen.length===0||(s.broadcastModePref==='manual'&&s.opening===null)?'disabled':''} onclick="beginBroadcast()">午前2時、放送を始める →</button></div></section>`}
+function prepare(){
+ const ids=nightLetters(s.night);
+ if(prepareStepNight!==s.night){prepareStepNight=s.night;prepareStepUI='letters';}
+ const styleStep=prepareStepUI==='style'&&s.chosen.length>0;
+ const selectedNames=s.chosen.map(id=>NAMES[letter(id).who]).join('・')||'まだ選んでいません';
+ const steps=`<div class="prepare-steps" aria-label="放送準備の進行状況"><span class="${!styleStep?'active':''}">1 · おたよりを選ぶ</span><span class="${styleStep?'active':''}">2 · 放送の準備</span></div>`;
+ const theme=s.night>=15?`<div class="notice">${s.night<=28?'第2章：'+esc(CH2_NIGHTS[s.night][0]):chapter3IsNight(s.night)?'第3章：'+esc(CH3_DAYS[chapter3Offset(s.night)][0]):specialActive(s.night)?'特別放送：'+esc(SPECIAL_THEMES[s.special.planned.themeId].title):'今夜のテーマ：'+esc(regularTheme(s.night)[0])+' · '+esc(regularTheme(s.night)[1])}</div>`:'';
+ if(!styleStep){
+  return `<section class="panel prepare-panel prepare-letters"><div class="overline">BEFORE BROADCAST / 01:59</div><h2>今夜のお便り</h2>${steps}${studioPrelude()}${theme}<p class="muted">最大3通を紹介できます。読まなかったお便りの送り主も、明日を生きていきます。まずお便りを選びましょう。</p><div class="prepare-selection-bar" role="status" aria-live="polite"><div class="prepare-selection-count"><strong>紹介予定 ${s.chosen.length} / 3通</strong><span>${esc(selectedNames)}</span></div><button type="button" class="btn" ${s.chosen.length===0?'disabled':''} onclick="prepareUIStage('style')">放送準備へ →</button></div>${ids.map(id=>{let l=letter(id),selected=s.chosen.includes(id);return `<div class="letter"><div class="letter-top"><span class="letter-title">${esc(NAMES[l.who])}</span><span class="tag">${l.special?'特別返答':''}</span></div><div class="small">${esc(l.subject)}</div><hr class="divider"><div class="letter-text">${fmt(l.body)}</div><div class="actions"><button class="btn ${selected?'secondary':'ghost'}" onclick="selectLetter('${id}')" ${!selected&&s.chosen.length>=3?'disabled':''}>${selected?'✓ 紹介する予定':'＋ このお便りを紹介'}</button></div></div>`}).join('')}<div class="prepare-later"><button type="button" class="btn secondary" ${s.chosen.length===0?'disabled':''} onclick="prepareUIStage('style')">${s.chosen.length}通を選んで、放送準備へ →</button></div><button class="reader-inline-entry" type="button" onclick="openReaderSetup()">${uiIcon('moon')}<span class="reader-entry-copy">今夜は聴くだけにする <small>本編とは別の物語として読みます</small></span></button></section>`;
+ }
+ return `<section class="panel prepare-panel prepare-style"><div class="overline">BEFORE BROADCAST / 01:59</div><h2>放送の準備</h2>${steps}<div class="prepare-summary"><div><strong>今夜紹介するお便り ${s.chosen.length}通</strong><span>${esc(selectedNames)}</span></div><button type="button" class="btn secondary" onclick="prepareUIStage('letters')">← 選び直す</button></div>${broadcastModePicker()}${specialActive(s.night)?`<div class="notice">${esc(SPECIAL_THEMES[s.special.planned.themeId].opening)}<span class="small">この言葉は特別放送の冒頭で紹介します。</span></div>`:''}${s.broadcastModePref==='letters'?`<div class="broadcast-auto-explain"><strong>オープニングはおまかせ</strong><p>今夜の挨拶は放送開始時に自動で決まります。文章は放送中に表示されます。</p></div>`:`<h3>オープニングの言葉</h3><p class="muted station-tiny-hint">今夜、どんな声で番組を始めますか？　放送の正解や評価はありません。</p><div class="station-choice-grid">${opening.map((o,i)=>`<button type="button" class="choice station-compact-choice ${s.opening===i?'selected':''}" aria-pressed="${s.opening===i}" onclick="chooseOpening(${i})"><strong>${['あたたかく','ねぎらい','問いかけ','静かな夜','帰り道に','街の声'][i]}</strong><span>${esc(o)}</span></button>`).join('')}</div>${s.night>3?`<p class="station-habit">${fmt(stationHabitText())}</p>`:''}`}<div class="actions prepare-start-actions"><button class="btn" ${s.chosen.length===0||(s.broadcastModePref==='manual'&&s.opening===null)?'disabled':''} onclick="beginBroadcast()">午前2時、放送を始める →</button></div></section>`;
+}
 function broadcast(){
  if(s.cursor>=s.chosen.length){
   if(isLettersMode())return `<section class="panel station-ending"><div class="overline">02:53 / ENDING · おたより中心</div><h2>今夜の最後の一曲</h2><p>お便りを読み終えた。マイクの向こうでは、まだ誰かが聴いている。</p><div class="station-script-preview"><div class="overline">自動で選んだ曲</div><p>♪ ${esc(songs[s.song]?.[0]||'')}</p><p class="small">${esc(songs[s.song]?.[1]||'')}（実際の音声は再生されません）</p></div><h3>エンディングの言葉</h3><div class="station-script-preview"><p>${esc(STATION_CLOSINGS[s.broadcastStyle.closing]?.[1]||'')}</p></div><p class="muted station-tiny-hint">演出の選択は自動ですが、最後の言葉はそのまま読めます。</p><div class="actions"><button type="button" class="btn" onclick="finishBroadcast()">エンディングを放送する →</button></div></section>`;
@@ -816,7 +853,7 @@ function listeners(){
   const unknown=undiscovered.length?`<div class="archive-undiscovered"><h3>まだ出会っていない声</h3><p class="small">お便りを放送で紹介すると、その人の記録が開きます。まだ紹介していない人の名前や暮らしは、ここでは明かされません。</p><div class="archive-unknown-grid">${undiscovered.map(()=>`<div class="listener archive-unknown"><span class="archive-unknown-mark" aria-hidden="true">✧</span><span>まだよく知らないリスナー</span></div>`).join('')}</div></div>`:'';
   return `<section class="panel"><div class="overline">LISTENER ARCHIVE</div><h2>リスナーの記録</h2><p class="muted">放送で紹介したお便りからわかったことを記録します。お便りを紹介していない人の暮らしも、番組の外で続いています。</p>${published}${unknown}</section>`;
 }
-function settings(){return `<section class="panel"><div class="overline">SETTINGS</div><h2>設定・セーブデータ</h2><button class="btn secondary settings-guide-btn" type="button" onclick="openGuide()">？ ラジオ局の手引きを読む</button><p class="settings-save-note">進行状況は、この端末のブラウザ内に自動保存されます。別の端末に引き継ぐ場合は、バックアップを書き出してください。</p><div class="actions settings-backup-actions"><button class="btn" onclick="downloadSave()">バックアップを保存</button><label class="btn secondary" style="cursor:pointer">バックアップを読み込む<input class="screen-reader" type="file" accept=".json,application/json" onchange="importSave(this)"></label></div><hr class="divider"><h3>スタジオ演出</h3><p class="small">放送前後の静けさと、マイク横の小さなメーターです。効果音や音声はありません。</p><label class="studio-setting"><input type="checkbox" ${s.studioVisuals?.enabled!==false?'checked':''} onchange="setStudioVisuals('enabled',this.checked)"> スタジオ演出を表示する</label><div class="studio-setting-modes settings-motion-modes"><span class="small">アニメーション：</span>${[['normal','通常'],['reduced','控えめ'],['off','動きなし']].map(([id,name])=>`<label><input type="radio" name="studio-motion" value="${id}" ${s.studioVisuals?.motion===id?'checked':''} ${s.studioVisuals?.enabled===false?'disabled':''} onchange="setStudioVisuals('motion',this.value)"> ${name}</label>`).join('')}</div><p class="small settings-motion-note">動きを止めても、時計とON AIRの表示は残ります。端末で動きを減らす設定を使用している場合は、その設定が優先されます。</p><hr class="divider"><h3>最初から遊ぶ</h3><p class="small">現在のセーブデータを消して、第1夜からやり直します。必要なら先にバックアップしてください。</p><button class="btn secondary" onclick="resetGame()">進行状況をリセット</button><hr class="divider"><p class="small">バージョン 4.8.14</p></section>`}
+function settings(){return `<section class="panel"><div class="overline">SETTINGS</div><h2>設定・セーブデータ</h2><button class="btn secondary settings-guide-btn" type="button" onclick="openGuide()">${uiIcon('help')}<span>ラジオ局の手引きを読む</span></button><p class="settings-save-note">進行状況は、この端末のブラウザ内に自動保存されます。別の端末に引き継ぐ場合は、バックアップを書き出してください。</p><div class="actions settings-backup-actions"><button class="btn" onclick="downloadSave()">バックアップを保存</button><label class="btn secondary" style="cursor:pointer">バックアップを読み込む<input class="screen-reader" type="file" accept=".json,application/json" onchange="importSave(this)"></label></div><hr class="divider"><h3>スタジオ演出</h3><p class="small">放送前後の静けさと、マイク横の小さなメーターです。効果音や音声はありません。</p><label class="studio-setting"><input type="checkbox" ${s.studioVisuals?.enabled!==false?'checked':''} onchange="setStudioVisuals('enabled',this.checked)"> スタジオ演出を表示する</label><div class="studio-setting-modes settings-motion-modes"><span class="small">アニメーション：</span>${[['normal','通常'],['reduced','控えめ'],['off','動きなし']].map(([id,name])=>`<label><input type="radio" name="studio-motion" value="${id}" ${s.studioVisuals?.motion===id?'checked':''} ${s.studioVisuals?.enabled===false?'disabled':''} onchange="setStudioVisuals('motion',this.value)"> ${name}</label>`).join('')}</div><p class="small settings-motion-note">動きを止めても、時計とON AIRの表示は残ります。端末で動きを減らす設定を使用している場合は、その設定が優先されます。</p><hr class="divider"><h3>最初から遊ぶ</h3><p class="small">現在のセーブデータを消して、第1夜からやり直します。必要なら先にバックアップしてください。</p><button class="btn secondary" onclick="resetGame()">進行状況をリセット</button><hr class="divider"><p class="small">バージョン 4.8.18</p></section>`}
 function specialPlanningPanel(){
  const n=s.night;
  const p=s.special?.planned;
@@ -891,7 +928,7 @@ function beginAfterChapter2(){
 let readerRestoring=activeProfile==='reader';
 function readerEntry(){
  if(!['intro','after','complete','chapter2_complete','chapter3_complete'].includes(s.phase))return '';
- return `<div class="reader-subtle-entry"><button type="button" class="reader-entry-button" onclick="openReaderSetup()">☾ 今夜は聴くだけにする <span>別のDJの放送を、物語として読む</span></button></div>`;
+ return `<div class="reader-subtle-entry"><button type="button" class="reader-entry-button" onclick="openReaderSetup()">${uiIcon('moon')}<span class="reader-entry-copy">今夜は聴くだけにする <small>別のDJの放送を、物語として読む</small></span></button></div>`;
 }
 function openReaderSetup(){
  if(activeProfile!=='main'||!['intro','prepare','after','complete','chapter2_complete','chapter3_complete'].includes(s.phase))return;
@@ -1570,6 +1607,11 @@ const READER_DJ_VOICE={
   {text:'今夜はいつもより少しゆっくり読んでみます。時計の針には内緒で。',tone:'light'},
   {text:'言葉を急いで選ぶより、まず手紙を開いてみることにします。',tone:'gentle'},
   {text:'まだ起きている誰かに届くように、声の高さを少しだけ整えました。',tone:'gentle'},
+  // v4.8.18: 少し迷ったり、楽しんだりするDJの小さな仕草。新しい人生の事実は作らない。
+  {text:'最初の封筒に手を伸ばして、一度戻しました。急がなくてもいい夜ですね。',tone:'gentle',facet:'hesitant'},
+  {text:'原稿の順番を考えていたら、どれも最初に読みたくなりました。困りましたね。',tone:'light',facet:'wry'},
+  {text:'あいさつを噛まないことより、ちゃんと聴くことを今夜の目標にします。',tone:'light',facet:'wry'},
+  {text:'机の上に小さな空白を残しておきます。まだ知らない話が届く場所です。',tone:'gentle',facet:'curious'},
   {text:'机の上には三つの違う一日があります。さて、最初の一通です。',tone:'gentle'},
   {text:'ペンを持ったまま挨拶しそうになりました。いったん置いて、始めましょう。',tone:'light'},
   {text:'いつも通りの午前二時ですが、同じ手紙が届く夜はありません。',tone:'gentle'},
@@ -1583,6 +1625,14 @@ const READER_DJ_VOICE={
   {text:'手紙を一通読み終えるたび、今夜が少しずつ違う形になります。',tone:'gentle'},
   {text:'うまく言葉にできないところは、いまは静かなままにしておきます。',tone:'gentle'},
   {text:'誰かの小さな出来事が、こちらの一日にも少し残ることがあります。',tone:'gentle'},
+  {text:'思わず相づちを打ちました。マイクの向こうには見えないんですけれど。',tone:'light',facet:'wry'},
+  {text:'何か言おうとして、ペン先だけが動きました。こういう間も放送なのでしょうか。',tone:'gentle',facet:'hesitant'},
+  {text:'ひとつ前の言葉をまだ考えています。次の手紙も、ちゃんと読みます。',tone:'gentle',facet:'hesitant'},
+  {text:'ここで一度、深呼吸……と口に出しかけて、やめました。静かに次の一通です。',tone:'light',facet:'wry'},
+  {text:'会わなかった日の話も、あとから静かに残ることがあるんですね。',tone:'gentle',facet:'observant',pattern:/会わなかった|会えなかった/},
+  {text:'「一行だけ」という言葉に、つい目が止まりました。',tone:'gentle',facet:'observant',pattern:/一行だけ|一行書い|一行にした/},
+  {text:'描く前の時間にも、その人にしかわからない長さがあるのでしょうね。',tone:'gentle',facet:'curious',pattern:/まだ描け|描こうと|描き始める前|これから絵/},
+  {text:'パンの話を聞くと、スタジオにトースターが欲しくなります。',tone:'playful',facet:'wry',pattern:/パン/},
   {text:'猫主任の査定基準は、今夜も非公開のままのようです。',tone:'playful',pattern:/猫主任|主任.{0,9}猫|猫.{0,9}主任/},
   {text:'プリンの隠し場所については、番組では捜索を請け負っておりません。',tone:'playful',pattern:/プリン/},
   {text:'パンの話のあとは、深夜の空腹が少し困ります。',tone:'playful',pattern:/パン/},
@@ -1600,6 +1650,11 @@ const READER_DJ_VOICE={
   {text:'放送を終えるときは、いつもほんの少しだけ名残惜しいものです。',tone:'gentle'},
   {text:'今日もわからないことは残りました。無理に答えにしないまま、おやすみなさい。',tone:'gentle'},
   {text:'ささやかなことほど、誰かに話してみると形が見えてきますね。',tone:'gentle'},
+  {text:'三通とも聴き終えました。最初に言おうとした挨拶は、もう少し違う言葉だった気がします。',tone:'gentle',facet:'hesitant'},
+  {text:'答えが見つかる前に、「へえ」と声に出していた気がします。',tone:'light',facet:'curious'},
+  {text:'うまく言えたかは怪しいところですが、今夜ちゃんと聴けたことは覚えておきます。',tone:'gentle',facet:'hesitant'},
+  {text:'今夜も、知らなかった一日が三つ増えました。おやすみなさい。',tone:'gentle',facet:'curious'},
+  {text:'マイクを切ると、つい次の手紙のことを考えます。これは職業病かもしれません。',tone:'light',facet:'wry'},
   {text:'猫主任の夜勤が終わるのは、いったい何時なのでしょう。',tone:'playful',pattern:/猫主任|主任.{0,9}猫|猫.{0,9}主任/},
   {text:'プリンの無事については、明日の報告を気長に待つことにしましょう。',tone:'playful',pattern:/プリン/},
   {text:'パンの話を聞いた夜に、お腹が空かない方法があれば知りたいですね。',tone:'light',pattern:/パン/},
@@ -1661,6 +1716,14 @@ function readerDJChooseVoice(){
   if(x.pattern)score+=2.1;
   if(x.tone==='playful'&&!serious)score+=.8;
   if(serious&&x.tone==='gentle')score+=.6;
+  // v4.8.18: 少しだけ人柄が覗く言葉を候補にするが、連続して同じ調子にはしない。
+  // 追加の「人柄」を押しつけないため、既存の穏やかな表現も対等に選ばれる。
+  if(x.facet){
+   score+=.38;
+   const recentVoices=previous.slice(-12).map(p=>readerDJVoiceValue(p)).filter(Boolean);
+   const recentSameFacet=recentVoices.filter(t=>READER_DJ_VOICE.opening.concat(READER_DJ_VOICE.bridge,READER_DJ_VOICE.ending).some(v=>v.text===t&&v.facet===x.facet)).length;
+   score-=recentSameFacet*.32;
+  }
   // 候補を使い切った後も、つい数夜前の同じ一文を再使用しない。
   const lastIndex=previous.findLastIndex(p=>readerDJVoiceValue(p)===x.text);
   const gap=lastIndex<0?999:night-previous[lastIndex].night;
@@ -1758,8 +1821,36 @@ function readerGotoPage(index){
  if(activeProfile!=='reader'||!Number.isInteger(index)||index<0||index>=s.reader.pages.length)return;
  s.reader.viewIndex=index;s.reader.scrollY=0;if(!save()){alert('表示位置の保存に失敗しました。')}render();window.scrollTo(0,0);
 }
+// 閲覧補助だけの操作。物語の生成・選択・保存形式には介入しない。
+function readerGotoLatest(){
+ if(activeProfile!=='reader'||!s.reader?.pages?.length)return;
+ readerGotoPage(s.reader.pages.length-1);
+}
+function readerNightSelect(value){
+ const index=Number(value);
+ if(Number.isInteger(index))readerGotoPage(index);
+}
+function readerNightNavigation(r,index){
+ const current=r.pages[index];
+ if(!current)return '';
+ const latest=index===r.pages.length-1;
+ const options=r.pages.map((p,k)=>`<option value="${k}" ${k===index?'selected':''}>第${p.night}夜${k===r.pages.length-1?' · 最新':''}</option>`).join('');
+ const latestButton=latest?'':`<button type="button" class="reader-nav-latest" onclick="readerGotoLatest()" title="最新の記録を表示">最新の夜へ</button>`;
+ return `<nav class="reader-night-nav" aria-label="読書の記録を移動"><div class="reader-night-meta"><span class="reader-night-eyebrow">NIGHT ARCHIVE / 読書の記録</span><strong>第${current.night}夜 <small>${index+1} / ${r.pages.length}</small></strong></div><div class="reader-night-controls"><button type="button" class="reader-nav-button" ${index===0?'disabled':''} onclick="readerGotoPage(${index-1})" aria-label="前の夜を読む">← 前の夜</button><label class="reader-night-picker-label"><span class="screen-reader">記録した夜を選ぶ</span><select class="reader-night-picker" aria-label="記録した夜を選ぶ" onchange="readerNightSelect(this.value)">${options}</select></label><button type="button" class="reader-nav-button" ${latest?'disabled':''} onclick="readerGotoPage(${index+1})" aria-label="次の記録を読む">次の夜 →</button>${latestButton}</div></nav>`;
+}
+function readerJumpToSection(id){
+ const target=document.getElementById(id);
+ if(!target)return;
+ // 異なる夜でも同じ目次リンクを繰り返し使えるよう、直接スクロールする。
+ target.scrollIntoView({block:'start',behavior:'auto'});
+ try{window.location.hash=id}catch(e){}
+}
+function readerNightContents(entries){
+ const items=entries.map((entry,i)=>`<a href="#reader-letter-${i+1}" onclick="readerJumpToSection('reader-letter-${i+1}');return false"><span>LETTER ${i+1}</span><strong>${esc(NAMES[entry.who]||entry.who)}</strong><small>${esc(entry.subject||'おたより')}</small></a>`).join('');
+ return `<details class="reader-contents"><summary><span class="reader-contents-title">${uiIcon('list')}今夜の目次</span><span class="reader-contents-summary-detail">おたより${entries.length}通・選曲・終幕</span></summary><nav class="reader-contents-links" aria-label="今夜の放送内を移動"><a href="#reader-introduction" onclick="readerJumpToSection('reader-introduction');return false"><span>OPENING</span><strong>放送のはじまり</strong></a>${items}<a href="#reader-ending" onclick="readerJumpToSection('reader-ending');return false"><span>FINAL SONG</span><strong>選曲と終幕</strong></a></nav></details>`;
+}
 function readerShell(content){
- return `<div class="reader-layout"><header class="reader-header"><div><div class="overline">SOMEWHERE ON AIR · ANOTHER FREQUENCY</div><h1>聴くだけの夜</h1><div class="small">誰かが選んだ言葉の、その先を読む</div></div><button class="btn secondary" type="button" onclick="switchToMain()">本編に戻る</button></header><main id="main" class="reader-main">${content}</main><footer class="reader-footer">本編の選択と記憶は変更されません · v4.8.14</footer></div>`;
+ return `<div class="reader-layout"><header class="reader-header"><div><div class="brand reader-brand">SOMEWHERE ON AIR</div><div class="reader-mode-label">${uiIcon('moon')}<span>ANOTHER FREQUENCY / 読書モード</span></div><h1>聴くだけの夜</h1><div class="small">誰かが選んだ言葉の、その先を読む</div></div><button class="btn secondary" type="button" onclick="switchToMain()">${uiIcon('radio')}<span>本編に戻る</span></button></header><main id="main" class="reader-main">${content}</main><footer class="reader-footer">本編の選択と記憶は変更されません · v4.8.18</footer></div>`;
 }
 function readerView(){
  const r=s.reader;
@@ -1768,14 +1859,14 @@ function readerView(){
  const p=r.pages[Math.max(0,Math.min(r.viewIndex,r.pages.length-1))],entries=p.letterIds.map(id=>s.played.find(x=>x.night===p.night&&x.id===id)).filter(Boolean);
  const djVoice=p.djVoice||{};
  const displayIntro=readerEditorialScene(p.intro,'intro',p.night),displayOutro=readerEditorialScene(p.outro,'outro',p.night),displayTitle=readerEditorialTitle(p.title,p.night);
- let content=`<div class="reader-page-head"><div class="overline">第${p.night}夜 / THE NIGHT'S VOICES</div><h2>${esc(displayTitle||'今夜の放送')}</h2><p>${fmt(displayIntro||'午前二時。マイクの灯りがともる。')}</p><p class="reader-mic">${fmt(p.opening)}</p>${djVoice.opening?`<p class="reader-dj-voice">${fmt(djVoice.opening)}</p>`:''}${p.specialIntro?`<p class="reader-special-line">${fmt(p.specialIntro)}</p>`:''}</div>`;
+ let content=`<div class="reader-page-head" id="reader-introduction"><div class="overline">第${p.night}夜 / THE NIGHT'S VOICES</div><h2>${esc(displayTitle||'今夜の放送')}</h2><p>${fmt(displayIntro||'午前二時。マイクの灯りがともる。')}</p><p class="reader-mic">${fmt(p.opening)}</p>${djVoice.opening?`<p class="reader-dj-voice">${fmt(djVoice.opening)}</p>`:''}${p.specialIntro?`<p class="reader-special-line">${fmt(p.specialIntro)}</p>`:''}</div>`;
  entries.forEach((entry,i)=>{
   const bridge=i===0?'':p.interludes[i-1]===-1?'少しのあいだ、言葉のない時間が流れた。':STATION_INTERLUDES[p.interludes[i-1]]?.[1]||'次の手紙を開く。';
-  content+=`${i?`<p class="reader-transition">${esc(bridge)}</p>${djVoice.interludes?.[i-1]?`<p class="reader-dj-voice reader-dj-between">${fmt(djVoice.interludes[i-1])}</p>`:''}`:''}<article class="reader-letter"><div class="overline">LETTER ${i+1} / ${entries.length}</div><h3>${esc(NAMES[entry.who]||entry.who)}　「${esc(entry.subject)}」</h3><div class="reader-letter-body">${fmt(entry.body||'')}</div><div class="reader-response-label">パーソナリティからの返答</div><div class="reader-response">${fmt(entry.response||'')}</div></article>`;
+  content+=`${i?`<p class="reader-transition">${esc(bridge)}</p>${djVoice.interludes?.[i-1]?`<p class="reader-dj-voice reader-dj-between">${fmt(djVoice.interludes[i-1])}</p>`:''}`:''}<article class="reader-letter" id="reader-letter-${i+1}"><div class="overline">LETTER ${i+1} / ${entries.length}</div><h3>${esc(NAMES[entry.who]||entry.who)}　「${esc(entry.subject)}」</h3><div class="reader-letter-body">${fmt(entry.body||'')}</div><div class="reader-response-label">パーソナリティからの返答</div><div class="reader-response">${fmt(entry.response||'')}</div></article>`;
  });
- content+=`<section class="reader-ending"><div class="overline">02:53 / A FINAL SONG</div><p>♪ ${esc(p.song?.[0]||'')}</p><p class="small">${esc(p.song?.[1]||'')}</p>${djVoice.ending?`<p class="reader-dj-voice reader-dj-final">${fmt(djVoice.ending)}</p>`:''}<p>${fmt(p.closing||'')}</p><div class="overline">03:00 / OFF AIR</div><p>${fmt(displayOutro||'今夜も放送が終わった。')}</p>${readerOriginFootnote(p)}</section>`;
+ content+=`<section class="reader-ending" id="reader-ending"><div class="overline">02:53 / A FINAL SONG</div><p>♪ ${esc(p.song?.[0]||'')}</p><p class="small">${esc(p.song?.[1]||'')}</p>${djVoice.ending?`<p class="reader-dj-voice reader-dj-final">${fmt(djVoice.ending)}</p>`:''}<p>${fmt(p.closing||'')}</p><div class="overline">03:00 / OFF AIR</div><p>${fmt(displayOutro||'今夜も放送が終わった。')}</p>${readerOriginFootnote(p)}<a class="reader-back-to-top" href="#reader-page-top" onclick="readerJumpToSection('reader-page-top');return false">↑ 今夜の最初に戻る</a></section>`;
  const i=r.viewIndex;
- return `<section class="reader-paper">${content}<div class="reader-actions"><button class="btn secondary" ${i<=0?'disabled':''} onclick="readerGotoPage(${i-1})">← 前の夜</button><button class="btn" onclick="readerProduceNight()">${i<r.pages.length-1?'次の記録を読む':'次の夜へ →'}</button></div><p class="reader-page-count">${i+1} / ${r.pages.length} 夜分の記録</p></section>${readerReaderTools()}`;
+ return `<div id="reader-page-top" class="reader-page-top"></div>${readerNightNavigation(r,i)}<section class="reader-paper">${readerNightContents(entries)}${content}<div class="reader-actions"><button class="btn secondary" ${i<=0?'disabled':''} onclick="readerGotoPage(${i-1})">← 前の夜</button><button class="btn" onclick="readerProduceNight()">${i<r.pages.length-1?'次の記録を読む':'次の夜へ →'}</button></div><p class="reader-page-count">${i+1} / ${r.pages.length} 夜分の記録</p></section>${readerReaderTools()}`;
 }
 function readerReaderTools(){
  return `<section class="reader-tools"><h3>読書の記録</h3><p>この世界は本編とは独立しています。読書用バックアップは、こちらで保存してください。</p>${readerSaveWarning?'<p class="notice">保存に失敗しました。容量を確認し、バックアップを保存してください。</p>':''}<div class="actions"><button class="btn secondary" onclick="downloadReaderSave()">読書用バックアップを保存</button><label class="btn secondary" style="cursor:pointer">読書用を復元<input class="screen-reader" type="file" accept=".json,application/json" onchange="importReaderSave(this)"></label></div><button class="reader-return" onclick="switchToMain()">自分の放送に戻る</button></section>`;
@@ -1809,7 +1900,7 @@ function render(){
     else decorated+=reflection;
   }
 
-  const key=`${s.tab}:${s.tab==='studio'?s.phase:''}:${s.phase==='broadcast'?s.cursor:''}:${s.phase==='reply'?s.replyStep:''}`;
+  const key=`${s.tab}:${s.tab==='studio'?s.phase:''}:${s.phase==='broadcast'?s.cursor:''}:${s.phase==='reply'?s.replyStep:''}:${s.tab==='studio'&&s.phase==='prepare'?prepareStepUI:''}`;
   const y=window.scrollY;
   const changed=lastViewKey!==null&&lastViewKey!==key;
   const specialStepChanged=changed&&s.tab==='studio'&&s.phase==='reply'&&lastViewKey.startsWith('studio:reply:');

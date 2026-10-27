@@ -372,3 +372,165 @@ body.guide-open{overflow:hidden}
 .reader-dj-between{margin:7px 0 20px}
 .reader-dj-final{margin:20px 0 12px}
 @media(max-width:550px){.reader-dj-voice{font-size:.92rem;padding-left:10px}}
+
+/* v4.8.16 : 小画面の動線を整理。物語・放送中のスタジオは従来のまま。 */
+.studio.studio-compact{height:76px;margin-bottom:16px;border-radius:12px;background:linear-gradient(105deg,#17273b,#24354c 60%,#162338)}
+.studio.studio-compact:before{inset:0;background:linear-gradient(90deg,#1424399c,#293e58b0)}
+.studio.studio-compact .desk,.studio.studio-compact .lamp,.studio.studio-compact .mic,.studio.studio-compact .studio-level{display:none}
+.studio.studio-compact .moon{width:22px;height:22px;top:25px;right:28%;box-shadow:0 0 20px #f6ddb233}
+.studio.studio-compact .studio-caption{left:16px;top:10px;font-size:10px}
+.studio.studio-compact .climate-studio-label{top:9px;right:13px;font-size:10px}
+.studio.studio-compact .studio-clock{bottom:12px;left:16px;font-size:11px}
+.studio.studio-compact .onair{bottom:9px;right:14px;font-size:10px;padding:2px 9px}
+.prepare-steps{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:15px 0 18px}
+.prepare-steps span{background:#26344a;border:1px solid #435268;padding:8px 5px;text-align:center;color:#b4c2d2;border-radius:9px;font-size:12px;line-height:1.5}
+.prepare-steps span.active{border-color:#d0ae7e;background:#3b3e49;color:#f6dcad;font-weight:700}
+.prepare-selection-bar{position:sticky;top:8px;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;margin:16px 0;border:1px solid #8c785c;border-radius:12px;background:#24354bf5;box-shadow:0 7px 22px #07101bcc;backdrop-filter:blur(8px)}
+.prepare-selection-count{display:flex;flex-direction:column;min-width:0;gap:2px}
+.prepare-selection-count strong{color:#f0d2a1;font-size:13px}
+.prepare-selection-count span{color:#becadc;font-size:11px;max-width:33em;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.prepare-selection-bar .btn{font-size:13px;flex-shrink:0;min-height:44px}
+.prepare-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 14px;background:#27374b;border:1px solid #52627a;border-radius:11px}
+.prepare-summary>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.prepare-summary strong{font-size:14px;color:#f1d6ae}
+.prepare-summary span{font-size:12px;color:#c7d1df;overflow-wrap:anywhere}
+.prepare-summary .btn{font-size:12px;flex-shrink:0;min-height:44px}
+.prepare-later{display:flex;justify-content:flex-end;margin:18px 0}
+.prepare-start-actions{justify-content:flex-end}
+.prepare-panel .reader-inline-entry{margin-top:16px}
+@media(max-width:760px){
+ .studio.studio-compact{height:69px;margin-bottom:12px}
+ .studio.studio-compact .moon{right:30%;width:17px;height:17px;top:30px}
+ .prepare-steps{gap:5px;margin:12px 0 14px}
+ .prepare-steps span{font-size:11px;padding:8px 3px}
+ .prepare-selection-bar{top:5px;margin:12px -8px 16px;padding:10px 9px;gap:8px}
+ .prepare-selection-bar .btn{font-size:12px;padding:9px 10px;min-height:44px}
+ .prepare-selection-count strong{font-size:12px}
+ .prepare-selection-count span{max-width:40vw}
+ .prepare-panel .letter{padding:13px 12px}
+ .prepare-summary{flex-wrap:wrap;padding:12px}
+ .prepare-summary .btn{margin-left:auto}
+ .prepare-start-actions>.btn{width:100%}
+ .prepare-later>.btn{width:100%}
+}
+@media(max-width:360px){
+ .prepare-selection-bar{margin-left:-8px;margin-right:-8px}
+ .prepare-selection-count span{max-width:35vw}
+ .prepare-selection-bar .btn{padding:8px 9px;font-size:11px}
+ .reader-header{flex-wrap:wrap;gap:8px}
+ .reader-header>.btn{width:100%;white-space:normal}
+ .reader-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:9px}
+ .reader-actions .btn{width:100%;white-space:normal;overflow-wrap:anywhere}
+ .reader-setup-choice .actions,.reader-tools .actions{display:grid;grid-template-columns:minmax(0,1fr)}
+ .reader-setup-choice .actions>.btn,.reader-tools .actions>.btn,.reader-tools .actions>label{width:100%;display:flex;align-items:center;justify-content:center;text-align:center;white-space:normal}
+}
+
+/* v4.8.17  読書専用ナビゲーション：本文の紙面を妨げない、小さな道しるべ */
+.reader-page-top{height:0;scroll-margin-top:12px}
+.reader-night-nav{background:#1c2a3c;border:1px solid #405169;border-radius:12px;padding:13px 16px;margin:0 0 14px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.reader-night-meta{display:flex;flex-direction:column;gap:1px;flex-shrink:0;color:#f1e5d3}
+.reader-night-eyebrow{font-size:.67rem;letter-spacing:.12em;color:#cab391}
+.reader-night-meta strong{font-weight:500;font-size:.96rem}
+.reader-night-meta small{color:#aeb9c8;font-weight:400;font-size:.75rem;margin-left:6px}
+.reader-night-controls{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-width:0;flex-wrap:wrap}
+.reader-nav-button,.reader-nav-latest,.reader-night-picker{font:inherit;font-size:.78rem;min-height:40px;padding:7px 11px;border-radius:8px;border:1px solid #5a6b7e;background:#27384b;color:#eadfcf;white-space:nowrap}
+.reader-nav-latest{background:transparent;color:#dfc39c;border-color:#6c645f}
+.reader-night-picker{max-width:132px;width:100%;cursor:pointer;appearance:auto}
+.reader-night-picker-label{min-width:0}
+.reader-nav-button:disabled,.reader-nav-latest:disabled{opacity:.35;cursor:default}
+.reader-night-nav button:focus-visible,.reader-night-picker:focus-visible,.reader-contents a:focus-visible,.reader-back-to-top:focus-visible{outline:2px solid #e3bf83;outline-offset:3px}
+.reader-contents{border:1px solid #d8c7af;border-radius:9px;background:#efe6d8;margin:0 0 29px;color:#4b4239}
+.reader-contents summary{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;padding:10px 14px;font-size:.9rem;list-style:none}
+.reader-contents summary::-webkit-details-marker{display:none}
+.reader-contents summary>span:first-child{font-weight:600;color:#5c4d3c}
+.reader-contents summary>span:first-child:after{content:' ▾';font-size:.73rem;margin-left:5px}
+.reader-contents[open] summary>span:first-child:after{content:' ▴'}
+.reader-contents-summary-detail{font-size:.73rem;color:#80705f}
+.reader-contents-links{border-top:1px solid #dacbb8;padding:7px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+.reader-contents-links a{color:#55483d;text-decoration:none;background:#f8f1e6;border-radius:7px;padding:9px 12px;display:flex;flex-direction:column;gap:0;min-width:0;line-height:1.55}
+.reader-contents-links a:hover{background:#e6d7c2}
+.reader-contents-links a span{font-size:.62rem;letter-spacing:.08em;color:#86735e}
+.reader-contents-links a strong{font-size:.8rem;font-weight:500}
+.reader-contents-links a small{font-size:.7rem;overflow-wrap:anywhere;color:#786b5d}
+#reader-introduction,.reader-letter,.reader-ending{scroll-margin-top:18px}
+.reader-back-to-top{display:inline-block;color:#78604c;font-size:.82rem;margin-top:24px;text-underline-offset:3px}
+@media(max-width:680px){.reader-night-nav{display:block;padding:12px}.reader-night-meta{margin-bottom:9px}.reader-night-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr);gap:7px}.reader-night-picker-label{width:100%}.reader-night-picker{width:100%;max-width:none}.reader-nav-button{padding:7px 4px}.reader-nav-latest{grid-column:1/-1;justify-self:end;min-height:32px;padding:4px 10px}.reader-contents-links{grid-template-columns:1fr}.reader-contents-summary-detail{font-size:.69rem}}
+@media(max-width:360px){.reader-night-controls{grid-template-columns:1fr 1fr}.reader-night-picker-label{grid-column:1/-1;grid-row:1}.reader-nav-button{grid-row:2}.reader-nav-latest{grid-column:1/-1}.reader-contents summary{padding:11px}.reader-contents-links a{padding:9px}}
+
+/* v4.8.18 — SOMEWHERE ON AIR / 共通の視覚言語 */
+:root{
+ --bg:#101827;--panel:#1b293b;--panel2:#24364b;--ink:#f2eadc;
+ --sub:#b7c4d4;--gold:#e5bf83;--line:#43546b;--accent:#d8b17c;
+ --ui-radius:11px;--ui-radius-large:16px;--ui-control-height:44px;
+ --ui-hover:#304259;--ui-focus:#f0d19a;--ui-paper:#f5eee1;--ui-paper-ink:#40382f;
+}
+/* 統一されたタイトル、見出し、カードのリズム */
+.brand,.reader-brand{font-size:11px;letter-spacing:.19em;font-weight:650;color:var(--gold)}
+.overline{color:var(--gold);font-weight:600;letter-spacing:.15em}
+.panel{border-radius:var(--ui-radius-large);border-color:var(--line)}
+.layout main .panel > h2,.reader-paper h2{letter-spacing:.03em;line-height:1.5}
+/* アイコンを端末依存の装飾記号から線画に統一 */
+.ui-icon{display:inline-block;width:19px;height:19px;flex:none;vertical-align:middle}
+.sidebar .navbtn{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:var(--ui-radius);min-height:var(--ui-control-height);line-height:1.5}
+.sidebar .navbtn .ui-icon{opacity:.87}
+.sidebar .navbtn.active .ui-icon{opacity:1}
+.bottomnav button .ui-icon{width:22px;height:22px}
+.bottomnav button .nav-label{font-size:12px;line-height:1.35;display:block}
+.bottomnav button.active{background:#2d394a;color:var(--gold)}
+.bottomnav button{transition:background-color .12s ease,color .12s ease}
+/* 同じ役割の操作に同じ大きさ・角丸・輪郭を使用 */
+.btn,.choice,.reader-nav-button,.reader-nav-latest,.reader-night-picker{border-radius:var(--ui-radius);min-height:var(--ui-control-height)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;line-height:1.5;text-decoration:none;max-width:100%;text-align:center}
+.btn:hover:not(:disabled){filter:brightness(1.06)}
+.btn.secondary:hover:not(:disabled),.btn.ghost:hover:not(:disabled){background:var(--ui-hover);filter:none}
+.btn:active:not(:disabled),.choice:active:not(:disabled){transform:translateY(1px)}
+.choice{transition:background-color .12s,border-color .12s}
+/* あそび方と設定画面の補助操作 */
+.guide-launch,.settings-guide-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.guide-launch .ui-icon,.settings-guide-btn .ui-icon{width:17px;height:17px}
+/* 独立した読書モードの入口はカードより軽い、しかし押しやすい */
+.reader-entry-button,.reader-inline-entry{display:flex;align-items:flex-start;gap:10px;min-height:48px;border-radius:var(--ui-radius);padding:11px;color:#e5cb9f;line-height:1.45}
+.reader-entry-button:hover,.reader-inline-entry:hover{background:#2a394e}
+.reader-entry-copy{display:block;min-width:0;font-size:.93rem}
+.reader-entry-copy small{display:block;opacity:.78;font-size:.76rem;line-height:1.6;margin-top:4px;color:#c1cbd7}
+.reader-inline-entry .reader-entry-copy small{margin-left:0}
+.reader-entry-button .ui-icon,.reader-inline-entry .ui-icon{margin-top:1px;color:var(--gold)}
+.reader-layout{background:radial-gradient(ellipse at 70% 0%,#24344c 0%,#111a2a 46%,#0c1320 100%)}
+.reader-header{border-bottom:1px solid #3b4a61;padding:6px 6px 18px;margin-bottom:20px;align-items:center}
+.reader-header h1{letter-spacing:.06em;font-weight:500}
+.reader-mode-label{color:#bbab95;font-size:11px;letter-spacing:.07em;display:flex;align-items:center;gap:7px;margin-top:9px}
+.reader-mode-label .ui-icon{width:15px;height:15px;color:var(--gold)}
+.reader-header>.btn{flex:none;font-size:.83rem}
+.reader-paper{border:1px solid #c7b69e;box-shadow:0 10px 38px #0004}
+.reader-paper .overline{font-weight:600}
+/* 読書紙面でも決定ボタンは金色。本文とのコントラストを維持 */
+.reader-paper .btn{background:#b38a55;border-color:#a37d4f;color:#201d1b}
+.reader-paper .btn:hover:not(:disabled){background:#c49a64}
+.reader-paper .btn.secondary{background:transparent;color:#4f4b44;border:1px solid #988b7a}
+.reader-paper .btn.secondary:hover:not(:disabled){background:#e9ddcb}
+.reader-night-nav{border-radius:var(--ui-radius-large);border-color:var(--line);background:#1b293b}
+.reader-night-controls{gap:8px}
+.reader-nav-button,.reader-nav-latest,.reader-night-picker{border-color:#687b90;background:#28394d;color:#f1e8da}
+.reader-nav-latest{background:transparent;border-color:#9c855f;color:#f0d5ab}
+.reader-night-nav button:hover:not(:disabled),.reader-night-picker:hover{background:#364d64}
+.reader-contents-title{display:inline-flex;align-items:center;gap:8px}
+.reader-contents-title .ui-icon{width:16px;height:16px}
+.reader-contents summary .reader-contents-title:after{margin-left:0}
+.reader-contents-links a{border:1px solid transparent;transition:background-color .12s,border-color .12s}
+.reader-contents-links a:hover{border-color:#c4a982}
+.reader-tools{border-radius:var(--ui-radius-large);border-color:var(--line);background:#1b293b80}
+/* 共通の視認可能なキーボードフォーカス */
+:where(button,a,summary,select,input,label):focus-visible{outline:2px solid var(--ui-focus);outline-offset:3px}
+@media(max-width:760px){
+ .bottomnav{border-top-color:var(--line)}
+ .bottomnav button{gap:4px;padding:7px 1px}
+ .reader-header{gap:10px}
+ .reader-header .btn{padding:9px 12px}
+ .reader-night-controls{gap:6px}
+}
+@media(max-width:370px){
+ .bottomnav button .nav-label{font-size:10.8px}
+ .reader-header>.btn{gap:5px;padding:9px}
+ .reader-header>.btn .ui-icon{width:16px;height:16px}
+}
+@media(prefers-reduced-motion:reduce){.btn:active:not(:disabled),.choice:active:not(:disabled){transform:none}}
