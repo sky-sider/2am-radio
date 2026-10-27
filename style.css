@@ -309,3 +309,17 @@ body.guide-open{overflow:hidden}
   .settings-backup-actions{grid-template-columns:minmax(0,1fr);gap:10px}
   .settings-backup-actions > .btn{min-height:48px;white-space:nowrap}
 }
+
+/* v4.7 — broadcast-mode choice, designed for both narrow and wide screens */
+.broadcast-mode-picker{margin:18px 0 20px;padding:17px;border:1px solid rgba(193,169,125,.38);border-radius:12px;background:rgba(188,161,112,.065)}
+.broadcast-mode-picker .overline{margin-bottom:12px}
+.broadcast-mode-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.broadcast-mode-option{width:100%;min-width:0;min-height:92px;padding:13px 12px;text-align:left;color:inherit;font:inherit;cursor:pointer;border:1px solid var(--line,rgba(160,160,160,.3));border-radius:9px;background:rgba(255,255,255,.025);display:flex;flex-direction:column;gap:9px;transition:border-color .15s,background .15s}
+.broadcast-mode-option strong{font-size:.96rem;line-height:1.45}
+.broadcast-mode-option span{font-size:.8rem;line-height:1.7;opacity:.78}
+.broadcast-mode-option.is-active{border:2px solid #caa970;background:rgba(200,169,112,.14);padding:12px 11px}
+.broadcast-mode-option:focus-visible{outline:3px solid #d4b984;outline-offset:3px}
+.broadcast-mode-tip{font-size:.79rem;line-height:1.7;opacity:.73;margin:12px 0 0}
+.broadcast-auto-explain{border-radius:10px;background:rgba(193,169,125,.09);border:1px solid rgba(193,169,125,.22);padding:15px 16px;margin:18px 0}
+.broadcast-auto-explain p{font-size:.88rem;opacity:.82;line-height:1.75;margin:6px 0 0}
+@media(max-width:560px){.broadcast-mode-picker{padding:13px}.broadcast-mode-options{grid-template-columns:1fr}.broadcast-mode-option{min-height:0;gap:4px;padding:12px}.broadcast-mode-option.is-active{padding:11px}}

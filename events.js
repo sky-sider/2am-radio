@@ -951,6 +951,20 @@ Object.assign(SOCIAL_LETTER_TEXT,{
  fridge_bread:{fridge:{subject:'朝の仕入れ先で',intro:'昨日の早朝、食材の卸売店へ寄りました。',noticed:'パンの材料を選ぶ人を見かけました。',greeted:'その人と会釈しました。',talk:'粉の違いについて少し教えてもらいました。',invite:'また仕入れ先で、食材の話ができました。'},bread:{subject:'朝の卸売店',intro:'昨日、仕入れ先へ行きました。',noticed:'店でよく見る料理人らしい人がいました。',greeted:'その人と挨拶しました。',talk:'粉の違いについて少し話しました。',invite:'また、朝の仕入れ先で話ができました。'}}
 });
 
+const SOCIAL_OBSERVATIONS_461={
+ cat:['話し終えてから、相手の表情をうまく描けるだろうかと考えました。','ほんの数分のことですが、帰り道の景色まで少し違って見えました。','何を言ったかより、そのときの空気を覚えている気がします。'],
+ driver:['短い出来事でも、帰りの車で思い出すことがあります。','勤務の報告書には書きませんが、個人的には覚えておきたい話です。','猫主任に聞かせても、たぶん欠伸で返される話です。'],
+ fish:['そのときの自分の返事を、あとで何度か考えました。','誰かとの短いやりとりでも、私には少し勇気のいる日があります。','あの場では気づかなかったことを、帰ってから思いつきました。'],
+ clock:['帰ってお茶を淹れるころ、また思い出しました。','短い話も、時間がたつと違うところを覚えているものです。','あのひとときのことを、静かな夜に書いてみたくなりました。'],
+ terminal:['そのあとの道は、いつもと同じでした。','風の音と一緒に覚えています。','何でもない時間ですが、書いておきます。'],
+ bread:['店の仕事の合間に、またふと思い出しました。','パン以外の話にも、焼き上がるまでの時間があるのかもしれません。','店長に話すには少し小さすぎるので、ここへ送りました。'],
+ moon:['地球側の小さな事件として、心の議事録に載せておきます。','この報告、月の審議会ではきっと意見が分かれます。','月へ提出するほどではありませんが、今夜の報告です。'],
+ anon:['名前をつけないまま、あの時間だけ覚えています。','部屋に戻ってから、机の上のメモを一度見ました。','誰かの声があった、それだけの短い時間でした。'],
+ sugar:['コーヒーを飲みながら、もう一度考えました。','小さな出来事にも、少し長い余韻があるものですね。','カップを置いたあとにも、あの時間が残っていました。'],
+ umbrella:['花を並べるとき、ふとそのやりとりを思い出しました。','店に来る人の一日は、店にいる時間よりずっと長いんですよね。','水を替えながらも、少し気になっていました。'],
+ triangle:['ノートに書くほどの事件ではありませんが、印をつけておきました。','帰ってから、あの話の別の答えを思いつきました。','予定していなかったことほど、案外覚えています。'],
+ fridge:['片づけのあとに、また思い出しました。','仕事の段取りとは別のところに、あの時間が残っています。','帰ってから、自分の食事を考えるときにもふと思いました。']
+};
 function socialLetterFor(ev,who,day){
  const desc=SOCIAL_LETTER_TEXT[ev.pair]?.[who];if(!desc)return null;
  const relation=s.socialWorld.pairs[ev.pair];const my=relation.perspectives[who];
@@ -958,7 +972,9 @@ function socialLetterFor(ev,who,day){
  const close=personal==='warm'?'今日はちょっと、いい気分で帰りました。':personal==='awkward'?'悪いことがあったわけではないのですが、少し気まずさが残りました。':ev.outcome==='guarded'?'もう少し話してもよかった気がします。':'何でもないことなのに、帰り道で思い出しました。';
  // 本人の観測と主観のみ。相手のラジオネーム・本名・知らない気持ちは記さない。
  const opener=day>=ev.night+2?desc.intro.replace('昨夜','先日の夜').replace('昨日','先日'):desc.intro;
- return {who,subject:desc.subject,body:'こんばんは。\n\n'+opener+'\n\n'+(desc[ev.action]||desc.talk)+'\n\n'+close,
+ const observations=SOCIAL_OBSERVATIONS_461[who]||SOCIAL_OBSERVATIONS_461.anon;
+ const observation=observations[simHash(`social461:detail:${ev.id}:${who}`)%observations.length];
+ return {who,subject:desc.subject,body:'こんばんは。\n\n'+opener+'\n\n'+(desc[ev.action]||desc.talk)+'\n\n'+close+'\n\n'+observation,
   regular:true,kind:'socialWorld',tag:`social-${ev.pair}-${ev.id}`,socialEventId:ev.id,socialPair:ev.pair,choices:REGULAR_CHOICES.map(x=>[...x])};
 }
 function socialQueueRecollection(ev){
@@ -1213,10 +1229,36 @@ function quietAfterDaily(n){
  q.lastStartNight=n;
  // UIに「休止」が表示されたり、本人の気持ちが強制変更されたりすることはない。
 }
+// 最新の「実配達」のみ参照する。事前に作った社会イベントの下書きは数えない。
+function quietLastActualMail461(id,n){
+ let latest=0;
+ const fromRegular=s.regular?.lastMailed?.[id]||0;
+ if(fromRegular<n)latest=fromRegular;
+ for(let t=Math.max(1,n-12);t<n;t++){
+  if((s.letterSets?.[t]||[]).some(uid=>letterSenderId(uid)===id))latest=t;
+ }
+ return latest;
+}
+// 数日だけの休止には「お久しぶり」の大げさな挨拶を使わない。
+// 近況の再開自体は残し、長く付き合っている手触りを保つ。
+const QUIET_SHORT_RETURN_461={
+ cat:['少し手紙を休んでいました。今日は、また書いてみようと思います。','何日か書かないでいたら、話したいことが少しできました。'],
+ driver:['数日ぶりの報告です。主任の巡回は、その間も通常営業でした。','この数日は帰ると眠ってしまいました。今日はひと言だけ書きます。'],
+ fish:['少しのあいだ、言葉を探していました。今日は短く書いてみます。','何日か手紙を書かずにいました。また少し送ってみたくなりました。'],
+ clock:['この数日は手紙を書かずにおりました。今夜は少しだけ。','数日ぶりに便りをしたためます。暮らしはいつもどおり続いております。'],
+ terminal:['何日か書かずにいました。今日は少し書いてみます。','短い間、手紙は休んでいました。話すことがなくなったわけではありません。'],
+ bread:['数日ぶりのお便りです。パンのほうは休まず焼いていました。','何日か手紙を書いていませんでした。店の仕事はいつもどおりです。'],
+ umbrella:['少しお便りを休んでいました。店では花の水を替えていました。','何日か投稿を休んで、今日はまた書いてみました。'],
+ triangle:['数日ぶりに手紙を書きます。ノートのほうは、その間も埋まっていました。','しばらく、といっても数日ですが、ラジオに送るのは休んでいました。'],
+ fridge:['数日ぶりに手紙を書きます。厨房はこの間も動いていました。','ここ数日は帰るとすぐ休んでいました。また短く書きます。']
+};
 function quietReturnNote(id,n){
  const q=s.quiet?.active?.[id];if(!q||n<=q.endNight)return null;
  const voices=QUIET_RETURN_VOICES_34[id]||QUIET_RETURN_VOICES_34.cat;
- const start=voices[simHash(`quiet34:return:${id}:${q.startNight}`)%voices.length];
+ const gap=n-quietLastActualMail461(id,n);
+ const short=gap<7;
+ const openings=short?(QUIET_SHORT_RETURN_461[id]||QUIET_SHORT_RETURN_461.cat):voices;
+ const start=openings[simHash(`quiet34:return:${id}:${q.startNight}`)%openings.length];
  const again=regularDayAction(id,n);
  const suffix={
   cat:'返事がほしいというより、また少し話したくなったので書きました。',
@@ -1231,17 +1273,17 @@ function quietReturnNote(id,n){
  }[id]||'また、気が向いた日に書きます。';
  // 本人が確かに経験した前日の行動だけを任意で振り返る。
  const fact=again?.activity?'\n\n昨日は、'+again.activity.replace(/。+$/,'')+'。':'';
- return {subject:'久しぶりのお便り',kind:'return',tag:`return-${q.startNight}`,
+ return {subject:short?'数日ぶりのお便り':'久しぶりのお便り',kind:'return',tag:`return-${q.startNight}`,
   body:start+fact+'\n\n'+suffix,absenceReturn:true,voiceVersion:34};
 }
 // 便箋が最終的に夜の投函箱へ届いた場合にだけ、実際の帰還として確定する。
 function quietConfirmDelivered(n,ids){
  const q=s.quiet;if(!q)return;
  for(const uid of ids){
-  const letter=s.regular?.letterArchive?.[uid];if(!letter?.absenceReturn)continue;
+  const letter=s.regular?.letterArchive?.[uid]||letterDB[uid];if(!letter)continue;
   const id=letter.who,active=q.active[id];
   if(!active||n<=active.endNight)continue;
-  q.history.push({who:id,...active,returnedNight:n,returnLetterId:uid});
+  q.history.push({who:id,...active,returnedNight:n,returnLetterId:uid,absenceReturn:Boolean(letter.absenceReturn)});
   q.history=q.history.slice(-35);q.lastReturnNight[id]=n;delete q.active[id];
  }
 }
@@ -1571,7 +1613,7 @@ function migrateRegular(data){
  r.processedNights=Array.isArray(old.processedNights)?[...new Set(old.processedNights.filter(n=>Number.isInteger(n)&&n>=15))]:[];
  r.latestThemes=old.latestThemes||{};r.lastMailed=old.lastMailed||{};
  r.mailHistory=Array.isArray(old.mailHistory)?old.mailHistory.slice(-120):[];
- r.varietyHistory=Array.isArray(old.varietyHistory)?old.varietyHistory.filter(x=>x&&typeof x==='object'&&Number.isInteger(x.night)).slice(-180):[];
+ r.varietyHistory=Array.isArray(old.varietyHistory)?old.varietyHistory.filter(x=>x&&typeof x==='object'&&Number.isInteger(x.night)).slice(-360):[];
  r.voiceHistory45=old.voiceHistory45&&typeof old.voiceHistory45==='object'?old.voiceHistory45:{};
  r.routeActions=Array.isArray(old.routeActions)?old.routeActions.slice(-120):[];
  r.started=Boolean(old.started||data.night>=15);
@@ -2066,7 +2108,7 @@ function radioVarietyCompose38(id,n){
  const possible=pool.filter(card=>{
   const [key,category,subject,body,choices,requiredAction]=card;
   if(requiredAction&&yesterday?.actionId!==requiredAction)return false;
-  if(recent.some(x=>x.cardId===key&&n-x.night<94))return false;
+  if(recent.some(x=>x.cardId===key&&n-x.night<175))return false;
   return true;
  });
  if(!possible.length)return null;
@@ -2093,7 +2135,7 @@ function radioVarietyConfirmDelivered38(n,ids){
   r.varietyHistory.push({uid,night:n,who:note.who,cardId:note.variety.cardId,category:note.variety.category});
  }
  // 追加保存量を一定に保つ一方で、各人物の長期的な繰り返しを抑える。
- r.varietyHistory=r.varietyHistory.filter(x=>n-x.night<=100).slice(-180);
+ r.varietyHistory=r.varietyHistory.filter(x=>n-x.night<=260).slice(-360);
 }
 
 function regularCompose(id,n){
@@ -2208,7 +2250,8 @@ function createRegularLetters(n){
   const candidates=[follow42,follow41,surprise].filter(Boolean);
   // 各エピソードの続きが常に最優先にならないよう、夜ごとに順番を変える。
   const everyday=candidates.length?candidates[simHash(`surprise46:balance:${id}:${n}:${s.rng}`)%candidates.length]:null;
-  const note=quietWaitingToReturn(id,n)?quietReturnNote(id,n):first?newListenerFirstLetter(id,n):everyday|| (REGULAR_NEW.includes(id)?newListenerCompose(id,n):
+  const quietReturn=quietWaitingToReturn(id,n)&&n-quietLastActualMail461(id,n)>=3;
+  const note=quietReturn?quietReturnNote(id,n):first?newListenerFirstLetter(id,n):everyday|| (REGULAR_NEW.includes(id)?newListenerCompose(id,n):
     id===support[(n%2)%support.length]?.id?(radioVarietyCompose38(id,n)||regularThemeLetter(id,n)):regularCompose(id,n));
   const voiced=v33VoiceLetter(id,n,note);
   const uuid=`regular_${n}_${id}`;
@@ -3530,27 +3573,27 @@ const LONG_ECHO_TEXT_43={
   relation:['返信の長さ','友人から届いた短いメッセージを、今日はすぐに読み終えました。以前なら、短さには何か意味があるのかと考え込んだと思います。\n\n今も少し気にはなります。ただ、返事の前にお茶を淹れる余裕ができました。返事が短い日も、私たちはそれぞれ別の用事をしているんですよね。',[
    ['短いメッセージ','短い言葉の向こうにも、それぞれの一日がありますね。','reflection'],['変わった時間','前より落ち着いて読めたこと、自分でも意外でしたか。','curiosity'],['お茶の時間','返信の前に一杯淹れられる余裕、いいですね。','empathy'],['自分の速さ','返事の長さも速さも、決めすぎなくていいと思います。','space']]]},
  clock:{
-  daily:['針を見ない時間','前に時計を磨いた話を書きましたね。あれからも、同じ時計をときどき手入れしています。今日は、ねじを確かめたあと、しばらく窓の外を眺めました。\n\n時計はちゃんと進んでいました。私が見ていなくても進むという、ごく当たり前のことを、あらためて面白く思いました。',[
+  daily:['針を見ない時間','今日も古い時計を手入れしました。ねじを確かめたあと、しばらく窓の外を眺めていたんです。\n\n時計はちゃんと進んでいました。私が見ていなくても進むという、ごく当たり前のことを、あらためて面白く思いました。',[
    ['見ていない時間','針を見ていなくても時間が進む。その当たり前に気づく夜ですね。','reflection'],['窓の景色','時計から目を離したとき、何が見えましたか。','curiosity'],['手入れの続き','今も時計を大切にしていることが伝わります。','empathy'],['ゆっくり眺める','ときには時間を測らず、景色を眺めていてください。','space']]],
   relation:['質問が残る図書室','図書室で誰かと話した日のことを、長く覚えています。今日は自分から話す前に、相手の言葉が終わるのを待ちました。\n\n質問に答えることも好きですが、質問を受け取る時間も悪くありません。歳を重ねても、知らないことは減りませんね。',[
    ['待って聞く','相手の話が終わるまで待つ時間も、大切な会話ですね。','empathy'],['新しい質問','今日はどんなことを尋ねられたのでしょう。','curiosity'],['知らないこと','知っていることが増えても、問いはなくならないんですね。','reflection'],['話す順番','答えがすぐ出ない質問があっても、いいと思います。','space']]]},
  terminal:{
-  daily:['同じ時刻表の別の欄','以前、時刻表の端まで眺めてしまう話を送りました。今もときどき、乗らない列車の時刻を見ています。\n\nその時刻に、誰かが仕事を終えて乗るのかもしれません。想像してから、自分の乗る列車を確かめます。遠くへ行かなくても、少しだけ知らない夜を見た気になります。',[
+  daily:['同じ時刻表の別の欄','今もときどき、乗らない列車の時刻まで見ています。以前、駅や帰り道のことを手紙にした夜を思い出しました。\n\nその時刻に、誰かが仕事を終えて乗るのかもしれません。想像してから、自分の乗る列車を確かめます。遠くへ行かなくても、少しだけ知らない夜を見た気になります。',[
    ['乗らない列車','乗らない時刻にも、別の誰かの帰り道があるんですね。','reflection'],['気になる時刻','今も気になる行き先はありますか。','curiosity'],['自分の列車','想像したあとで、いつもの列車に戻るのもいいですね。','empathy'],['行かない旅','行かずに思い浮かべる旅があってもいいと思います。','space']]],
   relation:['いつもの道の挨拶','帰り道で顔を合わせる人のことを書いた日から、少し時間がたちました。今夜は短く会釈して、それぞれ別の方へ歩きました。\n\n相手の名前も、そのあとどこへ帰るのかも知りません。ただ、明日も同じ時間にここを歩く人がいると思うと、駅前の灯りが少し違って見えます。',[
    ['名前を知らなくても','名前を知らない相手も、帰り道の景色の一部なんですね。','reflection'],['会釈の距離','その短い挨拶が、心地よい距離になっているんですね。','empathy'],['駅前の灯り','以前と比べて、気になる景色は増えましたか。','curiosity'],['それぞれの帰路','どちらも自分の夜へ帰っていく、そのままがいいですね。','space']]]},
  bread:{
-  daily:['書き直した札の余白','あのパンの札を何度も書き直したこと、まだ覚えています。今朝も売り場で、一行だけ説明を直しました。焼き上がりは同じなのに、言い方ひとつで違うパンに見えます。\n\n店長に「それで売れるの」と聞かれました。わかりません、と答えました。正直な売り文句は、札には書けませんね。',[
+  daily:['書き直した札の余白','今朝も売り場で、パンの札を一行だけ書き直しました。焼き上がりは同じなのに、言い方ひとつで違うパンに見えます。\n\n店長に「それで売れるの」と聞かれました。わかりません、と答えました。正直な売り文句は、札には書けませんね。',[
    ['一行の手間','いつものパンにも、一行を考える時間があるんですね。','empathy'],['店長の問い','「それで売れるの」は難しい質問ですね。','humor'],['言葉の違い','パンは同じでも、伝える言葉は少しずつ変えられるんですね。','reflection'],['明日の札','明日はまた違う一行でもいいと思います。','space']]],
   relation:['二つ買う人のその後','以前、決まった数のパンを買う常連さんの話を書きました。今日も売り場でその人を見かけましたが、買ったのはいつもと違うパンでした。\n\n理由は聞きませんでした。毎日同じように見えるお客さんにも、毎日の気分があるんでしょうね。店の方も、明日は違うパンが焼けるかもしれません。',[
    ['違うパンの日','いつものお客さんにも、いつもと違う一日がありますね。','reflection'],['聞かなかった理由','理由を聞かずに見送ったのは、どうしてだったんでしょう。','curiosity'],['店の変化','買う人も作る人も、少しずつ変わるんですね。','empathy'],['いつもの常連','毎回同じものを買わなくても、常連さんは常連さんですね。','space']]]},
  moon:{
-  daily:['課長の異動願い','あの月の名前を考えた夜から、ずいぶんたちました。今夜の月を見ていたら、前につけた名前がなんだか似合わなくなっていました。\n\n「だいたい丸い課長」は異動になったそうです。後任はまだ決めていません。月の組織も、人手不足なのかもしれません。',[
+  daily:['課長の異動願い','今夜の月を見ていたら、新しい役職が似合いそうな気がしてきました。\n\n「だいたい丸い課長」は異動になったそうです。後任はまだ決めていません。月の組織も、人手不足なのかもしれません。',[
    ['月の異動','月の人事も、毎晩同じとは限らないんですね。','humor'],['後任の予定','次の役職には、どんな形の月が合うでしょう。','curiosity'],['名前の変化','同じ月も、見上げる日の自分で違って見えますね。','reflection'],['欠員のまま','後任を決めずに眺める月も、いいと思います。','space']]],
-  relation:['家族会議の議事録','家族と考えた月のなぞなぞを、今夜また思い出しました。答えが決まらないままになっています。\n\nでも家族は、もう別のことを話していました。なぞなぞが終わらなくても、会議は閉会できます。月の役所には教えてあげたい制度です。',[
+  relation:['家族会議の議事録','前に家族と月のことを話した夜を、今夜また思い出しました。あのころから、月の議事録には未決の案件が増えています。\n\nでも家族は、もう別のことを話していました。なぞなぞが終わらなくても、会議は閉会できます。月の役所には教えてあげたい制度です。',[
    ['閉会の制度','答えのない議題も、持ち帰りにできるんですね。','humor'],['別の話題','最近の家族会議では、何が議題になっているんでしょう。','curiosity'],['続く会話','結論がなくても、話す時間はちゃんと残りますね。','reflection'],['宿題のまま','答えを出さないなぞなぞがあってもいいと思います。','space']]]},
  sugar:{
-  daily:['三杯目までの時間','前に、砂糖を入れる前のコーヒーを試した話を送りました。今日は三杯目を入れる前に、窓の外を眺めました。\n\n甘さは相変わらず好きです。でも、飲むまでの時間は前より少し長くなりました。味覚より、朝の使い方が変わったのかもしれません。',[
+  daily:['三杯目までの時間','今日はコーヒーに三杯目の砂糖を入れる前に、窓の外を眺めました。\n\n甘さは相変わらず好きです。でも、飲むまでの時間は前より少し長くなりました。味覚より、朝の使い方が変わったのかもしれません。',[
    ['変わった朝','甘さは同じでも、過ごし方は変わってきたんですね。','reflection'],['窓の外','今日は窓の向こうに、何が見えましたか。','curiosity'],['三杯の安心','いつもの味に戻るのも、心地よい習慣ですね。','empathy'],['急がない一杯','飲む前の時間も、好きなだけ楽しんでください。','space']]],
   relation:['短い返信のあと','友達との短いメッセージの話を、以前ここに送りました。今もあまり長文のやり取りはしません。\n\nでも、返事がすぐ来なくても、前ほど画面を見なくなりました。コーヒーを淹れ直しているうちに、自分にも別の時間があるのを思い出します。',[
    ['返事の時間','返事を待つ間にも、あなた自身の一日があるんですね。','reflection'],['変わったところ','以前と比べて、待っている気持ちは変わりましたか。','curiosity'],['短い言葉で','短いまま続いていく友人関係も、いいですね。','empathy'],['急がせない','返す側にも待つ側にも、それぞれの時間がありますね。','space']]]},
@@ -3641,6 +3684,21 @@ function longEchoAfterBroadcast43(n){
   source.rememberedResponse=source.heardReply?String(x.response||'').replace(/\s+/g,' ').trim().slice(0,100):'';
  }
 }
+// 発生条件で確認した直前の行動にだけ言及する。聞いていない放送は思い出さない。
+const LONG_ECHO_BRIDGES_461={
+ cat:{daily:['昨日、絵に向き合う時間があって、昔の自分の言葉をふと思い出しました。','昨日、スケッチブックのことを考えながら、前に送った手紙を思い出しました。'],relation:['昨日、職場の人とのやりとりのあとで、前に書いた言葉が戻ってきました。','昨日、仕事の話をしたあと、あの頃の手紙が少し違って思えました。']},
+ driver:{daily:['昨日、休憩中にコーヒーを選んでいて、前の手紙を思い出しました。','昨日、いつもの缶コーヒーの前で、しばらく前のことを考えました。'],relation:['昨日、配送仲間と顔を合わせて、以前の休憩時間を思い出しました。','昨日、配送の合間に同僚と話して、昔の手紙を思い出しました。']},
+ fish:{daily:['昨日、日記を開いていて、前に書いたことをふと思い出しました。','昨日、日記のページを見ながら、昔送った言葉を思い出しました。'],relation:['昨日、友人と話していて、以前の自分の返事を思い出しました。','昨日、友人とのやりとりのあと、前の手紙を思い返しました。']},
+ clock:{daily:['昨日、時計の手入れをしながら、昔の手紙のことを考えました。','昨日、古い時計に触れる時間があり、ふと以前の言葉を思い出しました。'],relation:['昨日、図書室で話をして、昔ここへ送ったお便りを思い出しました。','昨日、図書室で人の話を聞きながら、以前の質問を思い出しました。']},
+ terminal:{daily:['昨日、時刻表を眺めていると、昔の帰り道を思い出しました。','昨日、列車の時刻を確かめていて、前に書いた夜のことを考えました。'],relation:['昨日、近所の人と顔を合わせて、以前の挨拶を思い出しました。','昨日、いつもの道で人とすれ違い、前に送った手紙を思い出しました。']},
+ bread:{daily:['昨日、売り場の仕事をしていて、前の手紙を思い出しました。','昨日、店の札を眺めながら、昔の試作品のことも考えました。'],relation:['昨日、常連さんとのやりとりから、前に書いたお客さんのことを思い出しました。','昨日、売り場で人と話していて、昔の手紙の続きを考えました。']},
+ moon:{daily:['昨日、月のことを考えていて、古い議事録を思い出しました。','昨日、月を眺めながら、以前の空想の続きを考えました。'],relation:['昨日、家族と話していて、前の月面会議のことを思い出しました。','昨日、家族とのやりとりが、昔の会議を思い出させました。']},
+ sugar:{daily:['昨日、コーヒーを淹れながら、前に書いた頃の自分を思い出しました。','昨日、いつもの一杯を前にして、昔の手紙を思い返しました。'],relation:['昨日、友人とのやりとりで、以前の短い返事を思い出しました。','昨日、友人と話していて、前に送ったお便りを思い返しました。']},
+ anon:{daily:['昨日、机のメモを手に取ったとき、以前の言葉を思い出しました。','昨日、机に残した紙を見て、昔送った手紙のことを考えました。'],relation:['昨日、廊下で隣人と挨拶して、以前の自分の声を思い出しました。','昨日、隣の人と言葉を交わしてから、昔の手紙を思い返しました。']},
+ umbrella:{daily:['昨日、店の窓際を整えていて、前に書いたことを思い出しました。','昨日、花屋の窓辺に目をやると、以前の手紙が浮かびました。'],relation:['昨日、常連のお客さんと話していて、前に送った手紙を思い返しました。','昨日、お客さんとのやりとりから、あの頃の花の色を思い出しました。']},
+ triangle:{daily:['昨日、ノートに図を描きながら、前の手紙のことを考えました。','昨日、ノートの線を引いていると、昔描いた街が頭に浮かびました。'],relation:['昨日、友達と話していて、以前の地図の続きを思い出しました。','昨日、友達とのやりとりのあと、前に送った手紙を読み返したくなりました。']},
+ fridge:{daily:['昨日、食事の残りを片づけていて、前に書いた言葉を思い出しました。','昨日、自分の夕食のことを考えながら、昔の手紙を思い返しました。'],relation:['昨日、厨房の仲間と話していて、以前のやりとりが浮かびました。','昨日、仕事仲間と話したあと、前に送った手紙を思い出しました。']}
+};
 function longEchoCompose43(id,n){
  const state=s.longEcho43;
  if(!state||n<66||chapter3IsNight(n)||state.draftNight===n)return null;
@@ -3667,7 +3725,11 @@ function longEchoCompose43(id,n){
  const answer=source.rememberedResponse||'';
  const from=source.heardReply?(answer.length>=8&&answer.length<=80?`あの夜に返ってきた『${answer}』という言葉も、ときどき思い返します。`:'あの夜、番組で返してもらった言葉も、今でも覚えています。'):'';
  // 気づきは本人の暮らしから。ラジオを聴かなかった人には「返事」を知っているふりをさせない。
- const bridge=source.kind==='relation'?'昨日も、あの人と顔を合わせました。':'昨日、またいつものことをしていて、ふと思い出しました。';
+ // 回想の導入は「昨日実際に起きた行動」とその人物の言葉で始める。
+ // これなら、何十夜後に別の結末から回想しても、同じ定型文や記憶の捏造にならない。
+ const bridgeVariants=LONG_ECHO_BRIDGES_461[id]?.[source.kind]||[];
+ const bridge=bridgeVariants.length?bridgeVariants[simHash(`echo461:bridge:${source.uid}:${n}`)%bridgeVariants.length]:
+  (source.kind==='relation'?'昨日、身近な人とのやりとりから、ふと思い出しました。':'昨日、いつもの暮らしの中で、前の手紙を思い出しました。');
  return {
   kind:'long-echo',tag:`long-echo43-${source.uid}`,
   subject:story[0],
