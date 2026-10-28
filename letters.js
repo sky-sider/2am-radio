@@ -1660,6 +1660,9 @@ function replyContextKey(l){
  }
  if(kind==='special'||l.programSpecial){
   if(l.themeId==='food'&&/妻|昔|母|学生のころ|家族|友達|忘れられない/.test(l.body||''))return 'memory';
+  // v4.8.37: 物語由来の企画はテーマ名だけでは実際のお便りの題材を決定できない。
+  // 例えば「昔好きだったこと」は絵だけでなく、時計・ラジオ・音楽にも及ぶ。
+  if(['story_creative','story_unsaid','story_taught','story_crossing'].includes(l.themeId))return replyGenreFromText(l);
   return SPECIAL_REPLY_TOPICS[l.themeId]||replyGenreFromText(l);
  }
  if(kind==='theme'){
