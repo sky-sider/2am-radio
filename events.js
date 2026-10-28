@@ -168,7 +168,7 @@ function recordOpening(){
   const tone=s.stationTone ||= {warmth:0,curiosity:0,quiet:0};
   const mood=OPENING_MOODS[s.opening];
   if(mood)tone[mood]=(tone[mood]||0)+1;
-  log('オープニング',opening[s.opening]);
+  log('オープニング',lettersBroadcastPhrase4916('opening',s.opening));
 }
 
 // 選曲は運命を直接変更せず、その晩に放送を受け取ったリスナーの気分だけに作用する。
@@ -1084,7 +1084,9 @@ function newListenerArcNote(id,n){
 }
 function newListenerPersonalNote(id,n){
  const day=regularDayAction(id,n);if(!day)return null;
- const me=SIM_PROFILES[id],action=me.actions.find(a=>a[0]===day.actionId),subject={umbrella:'花屋の小さな話',triangle:'ノートの端の話',fridge:'仕事が終わってから'}[id];
+ const me=SIM_PROFILES[id],action=me.actions.find(a=>a[0]===day.actionId);
+ const standard={umbrella:'花屋の小さな話',triangle:'ノートの端の話',fridge:'仕事が終わってから'}[id];
+ const subject=n>=150?regularSubject44(id,n,[standard,...(NEW_LIFE_SUBJECTS_4914[id]||[])],`new-life-${id}`):standard;
  const tails={
   umbrella:['花のことを知っているつもりでも、毎日知らないことに出会います。','店の外にも暮らしがある、と最近少し思います。','誰かのための花を選びながら、自分の帰り道のことも考えています。'],
   triangle:['ひとつ決めるたびに、別のことも気になってしまうんです。','今はまだ答えを一つにしなくてもいい気がします。','先生に聞けば簡単なのかもしれないけれど、しばらく自分で考えたいです。'],
@@ -1101,8 +1103,8 @@ function newListenerCompose(id,n){
  // 実際の行動・配達の条件を満たし、十分に時間がたった場合のみ優先。
  const age=oldEcho?n-(s.longEcho43?.sources?.[oldEcho.longEcho.sourceUid]?.sourceNight||n):0;
  if(arc&&!recent.some(x=>x.tag===arc.tag)&&!(oldEcho&&age>=85))return arc;
- const candidates=[newListenerPersonalNote(id,n),regularDayNote(id,n),regularContact(id,n),regularBroadcastEcho(id,n),regularThemeLetter(id,n),radioCultureCompose(id,n),radioVarietyCompose38(id,n),radioMemoryCompose39(id,n),oldEcho,everydayCompose4827(id,n)].filter(Boolean);
- const weighted=candidates.map(x=>({...x,weight:({contact:83,'new-life':76,daily:66,broadcast:55,theme:45,culture:115,variety:92,'radio-memory':128,'long-echo':164,'everyday47':120})[x.kind]||45}));
+ const candidates=[newListenerPersonalNote(id,n),regularDayNote(id,n),regularContact(id,n),longLifeCompose4914(id,n),regularBroadcastEcho(id,n),regularThemeLetter(id,n),radioCultureCompose(id,n),radioVarietyCompose38(id,n),radioMemoryCompose39(id,n),oldEcho,everydayCompose4827(id,n)].filter(Boolean);
+ const weighted=candidates.map(x=>({...x,weight:({contact:83,'new-life':76,daily:66,broadcast:55,theme:45,culture:115,variety:92,'radio-memory':128,'long-echo':164,'everyday47':120,'laterlife4914':178})[x.kind]||45}));
  for(const item of weighted){
   if(recent.some(x=>x.tag===item.tag))item.weight-=60;
   if((s.regular?.voiceHistory45?.[id]||[]).some(h=>h.key===regularVoiceKey45(item)&&n-h.night<150))item.weight-=115;
@@ -1570,10 +1572,10 @@ function radioCultureCompose(id,n){
  let body,subject;
  if(stage==='reaction'){
   subject=t.subject;
-  body=regularFirstSentence(id,n)+'\n\n先日の放送で、'+NAMES[x.sourceWho]+'さんの'+t.intro+'を聴きました。'
+  body=regularFirstSentence(id,n)+'\n\n'+(n-x.heardNight<=7?'先日の放送で、':'以前の放送で、')+NAMES[x.sourceWho]+'さんの'+t.intro+'を聴きました。'
    +'\n\n'+t.responses[id]+'\n\n'+(RADIO_CULTURE_AFTERTHOUGHTS_45[id]||RADIO_CULTURE_AFTERTHOUGHTS_45.anon)[simHash(`v45:culture:after:${id}:${n}:${x.threadId}`)%2];
  }else{
-  subject='先日の放送のお返事に';
+  subject=n-x.heardNight<=7?'先日の放送のお返事に':'以前の放送のお返事に';
   body=regularFirstSentence(id,n)+'\n\n以前送った'+t.intro+'に、'+NAMES[x.sourceWho]+'さんからのお便りが届いているのを聴きました。'
    +'\n\n'+t.reply+'\n\nすぐに返事をするつもりはなかったのですが、書きたくなりました。';
  }
@@ -1619,7 +1621,7 @@ const RADIO_MEMORY_THEMES39={
  chief:'猫主任さんの話を思い出すと、肩書きが立派でも、いつも張り切っている必要はないのかもしれないと思います。',
  bread:'パンについてのあの言葉が、なぜか心に残っています。あの人にはあの人の、毎日の仕込みがあるのでしょうね。',
  moon:'月についての空想を聴いたとき、何の役にも立たないことを真剣に考える楽しさを思い出しました。',
- flower:'店先の花についての話でした。誰かが毎日少しずつ景色を整えていると思うと、いつもの道も違って見える気がします。',
+ flower:'花屋さんから届いた、暮らしの一場面でした。花を扱う時間にも、花とは関係のない時間にも、その人らしい景色があるのだと思いました。',
  clock:'時計にまつわるあの話を思い出すと、大切にしてきた時間は針だけでは測れないのかもしれないと思います。',
  notebook:'ノートや将来についての話を思い出しました。考えを言葉にするだけでも、案外時間がかかるものですね。',
  cooking:'料理や夕飯についての言葉が残っています。いつも食べているものにも、あの人の仕事や暮らしが少し見える気がします。',
@@ -1745,6 +1747,7 @@ function regularDayTitle(n){
  const plan=s.special?.planned;
  const specialId=historic?.themeId||(plan?.night===n&&['ready','completed'].includes(plan.status)?plan.themeId:null);
  if(specialId&&SPECIAL_THEMES[specialId])return SPECIAL_THEMES[specialId].title;
+ if(chapter4IsNight(n))return CH4_DAYS[n-79][0];
  return `通常放送 · ${regularTheme(n)[0]}`;
 }
 function regularFirstSentence(id,n){const a=REGULAR_INTROS[id]||REGULAR_INTROS.anon;return a[simHash(`reg:intro:${n}:${id}`)%a.length]}
@@ -1805,13 +1808,27 @@ function regularSubject44(id,n,candidates,salt){
   const uses=recent.filter(x=>s.regular?.letterArchive?.[`regular_${x.night}_${id}`]?.subject===subject);
   const last=uses.length?uses[uses.length-1].night:0;
   const repeat=last?(n-last<=10?120:n-last<=20?65:26):0;
-  return {subject,score:simHash(`v44:subject:${id}:${n}:${salt}:${i}`)%60-repeat-uses.length*8};
+  const heard=n>=150?(s.played||[]).filter(p=>p.who===id&&p.subject===subject&&n-p.night<=125):[];
+  const heardPenalty=heard.length?Math.min(85,heard.length*16+(n-heard[heard.length-1].night<55?25:0)):0;
+  return {subject,score:simHash(`v44:subject:${id}:${n}:${salt}:${i}`)%60-repeat-uses.length*8-heardPenalty};
  });
  scored.sort((a,b)=>b.score-a.score||a.subject.localeCompare(b.subject));
  return scored[0].subject;
 }
 // v4.8.6: 「昨日実際にしたこと」から始まる近況の結びを増やす。
 // 新しい行動・人間関係の発生を作り出さず、本人の感想だけに限定。
+const REGULAR_SUBJECTS_MORE_4914={
+ creative:['机からのお便り','小さな作業のこと','手を動かした時間','昨日の小さな試み','まだ途中の作業','取りかかったこと','手を止める前に'],
+ rest:['少し息をついた日','休んだ時間のこと','ひと休みの途中で','ゆっくりした昨日','落ち着いた時間','昨日の休み方','少し立ち止まって'],
+ social:['昨日のやりとり','会話のそのあと','短い言葉のこと','あの人と話した日','やりとりの余韻','言葉を交わして','人に会ったあとで'],
+ duty:['昨日の用事のこと','日課の小さな話','用事を済ませて','いつもの段取りから','暮らしの手順','日常の用事','日課がひとつ'],
+ reflection:['考えごとの途中','昨日の小さな疑問','思い返していること','まだ考えている途中','一日の考えごと','気づいたことを少し','思い出した疑問']
+};
+const NEW_LIFE_SUBJECTS_4914={
+ umbrella:['花屋からの近況','店で気づいたこと','花と暮らしのあいだ','最近の小さな発見','少し立ち止まる日','昨日、思ったこと'],
+ triangle:['ノートの外の話','今日のちいさな発見','頭の片隅のこと','最近の疑問','まだ考えていること','答えのない観察'],
+ fridge:['厨房の外の時間','昨日の小さな出来事','自分のための時間','仕事のあとにも','一日の片づけのあと','暮らしの短い報告']
+};
 const REGULAR_LATE_DAILY_THOUGHTS_486={
  cat:['今日のことを一枚の絵にするなら、余白がずいぶん広くなりそうです。','できたことを数えるより、そのとき何を見ていたか覚えておきたいです。','会社での私と帰宅後の私は、同じ人なのに使う言葉が少し違います。'],
  driver:['仕事の記録なら時刻が書けますが、こういう報告には時刻が必要ない気がします。','猫主任に話したら、きっと聞く前から寝ているでしょうね。','帰り道の景色は同じでも、こちらの考えごとは毎回少し違います。'],
@@ -1830,7 +1847,8 @@ function regularDayNote(id,n){
  const yesterday=regularDayAction(id,n);if(!yesterday)return null;
  const action=SIM_PROFILES[id]?.actions.find(a=>a[0]===yesterday.actionId);
  if(!action)return null;
- const subject=regularSubject44(id,n,REGULAR_SUBJECTS_44[yesterday.category]||['小さな近況'],`daily-${yesterday.category}`);
+ const dailyTitles=REGULAR_SUBJECTS_44[yesterday.category]||['小さな近況'];
+ const subject=regularSubject44(id,n,n>=150?[...dailyTitles,...(REGULAR_SUBJECTS_MORE_4914[yesterday.category]||[])]:dailyTitles,`daily-${yesterday.category}`);
  // 未来を予知しない。実際の昨日の行動以外を本文に含めない。
  const narr=[
   '大きな出来事ではありませんが、昨日のことを少し書いておきたくなりました。',
@@ -2176,7 +2194,7 @@ const RADIO_CULTURE_AFTERTHOUGHTS_45={
 function regularThemeLetter(id,n){
  const theme=regularTheme(n),index=(n-15)%REGULAR_THEMES.length,action=regularDayAction(id,n);
  const linked=regularThemeAction44(theme[0],action);
- const subjects=[theme[0],theme[0]+'について',theme[0]+'を考えた夜'];
+ const subjects=[theme[0],theme[0]+'について',theme[0]+'を考えた夜',...(n>=150?[theme[0]+'のことを少し',theme[0]+'と今夜の話',theme[0]+'にまつわる話',theme[0]+'から考えたこと']:[])];
  const subject=regularSubject44(id,n,subjects,'theme-'+theme[0]);
  const observations=REGULAR_THEME_VOICES_45[id]||REGULAR_THEME_VOICES_45.anon;
  let reflection=observations[index]||'今の自分なりに、少し考えています。';
@@ -2218,7 +2236,7 @@ const RADIO_VARIETY_CARDS_38={
  ['m_repair','mishap','磨いたあとの指紋','昨日、古い時計を磨いたあと、つい自分の指で触ってしまいました。\n\n指紋を拭き取るところから、もう一度仕事が始まった気分です。引退しても、手の癖はなかなか抜けません。',[['長年の癖を受け取る','何度も手入れをしてきた方ならではの癖なんですね。','empathy'],['時計の様子を尋ねる','その時計は、今もよく動いているんですか。','curiosity'],['手仕事を考える','触れた跡をまた拭く時間も、手入れの一部かもしれません。','reflection'],['軽く笑う','時計のほうは、ずいぶん丁寧な二度目のお手入れでしたね。','humor']],'repair'],
  ['food_tea','food','お茶の最後の一口','湯呑みの最後の一口は、なぜか最初よりゆっくり飲みます。\n\nお茶が冷めたせいなのか、飲み終えるのが惜しいのか。最近は、その違いを決めなくてもよい気がしています。',[['余韻を味わう','最後の一口に、静かな時間が残っているんですね。','empathy'],['お茶を尋ねる','いつもは、どんなお茶を淹れるんでしょう。','curiosity'],['違いを急がない','冷めたからか惜しいからか、どちらでもいい時間がありますね。','space'],['ちょっと笑う','湯呑みの底にも、時計よりゆっくり進む時間があるんですね。','humor']]],
  ['memory_bell','memory','学校の鐘','子どものころ、学校の鐘が鳴るのを待っていた日がありました。\n\nあのころは一分が長く感じましたが、今は一年が驚くほど早く感じます。それでも、おいしいお茶を待つ時間は長く感じるものです。',[['時間の感覚に共感','同じ一分でも、待っているものによって長さが違いますね。','reflection'],['昔の様子を聞く','学校の鐘が鳴ったあとは、何をするのが楽しみでしたか。','curiosity'],['記憶を大切に','鐘を待った時間まで覚えているなんて、素敵な記憶ですね。','empathy'],['少し笑う','お茶を待つ一分には、今でも勝てない時計がありそうです。','humor']]],
- ['odd_watch','oddity','時計の休日','時計にも休日があったら、針は何をするでしょうか。\n\n店を閉めてからそんなことを考えます。たぶん私より上手に休むのでしょう。こちらはまだ練習中です。',[['空想に乗る','針が伸びをする休日、少し見てみたいですね。','wonder'],['休息を受け取る','長く働いてきた道具にも、人にも、休む時間がありますね。','empathy'],['休日を尋ねる','ご自身にとって、よい休日はどんな日でしょう。','curiosity'],['冗談を返す','時計の針が休んだら、遅刻を知らせる役は困ってしまいますね。','humor']]]
+ ['odd_watch','oddity','時計の休日','時計にも休日があったら、針は何をするでしょうか。\n\nお茶を飲みながら、そんなことを考えます。たぶん私より上手に休むのでしょう。こちらはまだ練習中です。',[['空想に乗る','針が伸びをする休日、少し見てみたいですね。','wonder'],['休息を受け取る','長く働いてきた道具にも、人にも、休む時間がありますね。','empathy'],['休日を尋ねる','ご自身にとって、よい休日はどんな日でしょう。','curiosity'],['冗談を返す','時計の針が休んだら、遅刻を知らせる役は困ってしまいますね。','humor']]]
  ],
  terminal:[
  ['q_detour','question','遠回りの長さ','近道を知っているのに、わざわざ遠回りを選ぶことがあります。\n\n遠回りというのは、どこまで遠くなったらそう呼ぶのでしょう。今日は答えが出ませんでした。',[['問いを味わう','遠さは距離だけでは決まらないのかもしれませんね。','reflection'],['景色を尋ねる','遠回りの道には、どんなものがありますか。','curiosity'],['選ぶ自由を認める','近い道を知っていても、違う道を選びたい日がありますね。','agency'],['少し遊ぶ','道が目的地を決めるなら、遠回りは反抗期ですね。','humor']]],
@@ -2347,12 +2365,29 @@ function everydayCompose4827(id,n){
  return {kind:'everyday47',tag:'everyday47:'+choice.key,subject:choice.subject,body:'こんばんは。\n\n'+choice.body,choices:choice.choices.map(row=>[...row])};
 }
 
+
+// v4.9.14: 百夜を越えても知っている人の新しい日常が届く、各人2通の独立した便箋。
+// セーブの過去を遡って挿入せず、第150夜以降の新規生成の夜だけ対象。
+const LATERLIFE_CARDS_4914 = {"cat":[{"subject":"間違った階の景色","body":"こんばんは。\n\n用事を済ませて帰る途中、エレベーターで違う階のボタンを押してしまいました。扉の向こうには、自分の知っている建物とは少し違う廊下がありました。すぐ乗り直したので何も起きていません。でも、あの数秒だけ、知らない場所に来たような気がしたんです。","choices":[["数秒の景色","同じ建物にも、ふだん見ない廊下があるんですね。","empathy"],["少し尋ねる","その廊下は、どんな明かりでしたか。","curiosity"],["余韻を残す","間違いで開いた扉の景色も、今日の一枚ですね。","followup"]]},{"subject":"絵を描かない色見本","body":"こんばんは。\n\n文具店で色見本の紙を一枚もらいました。何かを描く予定はないのに、机に置いて、ときどき眺めています。名前の知らない灰色がいくつもあって、灰色にも案外忙しい世界があるんだなと思いました。使わなくても持っていていい紙があるのは、少し気楽です。","choices":[["灰色を楽しむ","使う予定のない色見本にも、眺める楽しさがありますね。","empathy"],["好きな色を聞く","その中で、いちばん気になる灰色はどれですか。","curiosity"],["名づけを急がない","名前を知らない色が並んでいる時間、いいですね。","followup"]]}],"driver":[{"subject":"手袋の置き場所","body":"こんばんは。\n\n休憩所で手袋を外したら、片方だけポケットに入れてしまいました。もう片方を探して、しばらく自分の手に持っていることに気づかなかったんです。荷物の置き忘れには気をつけているのに、自分の手袋には案外甘いようです。猫主任なら、きっと査定を下げます。","choices":[["小さな査定","手に持ったまま探していた手袋、主任の採点が気になります。","empathy"],["笑って返す","荷物ではなく手袋の追跡に失敗した夜ですね。","curiosity"],["安全に触れる","仕事の道具は、落ち着いて確認するのが一番ですね。","followup"]]},{"subject":"道案内のない場所","body":"こんばんは。\n\n休憩中、紙の地図を広げてみました。行き先を探すためではなく、名前だけ知っている町がどの辺りにあるのか確かめたかったんです。配送予定にはない小さな町が、紙の上ではすぐ隣にありました。仕事で行かない場所のことを考えるのも、たまにはいいですね。","choices":[["地図の余白","仕事の目的地ではない町にも、暮らしがありますね。","empathy"],["町を尋ねる","その町の名前は、どんな響きでしたか。","curiosity"],["寄り道を楽しむ","実際に走らなくても、地図の上で寄り道できますね。","followup"]]}],"fish":[{"subject":"小さな博物館","body":"こんばんは。\n\n商店街の片隅に、古い道具を三つだけ展示した小さな場所がありました。たまたま通りかかって、十分快く眺めました。知らない人の使っていた道具なのに、なぜか親しく感じるものが一つありました。何に使う道具なのかは、最後までわかりませんでした。","choices":[["知らない道具","用途を知らないまま親しく感じるものって、不思議ですね。","empathy"],["一つを尋ねる","いちばん気になった道具は、どんな形でしたか。","curiosity"],["わからなさを残す","説明がつかないまま好きになっても、いいですよね。","followup"]]},{"subject":"失敗したしりとり","body":"こんばんは。\n\n友達と歩きながら、久しぶりにしりとりをしました。途中で同じ言葉を二回使ってしまって、二人とも気づかず三周くらい続けました。最後に気づいて笑いました。正しく遊べなかったのに、あの時間はちゃんと楽しかったです。","choices":[["二人の遊び","間違いに気づかなかった時間まで、楽しそうですね。","empathy"],["少し笑う","三周も見逃された言葉は、なかなかの常連ですね。","curiosity"],["正しさをほどく","遊びの正解より、笑ったことが残った日ですね。","followup"]]}],"clock":[{"subject":"名前のない箱","body":"こんばんは。\n\n引き出しを整理していたら、何も書いていない小箱が出てきました。ふたを開けると、中には予備のボタンが二つ。どちらの服のものかは思い出せません。捨てるのも妙なので、今日は箱に「ボタン」とだけ書いて戻しました。きちんとした分類とは言えませんね。","choices":[["小箱を受け取る","何の服かわからないボタンにも、置き場所があるんですね。","empathy"],["冗談を返す","「ボタン」という分類は、間違ってはいませんね。","curiosity"],["余白を残す","元の持ち主を思い出さなくても、その箱はそこにありますね。","followup"]]},{"subject":"時刻を聞かない散歩","body":"こんばんは。\n\n散歩中、公園のベンチで少し休みました。時計を持っていましたが、あえて見ませんでした。長くいたつもりでも、短かったのかもしれません。帰りにお茶を淹れて、どちらでもよかったのだと気づきました。時計の話をする者が、こんな報告をするのも妙ですね。","choices":[["時間の使い方","時刻を確かめない散歩にも、いい時間が流れていますね。","empathy"],["少し微笑む","時計に、今日は休暇を取ってもらったのでしょうか。","curiosity"],["そのまま受け取る","長かったか短かったか、決めなくてもいい休憩ですね。","followup"]]}],"terminal":[{"subject":"知らない停留所","body":"こんばんは。\n\n用事の帰りに、いつもとは違うバス停を通りました。時刻表の下に、手書きの「傘をお忘れなく」という紙が貼ってありました。誰が貼ったのかも、誰に向けた言葉なのかもわかりません。雨は降っていませんでしたが、私はその紙を覚えて帰りました。","choices":[["言葉を受け取る","雨の降らない日にも、誰かを気づかう紙が残っていたんですね。","empathy"],["紙のことを聞く","その文字は、どんな筆跡でしたか。","curiosity"],["余韻を残す","行き先より、バス停に残った一言を持ち帰った日ですね。","followup"]]},{"subject":"駅名のない葉書","body":"こんばんは。\n\n古道具屋で、絵葉書を一枚見かけました。どこかの駅らしいのですが、駅名が書いてありません。切符売り場の窓が小さく、ベンチが一つありました。買わずに店を出ました。それでも、しばらくあの駅がどこにあるのか考えてしまいました。","choices":[["知らない駅","行ったことのない駅の景色が、心に残ったんですね。","empathy"],["ベンチを尋ねる","その一つのベンチには、どんな光が当たっていましたか。","curiosity"],["答えを急がない","名前がわからないままの駅も、心の中には残りますね。","followup"]]}],"bread":[{"subject":"包装紙の大発見","body":"こんばんは。\n\n店で使う包装紙の柄を、新しいものに替えました。小さな麦の絵が並んでいます。ところがよく見ると、一か所だけ麦ではなく鉛筆みたいな形がありました。印刷のずれかもしれませんが、見つけてからは包むたびに探してしまいます。仕事中のひそかな遊びです。","choices":[["小さな発見","毎日使う包装紙に、秘密の鉛筆が見つかったんですね。","empathy"],["笑って聞く","全部で何本の鉛筆が紛れ込んでいるんでしょう。","curiosity"],["包む時間を喜ぶ","包むたびに探す楽しみが一つ増えましたね。","followup"]]},{"subject":"ひとつ余ったトレー","body":"こんばんは。\n\n焼き上がったパンを並べたら、トレーが一枚だけ余りました。空っぽのまま棚に置いておいたら、店長が「今日いちばんの人気商品」と言いました。何も載っていないのに、つい値札をつけたくなりました。もちろん、空のトレーは売っていません。","choices":[["空っぽの人気商品","空のトレーがいちばんの人気商品とは、店長さんらしいですね。","empathy"],["値札を考える","もし値札をつけるなら、いくらにしましょう。","curiosity"],["笑いを残す","何もない棚にも、笑い話が載った日ですね。","followup"]]}],"moon":[{"subject":"雲の受付番号","body":"こんばんは。\n\n雲に整理券を配る係がいたら、番号は何から始まるのでしょう。私は「きのう」の次を「まだ」としたいです。今日の雲は、順番を待たずに流れていくように見えました。家族には「雲に用事はないよ」と言われました。もっともな反論です。","choices":[["受付の混雑","雲は整理券を待たずに流れるので、受付が大変そうですね。","empathy"],["番号を尋ねる","「まだ」の次の番号は、何になるのでしょう。","curiosity"],["反論も歓迎","家族のもっともな反論まで、今夜の議事録ですね。","followup"]]},{"subject":"影の出張申請","body":"こんばんは。\n\n夕方、窓の影が机の上を少しずつ移動していました。影が勝手に席替えをしたので、出張申請書が必要ではないかと考えました。理由の欄には「太陽の都合」と書きます。家族に見せたら、申請者は太陽のほうではないかと言われました。審査が難航しています。","choices":[["出張を受理する","理由が「太陽の都合」なら、まず申請先を決めないとですね。","empathy"],["少し問う","太陽が申請者なら、影は代理人でしょうか。","curiosity"],["議事録を閉じる","席替えした影を見て、家族と会議が始まるのが楽しいですね。","followup"]]}],"sugar":[{"subject":"白くない砂糖の話","body":"こんばんは。\n\n喫茶店の小さな棚に、白いもの以外も並んでいました。角砂糖の包装紙が、黄緑や薄紫だったんです。中身の味はいつもと同じはずなのに、薄紫の包みは少し静かに見えました。今日は中身より紙に目が行った、という報告です。","choices":[["包装紙に目を向ける","同じ甘さでも、包み紙の色で違う顔に見えますね。","empathy"],["色を尋ねる","黄緑のほうは、どんな印象でしたか。","curiosity"],["ささやかな観察","飲み物の味以外にも、喫茶店には楽しみがありますね。","followup"]]},{"subject":"カップの外の朝","body":"こんばんは。\n\n朝、コーヒーを飲まずに散歩へ出ました。角を曲がったところで、誰かが植木鉢の向きを少し直していました。その手つきが丁寧で、つい見てしまいました。いつもの一杯の前にも、こんな時間があるんですね。帰宅してからコーヒーを淹れました。","choices":[["朝の景色","コーヒーの前に、誰かの丁寧な手つきに出会ったんですね。","empathy"],["植木鉢を尋ねる","どんな鉢が置かれていたのでしょう。","curiosity"],["時間を味わう","いつもの一杯の前にも、ひとつの朝がありますね。","followup"]]}],"anon":[{"subject":"耳だけで覚えた道","body":"こんばんは。\n\n夕方、近所を少し歩きました。いつも通る場所なのに、今日は窓の向こうから食器の触れ合う音が聞こえました。どこの家かはわかりません。知らない生活の音を一つ持ち帰ったような気がします。自分の部屋に着いてから、その音を思い出しました。","choices":[["音を受け取る","知らない家の暮らしが、音だけ少し届いたんですね。","empathy"],["小さく尋ねる","どんな食器の音に聞こえましたか。","curiosity"],["静けさを残す","姿の見えない誰かの夕方も、そこにあったんですね。","followup"]]},{"subject":"破れた袋の端","body":"こんばんは。\n\n買い物袋の端が少し破れていました。すぐ取り替えられる程度でしたが、折り目に沿ってきれいに裂けていたので、しばらく眺めました。何かを壊した話というほどでもありません。きょうは、その端のことが妙に気になったというだけです。","choices":[["小さなことを聴く","破れ方が気になった、それだけの話も聞きたいです。","empathy"],["折り目を尋ねる","どんな形に裂けていたのでしょう。","curiosity"],["答えを求めない","理由を決めずに残しておく出来事もありますね。","followup"]]}],"umbrella":[{"subject":"花屋ではない看板","body":"こんばんは。\n\n用事の帰り、小さな修理屋さんの看板を見つけました。「直せないものもあります」と書いてありました。正直だなと思って、しばらく見ていました。花屋の看板に同じ言葉を書いたら、どんな顔をされるでしょう。もちろん書きませんが、少し考えてしまいました。","choices":[["正直な看板","「直せないものもあります」は、思いきった言葉ですね。","empathy"],["花屋なら、と問う","花屋なら、どんな正直な一文を添えたいですか。","curiosity"],["想像を楽しむ","書かない看板の文句を考える時間も、面白いですね。","followup"]]},{"subject":"箱の裏側","body":"こんばんは。\n\n店で使う空き箱の底に、小さな数字が手書きされていました。たぶん誰かの数え間違いか、倉庫の印です。何の数字なのかはわかりません。花の名前なら調べようと思うのに、今日は調べずに戻しました。知らないままで困らないこともあります。","choices":[["知らない数字","箱の底の数字にも、誰かの仕事が残っていそうですね。","empathy"],["少し尋ねる","その数字は、一桁でしたか、もっと長い数字でしたか。","curiosity"],["余白を残す","意味を調べない選択も、今日の小さな出来事ですね。","followup"]]}],"triangle":[{"subject":"消しゴムではない道具","body":"こんばんは。\n\n家にある説明書を読んでいたら、最後のページに小さな図がありました。本体の使い方には関係のない、箱のたたみ方です。説明書の人は箱のことまで気にしてくれていたんですね。私はその図だけノートに写しました。役に立つかはわかりません。","choices":[["箱の図に注目","本体より箱のたたみ方が気になる日もありますね。","empathy"],["図を尋ねる","その箱は、どんな順番でたたむのでしょう。","curiosity"],["好奇心を歓迎","役立つかどうかより、面白かった図なんですね。","followup"]]},{"subject":"一番短い質問","body":"こんばんは。\n\n友達に「いちばん短い質問は何だろう」と聞かれました。「なぜ？」と言いかけたのですが、「え？」も質問だと思いました。帰ってからノートに候補を三つ書きました。こんなことを真剣に考えていたら、宿題の続きをするのを忘れそうです。","choices":[["短い問いを楽しむ","「え？」にも、たくさんの意味が入っていますね。","empathy"],["候補を尋ねる","三つ目の質問は何でしょう。","curiosity"],["寄り道を認める","宿題と関係のない質問にも、考える楽しさがありますね。","followup"]]}],"fridge":[{"subject":"洗い物のない器","body":"こんばんは。\n\n帰宅して、棚から小さな器を一つ出しました。何を入れるか考えていたら、結局何も入れずに戻しました。職場では器を選ぶのに迷わないのに、自分の食卓だと時間がかかります。空っぽの器を眺めた時間が、今日の休憩になった気もします。","choices":[["器の時間","何も盛らない器を眺める休憩も、ありですね。","empathy"],["好みを尋ねる","その器は、どんな色でしたか。","curiosity"],["急がず受け取る","自分の食卓なら、器を選ぶ時間も自由ですね。","followup"]]},{"subject":"冷蔵庫ではない明かり","body":"こんばんは。\n\n仕事帰りに歩いていたら、小さなクリーニング店の窓に灯りが残っていました。閉店後なのか、まだ作業中なのかはわかりません。白いシャツが何枚か並んでいて、ふと自分とは違う夜の仕事を思いました。家に着いて、しばらく明かりのことを覚えていました。","choices":[["別の仕事の夜","同じ夜にも、違う仕事の灯りがあるんですね。","empathy"],["窓を尋ねる","シャツの並ぶ窓は、どんな明るさでしたか。","curiosity"],["余韻を残す","帰宅後まで覚えていた明かり、静かな景色ですね。","followup"]]}]};
+function longLifeCompose4914(id,n){
+ const cards=LATERLIFE_CARDS_4914[id];if(!cards||n<150||!s.regular)return null;
+ const state=s.regular.longLife4914||{};const delivered=state[id]||[];
+ for(let index=0;index<cards.length;index++){
+  if(delivered.includes(index))continue;
+  const firstNight=(index===0?155:318)+(simHash(`long-life-4914:${id}:${index}`)%35);
+  if(n<firstNight||n>=firstNight+105)continue;
+  const card=cards[index];
+  return {kind:'laterlife4914',tag:`laterlife4914:${index}`,subject:card.subject,body:card.body,choices:card.choices.map(x=>[...x]),longLife4914:index};
+ }
+ return null;
+}
+
 function regularCompose(id,n){
  const history=(s.regular.mailHistory||[]).filter(h=>h.who===id&&h.night<n);
  const recent=history.filter(h=>h.night>=n-6);
  const options=[
-  regularRoute(id,n),regularDayNote(id,n),regularContact(id,n),regularBroadcastEcho(id,n),regularThemeLetter(id,n),radioCultureCompose(id,n),radioVarietyCompose38(id,n),radioMemoryCompose39(id,n),longEchoCompose43(id,n),everydayCompose4827(id,n)
- ].filter(Boolean).map(x=>({...x,weight:({route:89,daily:69,contact:91,broadcast:38,theme:34,culture:115,variety:92,'radio-memory':128,'long-echo':164,'everyday47':130})[x.kind]||45}));
+  regularRoute(id,n),regularDayNote(id,n),regularContact(id,n),longLifeCompose4914(id,n),regularBroadcastEcho(id,n),regularThemeLetter(id,n),radioCultureCompose(id,n),radioVarietyCompose38(id,n),radioMemoryCompose39(id,n),longEchoCompose43(id,n),everydayCompose4827(id,n)
+ ].filter(Boolean).map(x=>({...x,weight:({route:89,daily:69,contact:91,broadcast:38,theme:34,culture:115,variety:92,'radio-memory':128,'long-echo':164,'everyday47':130,'laterlife4914':178})[x.kind]||45}));
  const everydayKinds=new Set(['route','daily','contact','broadcast','theme','everyday47']);
  for(const o of options){
   const sameTag=history.filter(h=>h.tag===o.tag&&h.night>=n-40);
@@ -2394,7 +2429,7 @@ const LETTER_VOICE_33={
  fridge:{daily:['厨房では片づけて帰るのに、家の台所は別問題ですね。','仕事の段取りなら得意なのに、自分の夜はうまくいきません。'],contact:['料理の話以外で誰かと話すのは、まだ少し慣れません。'],theme:['明日の仕込みの前に、こんなことを考えています。'],default:['自分用の皿も、たまには使うことにします。']}
 };
 function v33VoiceLetter(id,n,note){
- if(!note||!note.body||['new-intro','culture','variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831'].includes(note.kind)||note.absenceReturn)return note;
+ if(!note||!note.body||['new-intro','culture','variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831','laterlife4914'].includes(note.kind)||note.absenceReturn)return note;
  const data=LETTER_VOICE_33[id]||LETTER_VOICE_33.anon;
  const group=note.kind==='new-life'?'daily':(data[note.kind]?note.kind:'default');
  const lines=data[group]||data.default||[];
@@ -2471,7 +2506,11 @@ function listenerCrossCompose4830(id,n){
   const elapsed=n-(i===0?def.start:sent[i-1].night);
   if(elapsed<30&&simHash(`cross4830:${arc}:${i}:${n}`)%100>=64)continue;
   const note=def.stages[i];
-  return {kind:'crossTalk4830',tag:`cross4830:${arc}:${i}`,subject:note.subject,body:note.body,
+  // 何十夜も間が空いた交流を「先日」「少し前」と呼ばない。
+  // すでに放送された原稿は保存済みのまま維持し、ここでは新規生成分だけ調整。
+  let body=note.body;
+  if(i>0&&n-sent[i-1].night>21)body=body.replace('少し前の放送で','以前の放送で').replace('先日の放送で','以前の放送で');
+  return {kind:'crossTalk4830',tag:`cross4830:${arc}:${i}`,subject:note.subject,body,
    crossTalk:{arc,stage:i},choices:note.choices.map(row=>[...row])};
  }
  return null;
@@ -2926,12 +2965,12 @@ function createRegularLetters(n){
   const everyday=candidates.length?candidates[simHash(`surprise46:balance:${id}:${n}:${s.rng}`)%candidates.length]:null;
   const quietReturn=quietWaitingToReturn(id,n)&&n-quietLastActualMail461(id,n)>=3;
   const note=quietReturn?quietReturnNote(id,n):first?newListenerFirstLetter(id,n):crossTalk||crossAfter||everyday|| (REGULAR_NEW.includes(id)?newListenerCompose(id,n):
-    id===support[(n%2)%support.length]?.id?(radioVarietyCompose38(id,n)||regularThemeLetter(id,n)):regularCompose(id,n));
+    id===support[(n%2)%support.length]?.id?(longLifeCompose4914(id,n)||radioVarietyCompose38(id,n)||regularThemeLetter(id,n)):regularCompose(id,n));
   const voiced=v33VoiceLetter(id,n,note);
   const uuid=`regular_${n}_${id}`;
-  const special=!['culture','variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831'].includes(voiced.kind)&&n>=21&&(n-21)%7===0&&REGULAR_MAIN.includes(id)&&id===main[0]?.id;
-  archive[uuid]={who:id,subject:voiced.subject,body:voiced.body,special,regular:true,kind:voiced.kind,tag:voiced.tag,voiceVersion:voiced.voiceVersion||0,absenceReturn:Boolean(voiced.absenceReturn),culture:voiced.culture||null,variety:voiced.variety||null,radioMemory:voiced.radioMemory||null,longEcho:voiced.longEcho||null,surprise46:voiced.surprise46||null,crossTalk:voiced.crossTalk||null,crossAfter:voiced.crossAfter||null,thread:voiced.thread||null,relationThread:voiced.relationThread||null,arcSummary45:voiced.arcSummary45||null,replyVersion:['variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831'].includes(voiced.kind)?31:0,
-   choices:(['variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831'].includes(voiced.kind)?voiced.choices:REGULAR_CHOICES).map(x=>[...x])};
+  const special=!['culture','variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831','laterlife4914'].includes(voiced.kind)&&n>=21&&(n-21)%7===0&&REGULAR_MAIN.includes(id)&&id===main[0]?.id;
+  archive[uuid]={who:id,subject:voiced.subject,body:voiced.body,special,regular:true,kind:voiced.kind,tag:voiced.tag,voiceVersion:voiced.voiceVersion||0,absenceReturn:Boolean(voiced.absenceReturn),culture:voiced.culture||null,variety:voiced.variety||null,radioMemory:voiced.radioMemory||null,longEcho:voiced.longEcho||null,surprise46:voiced.surprise46||null,crossTalk:voiced.crossTalk||null,crossAfter:voiced.crossAfter||null,thread:voiced.thread||null,relationThread:voiced.relationThread||null,arcSummary45:voiced.arcSummary45||null,longLife4914:Number.isInteger(voiced.longLife4914)?voiced.longLife4914:null,replyVersion:['variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831','laterlife4914'].includes(voiced.kind)?31:0,
+   choices:(['variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831','laterlife4914'].includes(voiced.kind)?voiced.choices:REGULAR_CHOICES).map(x=>[...x])};
   // v4.0: ここでは「候補」を書いただけ。実際に届いたかは夜の最終確定時に決まる。
   ids.push(uuid);
  }
@@ -2969,6 +3008,10 @@ function regularConfirmDelivered40(n,ids){
   if(key&&!shelf.some(x=>x.key===key))shelf.push({key,night:n});
   index[l.who]=shelf.slice(-9);
  }
+  if(l.kind==='laterlife4914' && Number.isInteger(l.longLife4914)){
+   const markers=r.longLife4914 ||= {};const entries=markers[l.who] ||= [];
+   if(!entries.includes(l.longLife4914))entries.push(l.longLife4914);
+  }
   r.lastMailed[l.who]=Math.max(r.lastMailed[l.who]||0,n);
  }
  r.mailHistory=r.mailHistory.slice(-120);
@@ -4799,4 +4842,82 @@ function surpriseConfirmDelivered46(n,ids){
   if(!state.sent.some(x=>x.uid===uid))state.sent.push({uid,who:l.who,arc:t.arc,stage:scene.stage,night:n,actionNight:scene.night});
  }
  state.sent=state.sent.slice(-110);
+}
+
+
+// =============================================================
+// v4.9.8 第4章「声の届かない朝にも」：書き下ろしの独立した便箋
+// 旧セーブへの遡及は行わず、夜が初めて生成された時点で原稿を固定。
+// =============================================================
+const CH4_DAYS=[
+ ['何度目かの、はじめまして','長く聞いた名前にも、まだ知らない午後がある。'],
+ ['下書きの外側','人に見せない言葉にも、その日の居場所がある。'],
+ ['同じ道、違う予定','同じ道を歩いても、目に留まるものは日によって違う。'],
+ ['いつものものの、別の使い方','よく知る道具に、知らなかった使い道が見つかる。'],
+ ['次ではない駅','ひとつ先の予定を、急いで決めなくてもいい。'],
+ ['誰にも見せない一行','紙の上には、自分だけの時間も残る。'],
+ ['覚えていた小さなこと','短い会話が、帰り道でふとよみがえる。'],
+ ['少し早く帰る夜','いつもの夜にも、違う帰り方がある。'],
+ ['返事にならない言葉','言い切れない感想も、書き残しておける。'],
+ ['いつもと違う木曜日','習慣のそばに、新しい小さな予定が生まれる。'],
+ ['明日の予定表','大切な決断ばかりが、明日の予定ではない。'],
+ ['まだ書かない手紙','書くことと、今は書かないこと。どちらも選べる。'],
+ ['何度目かの普通の夜','会ったことのない誰かの、今夜の近況。'],
+ ['声の届かない朝にも','放送の外でも、別々の一日が続いていく。']
+];
+const CH4_CONTENT=[{"night":79,"who":"cat","subject":"何も描かない午後","body":"こんばんは。\n\n休みの日、スケッチブックを持って喫茶店へ行きました。結局、一度も開きませんでした。窓際の席で、信号が変わるたびに人の歩く速さが少しずつ違うのを見ていました。\n\n何も描かなかったので、最初はせっかくの休みを無駄にした気がしました。でも、帰ってから思い出したのは、窓の向こうのあの景色でした。\n\n描かない日にも、見ていたものは残るんですね。まだ、それをどう思えばいいのかはわかりません。","choices":[["受け止める","何も描かなかった午後にも、ちゃんと見ていた景色があるんですね。無駄だったかどうか、今夜決めなくてもよさそうです。","empathy"],["景色に関心を寄せる","信号が変わるたびに歩く速さが違う、というところが印象に残りました。その景色、もし描くならどんな線になるでしょう。","reflection"],["急がせない","スケッチブックを開かずに帰る日があってもいいと思います。何も描かないまま、よく見ていた一日だったんですね。","space"]],"dynamic":false},{"night":79,"who":"bread","subject":"今日の売り場の謎","body":"こんばんは。\n\n店に、同じパンを毎回違う名前で注文するお客さんがいます。今日は「角のない四角いの」、前は「朝に負けないやつ」でした。本人は毎回、いたって真面目です。\n\n今日は私も真面目に「角のない四角いのですね」と復唱しました。隣で聞いていた同僚が、パンを落としそうになっていました。\n\n商品名を覚えていただくより、あの説明を聞くほうが楽しみになってきています。また来てくれるなら、次は何という名前でしょう。","choices":[["冗談に乗る","「朝に負けないやつ」は、なかなか強そうなパンですね。店にしか通じない名前が増えるのも、ちょっと楽しそうです。","humor"],["質問する","同じパンを違う言葉で選ぶのが面白いですね。そのお客さんが最初に使った呼び名も気になります。","curiosity"],["笑って返す","真面目な顔で復唱したところを想像して笑ってしまいました。パン売り場には、思わぬ名付け親がいるんですね。","humor"]],"dynamic":false},{"night":80,"who":"fish","subject":"誰にも見せない感想","body":"こんばんは。\n\n借りていた本を読み終えました。感想を聞かれたら困ると思って、ノートに一行だけ書いてみました。\n\n「この人が窓を閉めなかったところが好きです」。\n\nどうしてそこが好きなのかは、まだ説明できません。大きな出来事のない場面なのに、読み終わってから何度も思い出します。\n\n誰かに見せる予定のない感想なら、うまく書かなくてもいいんですね。少し気が楽でした。","choices":[["受け止める","誰かに説明するためではない感想も、あっていいですよね。窓を閉めなかった場面が、あなたの中に残ったんですね。","empathy"],["余白を認める","大きな出来事ではない一場面が忘れられないこと、ありますね。言葉にできない理由も、そのまま置いておけそうです。","space"],["次の話を待つ","見せないノートだから気楽に書けた、というところが素敵です。また好きな一行が見つかったら、聞いてみたいです。","reflection"]],"dynamic":false},{"night":80,"who":"moon","subject":"月の忘れ物係","body":"こんばんは。架空の職員募集のお知らせです。\n\n月の裏側に「忘れ物係」を作ることにしました。仕事内容は、地球から見えない場所に置き去りになった考えごとを一日三回点検することです。夜勤手当は星くず二袋。\n\n勤務表を冷蔵庫に貼ったら、家族から「まずプリンを忘れずに片づけて」と言われました。たしかに、忘れ物係の冷蔵庫に賞味期限切れのプリンがあったら信用問題です。\n\n応募資格に「自分の忘れ物を一つ以上持っていること」を追加しました。採用されそうな方はいますか。","choices":[["冗談に乗る","夜勤手当が星くず二袋とは、待遇の確認が必要ですね。でも、応募資格はかなり広そうです。","humor"],["空想を広げる","地球から見えない考えごとの点検、という仕事が気になります。見つかった考えごとは、持ち主に返せるのでしょうか。","reflection"],["家庭の話に返す","冷蔵庫のプリンで信用問題になる月面職員、急に身近ですね。勤務初日は、賞味期限の確認から始まりそうです。","reflection"]],"dynamic":false},{"night":81,"who":"driver","subject":"主任の休暇届","body":"こんばんは。仕事の休憩を終えて帰宅したところです。\n\nいつもの駐車場で、猫主任が見当たりませんでした。点検に行ったのか、有給休暇なのか。私には事前の連絡がありませんでした。\n\n帰り際、隣の車の陰から一度だけ尻尾が見えました。姿を見せないまま勤務していた可能性があります。\n\n評価はまだ保留です。でも、いないと少し気になるものですね。次にお会いしたら、休暇届の提出方法について相談しようと思います。","choices":[["冗談に乗る","主任の所在確認、お疲れさまです。尻尾だけの出勤では、勤務実態の判断が難しそうですね。","humor"],["気遣う","いつも会う姿が見えないと、ちょっと気になりますよね。尻尾を見つけたとき、少し安心されたでしょうか。","reflection"],["続きを聞く","休暇届の提出方法を猫主任と相談する場面、ぜひ聞いてみたいです。どちらが先に折れるのでしょう。","curiosity"]],"dynamic":false},{"night":81,"who":"sugar","subject":"いつもの三杯目","body":"こんばんは。\n\n友人とコーヒーを飲みました。私はいつもどおり砂糖を三杯。友人は何も入れずに飲んでいました。\n\n「甘くない？」と聞かれたので、ひと口飲んでから「今日はそんなに」と答えました。自分でも少し不思議でした。同じ豆で、同じカップなのに、話しながら飲むと味の印象が変わるみたいです。\n\n三杯目の砂糖は、今日もちゃんと甘かったはずなんですけどね。","choices":[["感想を返す","砂糖は同じ三杯でも、隣にいる人で味の印象が変わるんですね。お話まで少し甘かったのでしょうか。","reflection"],["質問する","ひと口飲んでからの「今日はそんなに」がいいですね。どんな話をしていたのか、ちょっと気になります。","curiosity"],["そっと喜ぶ","甘さの量を変えるのではなく、感じ方が違うというのが面白いです。次の三杯目にも何か発見があるかもしれません。","reflection"]],"dynamic":false},{"night":82,"who":"clock","subject":"小さなドライバーの出番","body":"こんばんは。\n\n古い工具箱を開けたら、使う機会のなくなった小さなドライバーが出てきました。昔は時計の裏蓋を外すのに使っていたものです。\n\nねじの大きさが合うものを探していたら、台所の引き出しの取っ手が少し緩んでいるのを見つけました。さっそく締めようとしましたが、そのドライバーでは小さすぎました。\n\n結局、別の工具を使いました。役に立たなかった小さな一本は、磨いて箱へ戻しました。そういう日もありますね。","choices":[["道具に寄り添う","昔よく使った道具が、今は別の役目を探しているようですね。磨いて戻した時間も、いい時間だったと思います。","empathy"],["違いを見つける","小さすぎるドライバーだったんですね。時計のねじと引き出しのねじ、似ていても違うものですね。","reflection"],["軽いユーモア","一本目が出番なしで終わったというのが、なんだか微笑ましいです。道具箱には、そんな話がまだありそうですね。","reflection"]],"dynamic":false},{"night":82,"who":"umbrella","subject":"花ではない色","body":"こんばんは。\n\n花の色を見ている時間が長いせいか、休み時間まで色の名前が気になります。今日は文房具売り場で、青いノートを三冊も見比べてしまいました。\n\n一冊は雨の前の空みたいな青。もう一冊は、使い込んだ制服のような青。最後の一冊は、名前が思いつきませんでした。\n\n結局、名前をつけられなかった色を選びました。花ではない色を持ち帰るのも、たまにはいいですね。","choices":[["色を受け取る","名前をつけられなかった青を選んだ、というのが素敵ですね。花とは違う場所でも、色を見つけているんですね。","empathy"],["質問する","その青、使っているうちに呼び名が見つかるでしょうか。ノートの最初のページも気になります。","curiosity"],["軽いユーモア","三冊の青を比べる時間、なんだか楽しそうです。花屋さんのお休み時間にも、色はお休みしないんですね。","reflection"]],"dynamic":false},{"night":83,"who":"terminal","subject":"木曜日ではない切符","body":"こんばんは。\n\n駅とは反対の方角へ買い物に行きました。いつもの切符は持たず、小さな紙袋だけ持って出ました。\n\n帰り道に知らない店があって、窓に古い地図が飾ってありました。急いでいたわけではないのに、中には入りませんでした。今日は地図を見るだけでよかったのだと思います。\n\n駅へ向かう日とは違う道にも、覚えておきたい角があるようです。次は少し先まで歩いてみます。","choices":[["景色を受け取る","駅へ向かわない道にも、覚えておきたい角が見つかったんですね。何も決めずに通る日もあっていいと思います。","empathy"],["興味を示す","古い地図を飾った店が気になりますね。次にその角を通ったとき、まだ同じ場所にあるでしょうか。","empathy"],["余韻を残す","入らなかった店のことが残る、というのも不思議ですね。今日は窓越しで十分だったのかもしれません。","reflection"]],"dynamic":false},{"night":83,"who":"triangle","subject":"まだない街の地図","body":"こんばんは。\n\nノートの端に、まだ存在しない街の地図を描いています。学校も公園も描いたのですが、今日は何に使うかわからない四角い空き地をひとつ追加しました。\n\n友人に見せたら「そこ、何が建つの？」と聞かれました。何も決めていないと答えると、「じゃあ広場でいいじゃん」と言われました。\n\nでも、広場と決めたら広場以外になれませんよね。用途未定の四角には、まだ可能性が四辺分あると思うんです。","choices":[["考えを受け止める","用途未定の四角に可能性が四辺分、いい考えですね。急いで名前をつけない場所も必要かもしれません。","empathy"],["質問する","その街には、ほかにどんな建物があるのでしょう。使い道の決まっていない場所が一番人気になるかもしれませんね。","curiosity"],["冗談を返す","四辺分という数え方、三角定規さんらしいです。誰かが勝手に斜めの道を引いたら、どうなりますか。","humor"]],"dynamic":false},{"night":84,"who":"fridge","subject":"自分の茶碗","body":"こんばんは。\n\n食器棚の奥から、小さな茶碗を出しました。仕事で使う器ではなく、家で自分がご飯を食べるための茶碗です。\n\n持ちやすいか確かめて、温かいご飯をよそいました。おかずは簡単なものでしたが、器を選んで食べると、ちゃんと食卓に座った気がします。\n\n人に出す料理のことはよく考えます。でも、自分が何で食べたいかは、あまり考えていなかったみたいです。","choices":[["共感する","自分のために器を選んだ時間が、静かに伝わってきました。簡単なご飯にも、ちゃんと席があるんですね。","reflection"],["質問する","その茶碗は、どんな形なんでしょう。持ちやすさで選んだところが、なんだかいいですね。","curiosity"],["生活を受け止める","人に出す料理と、自分が食べるご飯は、同じようで別の時間ですよね。今夜はその茶碗の話を受け取りました。","empathy"]],"dynamic":false},{"night":84,"who":"anon","subject":"句読点の場所","body":"こんばんは。\n\n机の上の紙に、短い一文を書きました。\n\n「今日は、何も決めませんでした。」\n\n句点を書いてから、読点はいらなかったかもしれないと思いました。消しゴムを取ったのですが、消さずに机へ戻しました。\n\n意味は変わらないはずです。でも、ひと呼吸する場所を残したかったのかもしれません。\n\nこの一文を誰かに見せる予定はありません。今夜は、ここに書いたことだけ伝えます。","choices":[["言葉を受け取る","読点のところで、少し息をつける一文ですね。消さずに残したことも、今夜の小さな選択だったのかもしれません。","empathy"],["質問する","同じ文章でも、どこで息をつくかで読み心地が違いますね。その紙、明日も机に置いておくのでしょうか。","curiosity"],["感謝する","見せる予定のない一文を、こうして少しだけ届けてくれたんですね。ありがとうございます。","empathy"]],"dynamic":false},{"night":85,"who":"bread","subject":"ちょっと曲がった札","body":"こんばんは。\n\n売り場の値札を書き直したら、「くるみ入り」を「くるみ寄り」と書いていました。気づかず並べていたら、お客さんに「今日は寄ってるんですね」と言われました。\n\n店長に見せると、しばらく札を眺めたあと「じゃあ、たまには真ん中に戻してやれ」と一言。二人とも、訂正するより先に笑ってしまいました。\n\n札はちゃんと直しました。でも、捨てずに裏へしまいました。いつか『くるみ寄り』というパンを作る日が来るかもしれません。","choices":[["冗談に乗る","「くるみ寄り」、注文したくなる名前です。札一枚から新作の案が生まれるとは、パン屋さんらしいですね。","humor"],["続きを楽しみにする","その札を取っておいたんですね。いつか本当に「くるみ寄り」が店頭に並んだら、ぜひ教えてください。","reflection"],["店長の言葉に返す","店長さんの「真ん中に戻してやれ」がいいですね。くるみの位置まで心配してくれるお店なんですね。","reflection"]],"dynamic":false},{"night":85,"who":"clock","subject":"覚えていた本の名前","body":"こんばんは。\n\n図書室へ行く途中で、前に本の話をした方を思い出しました。題名をもう一度聞こうと思っていた本があります。妙なことに、聞きたいときほど名前が出てきません。\n\n今日はその方には会えませんでした。帰ってから紙に書いてみると、最初の一文字だけは覚えていました。\n\n続きを思い出せなくても、本はどこかの棚にありますし、その方にも今日の用事があるのでしょう。次に会ったときに、また聞いてみようと思います。","choices":[["受け止める","思い出せない題名が、次に会うときの小さな話題になりそうですね。本もその方も、それぞれの時間の中にいるんですね。","empathy"],["興味を示す","最初の一文字だけ覚えているんですね。そこから急に全部思い出すこともありますが、次に聞く楽しみも残っていますね。","empathy"],["余白を残す","会えなかった日の図書室にも、別の時間が流れているんでしょうね。思い出したらまた教えてください。","space"]],"dynamic":false},{"night":86,"who":"moon","subject":"帰宅許可の判定","body":"こんばんは。家庭内臨時委員会の議事録をお送りします。\n\n家族が「今日は早く帰ってきたね」と言ったので、帰宅時刻に関する審査会を開きました。議題は「早く帰った人に特典はあるか」。\n\n私はプリン一個を提案しましたが、「早く帰ったなら洗い物を手伝える」という対案が出ました。多数決の結果、対案が可決されました。議長は私でしたが、議長にも票は一つしかありません。\n\n次回は投票規則を見直したいと思います。洗い物は終わりました。","choices":[["冗談に乗る","帰宅が早い人への特典が洗い物になるとは、委員会の議事進行は厳しいですね。議長、お疲れさまでした。","humor"],["質問する","対案が可決されるところまで、ずいぶん本格的な会議ですね。次回はプリン案を再提出しますか。","curiosity"],["日常に返す","洗い物が済んだあとに届く議事録、いいですね。家族とのやりとりが目に浮かびます。","reflection"]],"dynamic":false},{"night":86,"who":"driver","subject":"帰り道の寄り道","body":"こんばんは。今日の仕事を終えてから書いています。\n\n帰り道、いつも素通りする小さな店に寄りました。棚に並んでいたのは、車の窓を拭く布と、妙に手触りのいいハンカチです。予定にはなかったのですが、ハンカチを一枚買いました。\n\n誰かへの贈り物というわけではありません。ポケットに入れると、少しだけ帰り道の持ち物が増えました。\n\n猫主任に見せても、査定には響かないでしょう。でも、自分では気に入っています。","choices":[["ねぎらう","自分のために選んだハンカチ、いい買い物でしたね。査定には関係なくても、帰り道が少し違って見えそうです。","reflection"],["質問する","どんな手触りだったんでしょう。思わず買ってしまうものには、説明しきれない魅力がありますよね。","curiosity"],["冗談を返す","主任の評価項目に「ハンカチの手触り」はなさそうですね。あったら意外と厳しい審査になりそうです。","humor"]],"dynamic":false},{"night":87,"who":"sugar","subject":"何でもない乾杯","body":"こんばんは。\n\n友人と短い時間だけ会いました。お互いに用事があったので、お店に入るほどではなく、紙コップの飲み物を買ってベンチに座りました。\n\n特別なお祝いはなかったのに、友人が「とりあえず乾杯」と言って、紙コップを少し持ち上げました。私もまねをしました。\n\n何に乾杯したのか、最後までわかりませんでした。たぶん、会えたことだけで十分だったんでしょうね。ちなみに飲み物は、今日も甘めです。","choices":[["受け止める","理由のない乾杯、いいですね。会えた時間そのものに、そっと印をつけたようです。","empathy"],["情景に関心を寄せる","紙コップを少し持ち上げる乾杯、目に浮かびます。何に乾杯したのか聞かなかったところもいいですね。","reflection"],["少し笑う","今日も甘め、という最後の一言に安心しました。乾杯の理由は、次に会ったときに増えているかもしれません。","humor"]],"dynamic":false},{"night":87,"who":"fish","subject":"うまく言えない、おもしろい","body":"こんばんは。\n\n友達と同じ本を読みました。読み終わって話したら、好きだった場面がまったく違いました。\n\n私は窓際で何も話さないところが好きでした。友達は、そのあと誰かが大きな声で笑うところがよかったそうです。\n\n最初は、どちらかがちゃんと読めていないのかと思ってしまいました。でも、同じ本なのに見えていたものが違うのが、おもしろい気もします。\n\n「おもしろい」と言うだけでは足りないのですが、今はその言葉しか見つかりません。","choices":[["受け止める","同じ本から違う場面を持ち帰ったんですね。「おもしろい」だけでも、十分伝わってくる気がします。","empathy"],["質問する","静かな場面と笑う場面、どちらも残る本だったんですね。友達の話を聞いたあと、読み返したくなりましたか。","curiosity"],["余白を残す","うまく説明しきれないまま、おもしろいと思っていてもいいですよね。その違いを教えてくれてありがとうございます。","space"]],"dynamic":false},{"night":88,"who":"umbrella","subject":"店の外で飲むお茶","body":"こんばんは。\n\n用事の合間に、店の外で温かいお茶を飲みました。花の入ったバケツではなく、私のためにお湯を入れたカップを両手で持っていました。\n\n通りの向こうで誰かが急いで歩いていて、こちらの時間まで少し速くなりそうでした。でも、お茶は急いでも冷める速さが変わらないんですね。\n\n花の水を替えるときは温度に気をつけるのに、自分の飲み物はいつも後回しです。今日は最後まで温かいうちに飲めました。","choices":[["気遣う","自分のために淹れたお茶を、温かいうちに飲めたんですね。最後まで温かいうちに飲めてよかったです。","reflection"],["気づきを受け取る","通りの速さとカップの温度、違う時間が一緒にあったんですね。お茶は何を飲まれたのでしょう。","empathy"],["一杯を大切にする","急いでもお茶が急には冷めない、というのが印象に残りました。お仕事の合間に、そんな一杯があるといいですね。","reflection"]],"dynamic":false},{"night":88,"who":"terminal","subject":"待たない午後","body":"こんばんは。\n\nこのところ、決まった用事のない午後が一日ありました。誰かを待つわけでも、電車の時間を調べるわけでもなく、近所で買ったパンを家で食べました。\n\n窓を開けると、向かいの家から食器を片づける音が聞こえました。特別なことはありませんでした。\n\nそれでも、あの日の午後を覚えておこうと思います。待ち合わせのない時間にも、あとから思い出すことがあるようです。","choices":[["受け止める","待ち合わせのない午後にも、覚えておきたい時間があるんですね。食器の音まで残っているのが印象的です。","empathy"],["質問する","何も予定のない午後、どんなふうに過ぎていくのでしょう。窓を開けていた時間が、少し見えた気がします。","curiosity"],["感謝する","特別なことがなかった日を、こうして手紙にしてくださったんですね。ありがとうございます。","empathy"]],"dynamic":false},{"night":89,"who":"triangle","subject":"余白に書く予定","body":"こんばんは。\n\n予定表の端に「明日やってみたいこと」を三つ書きました。①道の曲がり角を一つ調べる、②知らない形の雲を探す、③ノートの空き地に何か置いてみる、です。\n\n進路の予定表なら、もっと大切なことを書くべきなのかもしれません。でも、大切なことだけで一日を埋めると、どこにも寄り道できなくなりそうです。\n\n三つ目は明日になっても決めないかもしれません。未定も予定の一種、と考えていいでしょうか。","choices":[["考えを受け止める","未定も予定の一種。その考え方、いいですね。予定表に寄り道できる場所が残っているんですね。","empathy"],["質問する","知らない形の雲、見つかったらどんな名前をつけるのでしょう。三つの予定がどこで交わるのかも楽しみです。","curiosity"],["急がせない","大事な予定ばかりで埋まらない一日も、いいですよね。三つ目を決めないままにする自由も残しておきましょう。","space"]],"dynamic":false},{"night":89,"who":"fridge","subject":"まかないのない帰り道","body":"こんばんは。\n\n今日はまかないを食べる時間がなくて、仕事の帰りに、自分が何を食べたいか考えました。凝ったものではなく、冷蔵庫にあるものを温めるだけでもいいし、帰りに何か買ってもいい。\n\n献立を決めないと落ち着かない日もありますが、今日は決めないことにしました。帰ってから台所の明かりをつけて、そのとき考えようと思ったんです。\n\n人に出す料理と違って、自分の食事は、少し気まぐれでも許していいですね。","choices":[["受け止める","自分の食事だからこそ、そのときの気分で決めてもいいんですね。台所の明かりが、少し気楽に感じられます。","empathy"],["質問する","決めない献立も一つの予定なんですね。帰宅してから、何を選んだのでしょう。","curiosity"],["生活の違いに触れる","誰かに出す一皿と、自分だけの一皿。どちらも料理ですが、違う自由がありそうですね。","reflection"]],"dynamic":false},{"night":90,"who":"anon","subject":"しおりの端","body":"こんばんは。\n\n読みかけの本から、細い紙のしおりが出てきました。自分で挟んだはずなのに、そこまで読んだ理由が思い出せません。\n\nしおりには何も書いてありませんでした。何か一言書き足そうかと思いましたが、結局そのまま戻しました。\n\n本の続きは、また別の日に読みます。しおりの位置だけ覚えていれば、前に戻ることも、先へ進むこともできますから。","choices":[["受け止める","何も書いていないしおりが、今いる場所だけを教えてくれるんですね。静かな目印だと思いました。","empathy"],["問いかける","そこまで読んだ理由を忘れても、続きは残っていますね。次に開いたとき、同じページをどう感じるのでしょう。","curiosity"],["余白を認める","一言書き足さずに戻したところが印象に残りました。何も書かない紙にも役割があるんですね。","space"]],"dynamic":false},{"night":90,"who":"cat","subject":"机に置いた一枚","body":"こんばんは。\n\n机の上に、白い紙を一枚置いています。絵を描き始めたわけでも、誰かに見せるためでもありません。\n\n端に小さな線が一本あります。以前なら、描きかけだと思って、続きを足さなくてはと考えたかもしれません。今は、線が一本だけの紙として置いておけます。\n\n気が向いたら二本目を引くかもしれませんし、明日には買い物のメモになるかもしれません。まだ決めていません。","choices":[["急がせない","一本だけの線を、そのまま机に置いておけるんですね。続きを急がなくてもいい紙があるのは、いいことだと思います。","space"],["質問する","二本目の線にも、買い物のメモにもなれる一枚ですね。今の紙は、どんなふうに見えていますか。","curiosity"],["余白を認める","何に使うか決まらない紙が、机の上にある。その余白を残しておきたい、という気持ちが伝わりました。","space"]],"dynamic":false},{"night":91,"who":"cat","subject":"傘を持たずに","body":"こんばんは。\n\n買い物に出たとき、空が少し曇っていました。雨が降るかもしれないと思いながら傘を持たずに出て、案の定、帰り道で細い雨に降られました。\n\n店のひさしで雨宿りをしていたら、向かいの窓に自分の姿が映っていました。少し困った顔で、それがなんだかおかしかったです。\n\n描こうと思えば描ける景色かもしれません。でも今日は、雨が弱くなるのをただ待ちました。傘を持ってこなかったことだけが、少し惜しいです。","choices":[["受け止める","雨宿りしているご自分の顔が、思いがけずおかしかったんですね。そんな発見もあるんだなあ。","empathy"],["小さなことに目を向ける","窓に映った姿まで見ていた、というところが印象的でした。雨はそのあと、弱くなったのでしょうか。","reflection"],["少し違う角度から返す","描かなかった景色にも、忘れにくいものがありますね。次は傘を持って出られますように。","reflection"]],"dynamic":true},{"night":91,"who":"bread","subject":"袋の向き","body":"こんばんは。\n\n今日はパンを入れる紙袋の向きについて、同僚と妙に真剣な話をしました。持ち手をどちらに向けると取りやすいか、というだけの話です。\n\nふたりで何度も袋を持ち上げていたら、店長に「新しい商品の試食会ですか」と聞かれました。残念ながら、試食できるのは紙袋だけでした。\n\n結論は、手の大きさで違う、です。たいへん立派な結論が出たので、明日はちゃんとパンの話をしようと思います。","choices":[["受け止める","紙袋の研究、お疲れさまです。明日にはお店の新しい専門分野になっていそうですね。","empathy"],["小さなことに目を向ける","手の大きさで違うという結論、たしかに大事ですね。試食会だと思った店長さんの顔も気になります。","reflection"],["少し違う角度から返す","何度も持ち上げて確かめるところが楽しそうです。パンを売る以外にも、売り場には研究することがあるんですね。","reflection"]],"dynamic":true},{"night":91,"who":"fish","subject":"角の折れたページ","body":"こんばんは。\n\n本を返す前に、しおりを挟んでいたページをもう一度開きました。角が少し折れていて、直したつもりでもきれいには戻りませんでした。\n\nそのページには、登場人物がただ窓辺に座っている場面があります。物語が進まないところなのに、そこに戻りたくなりました。\n\n返却日なので本は返しました。何を書いてあったか忘れてしまったら、また借りればいいんですよね。そう思うと、少しだけ気が楽です。","choices":[["受け止める","返したくない一ページがある本って、ありますね。また借りられると思えたのが、いい余白になった気がします。","empathy"],["小さなことに目を向ける","物語が進まない窓辺の場面が気になりました。角の折れたページにも、読み返したい理由が残るんですね。","reflection"],["少し違う角度から返す","きれいに戻らなかった角も、読んだ時間の跡ですね。またその本に会えるといいですね。","reflection"]],"dynamic":true},{"night":91,"who":"moon","subject":"存在しない祝日の話","body":"こんばんは。架空の暦を改訂しました。\n\n新しい祝日は「何も見つからなかった日」です。探していた鍵、思いつかなかった答え、冷蔵庫の奥にあると思っていたプリン。見つからなかったものを一日だけ正式にたたえます。\n\n家族に発表したら、「プリンは昨日食べたよ」と言われました。つまり、見つからない理由が判明してしまったので、祝日の条件を満たしません。\n\n祝日制定委員会は現在、深刻な人手不足です。応募してくださる方はいますか。","choices":[["受け止める","「何も見つからなかった日」、祝日になったら少し気が楽になりそうですね。委員会の定員は何人でしょう。","empathy"],["小さなことに目を向ける","プリンが見つからない理由だけは、すぐに解明されてしまったんですね。調査力のあるご家族です。","reflection"],["少し違う角度から返す","見つからなかったことまで祝う発想がいいですね。ただ、祝日の審査が意外と厳しそうです。","reflection"]],"dynamic":true},{"night":91,"who":"driver","subject":"停車場の鉛筆","body":"こんばんは。休憩中に書いています。\n\n停車場の端で、短くなった鉛筆を拾いました。誰かが落としたのだと思います。芯はまだ残っていて、妙に先が丸い鉛筆でした。\n\n事務所の落とし物入れに置いたら、同僚が「それ、まだ働ける長さですね」と言いました。ずいぶん働き者の鉛筆だなと思いました。\n\n猫主任にはまだ報告していません。鉛筆の勤怠管理まで引き受けてもらうのは、気の毒ですから。","choices":[["受け止める","丸い芯の鉛筆も、まだ現役なんですね。猫主任の仕事が増えなくてよかったです。","empathy"],["小さなことに目を向ける","「まだ働ける長さ」という言い方が面白いですね。落とし主に戻るといいですね。","reflection"],["少し違う角度から返す","拾ったものをちゃんと届けて、そこにひと言冗談が生まれる。休憩の小さな出来事ですね。","reflection"]],"dynamic":true},{"night":91,"who":"sugar","subject":"氷の音","body":"こんばんは。\n\nいつもは温かいコーヒーを飲むのですが、今日は冷たいものにしました。砂糖を三杯入れて、少し長めにかき混ぜました。\n\nカップの中で氷が当たる音がして、それを聞いていたら、隣の席の人の話し声が遠くなった気がしました。もちろん、音が消えたわけではありません。\n\n味の話を書こうと思っていたのに、音のことばかり覚えています。コーヒーを飲む時間は、舌だけのものではないんですね。","choices":[["受け止める","氷の音が残った一杯だったんですね。飲み物を覚えている理由は、味だけではないのかもしれません。","empathy"],["小さなことに目を向ける","砂糖を三杯、今度は冷たいコーヒーだったんですね。氷の音まで聞こえてくるようです。","reflection"],["少し違う角度から返す","味の話から音の話へ変わるのが面白いですね。次はどんな音が残るでしょう。","reflection"]],"dynamic":true},{"night":91,"who":"clock","subject":"棚のいちばん下","body":"こんばんは。\n\n本棚のいちばん下を掃除していたら、いつ置いたかわからない紙の栞が出てきました。絵柄も文字も、少し日焼けしていました。\n\nどの本に挟んであったものか、さっぱり思い出せません。しばらく眺めてから、今読んでいる本に使うことにしました。\n\n持ち主のわからない栞ではなく、自分の栞だったのでしょう。ただ、今日からまた出番ができました。道具には、そういう再会もありますね。","choices":[["受け止める","忘れていた栞にも、新しい出番ができたんですね。棚を掃除した甲斐がありましたね。","empathy"],["小さなことに目を向ける","どの本に挟んでいたかは思い出せなくても、今の本には使える。その気軽さがいいですね。","reflection"],["少し違う角度から返す","紙の日焼けの具合まで覚えているところが印象に残りました。今度はどんな本と一緒になるのでしょう。","reflection"]],"dynamic":true},{"night":91,"who":"umbrella","subject":"灰色を買う","body":"こんばんは。\n\n帰り道、靴下を買いました。選んだのは、どこにでもありそうな灰色です。\n\n花の色を考えるときは、名前のつかない色をずっと見ていられるのに、靴下になると「洗濯で迷わない色がいい」と思うのが不思議でした。\n\n結局、同じものを二足買いました。明日の朝、どちらを選んでも間違えないはずです。地味ですけれど、かなり頼もしい買い物でした。","choices":[["受け止める","二足とも同じ灰色なら、朝の支度に迷わずに済みそうですね。頼もしい靴下です。","empathy"],["小さなことに目を向ける","花の色を見るときと靴下を選ぶときでは、色の役割も違うんですね。","reflection"],["少し違う角度から返す","「かなり頼もしい買い物」という言い方が好きです。地味なものにも、ちゃんと自慢できるところがありますね。","reflection"]],"dynamic":true},{"night":91,"who":"terminal","subject":"半分だけの買い物","body":"こんばんは。\n\n買い物のメモに四つ書いて出かけたのですが、二つしか買わずに帰りました。売り切れていたのではなく、途中で別の日でもいいと思ったのです。\n\n帰り道がいつもより短く感じました。持ち帰った袋が軽かったせいかもしれません。\n\n残った二つは、メモの端に書いたままです。忘れないためのメモですが、今日買わなくてもいいと決めた記録にもなりました。","choices":[["受け止める","買うものを減らして帰る日もあるんですね。軽い袋の帰り道が印象に残りました。","empathy"],["小さなことに目を向ける","メモは忘れないためだけでなく、先送りにするものを残す道具にもなるんですね。","reflection"],["少し違う角度から返す","残った二つは、また別の日の予定ですね。今日の買い物には、今日の終わり方があったんだと思います。","reflection"]],"dynamic":true},{"night":91,"who":"triangle","subject":"消しゴムの角","body":"こんばんは。\n\nノートに図を描いていたら、消しゴムの角が丸くなっていました。細い線を消しにくくなったので、まだ使っていない面を探しました。\n\n四角いものなのに、使っているうちに角が減っていくんですね。考えれば当然ですが、今日になって急に面白く感じました。\n\n新しい消しゴムを買うつもりです。でも、この丸いほうも、まだしばらく机に置いておこうと思います。","choices":[["受け止める","四角いものが少しずつ丸くなる、たしかに面白い観察ですね。","empathy"],["小さなことに目を向ける","使って減った角が、机の上の時間を教えてくれるみたいです。新しい消しゴムとも仲良くできそうですね。","reflection"],["少し違う角度から返す","細い線を消せなくなっても、別の役目があるかもしれませんね。まずは机の上で待機でしょうか。","reflection"]],"dynamic":true},{"night":91,"who":"fridge","subject":"冷たいご飯の相談","body":"こんばんは。\n\n家に帰ってから、冷蔵庫に少しだけ残っていたご飯を見つけました。温めようか、そのままお茶漬けにしようか、しばらく迷いました。\n\n迷っている時間がいちばん長かったかもしれません。結局、温めて梅干しを一つのせました。\n\n人に出す料理の手順は考えられるのに、自分の夕食になると急に決められなくなることがあります。今日は梅干しが決め手になりました。","choices":[["受け止める","夕食の決め手が梅干し一つ、というのがいいですね。温かいご飯が待っていましたね。","empathy"],["小さなことに目を向ける","仕事の料理と自分の夕食では、迷い方が違うのかもしれませんね。","reflection"],["少し違う角度から返す","ずいぶん長い相談の末に梅干しが選ばれたんですね。小さくても立派な結論です。","reflection"]],"dynamic":true},{"night":91,"who":"anon","subject":"開けたままの引き出し","body":"こんばんは。\n\n机の引き出しを整理していたら、探していたものとは違う紙が出てきました。何も書かれていない、小さな紙です。\n\n捨てようとして、少し考えて、また引き出しに戻しました。書くことがないから白いままなのか、まだ書かなくていいから白いままなのかは、わかりません。\n\n片づけは終わりました。引き出しだけ、少し開いたままにしています。","choices":[["受け止める","何も書いていない紙も、そこに置いておきたい日があるんですね。","empathy"],["小さなことに目を向ける","片づけは終わったのに、引き出しだけ少し開いている。その景色が残ります。","reflection"],["少し違う角度から返す","書くかどうかは、明日考えてもよさそうです。今日は白い紙を戻したことだけで十分ですね。","reflection"]],"dynamic":true},{"night":92,"who":"cat","subject":"夕方の椅子","body":"こんばんは。\n\n部屋の椅子を、窓のほうへ少し動かしました。外を眺めたかったわけではなく、床を掃除するのに邪魔だったからです。\n\n掃除が終わっても戻すのを忘れて、そのまま夕方になりました。座ってみると、いつもは見えなかった建物の屋根が見えました。\n\n明日は椅子を元の場所に戻すかもしれません。戻さなかったら、それも少し面白いと思います。","choices":[["受け止める","掃除のついでに、別の眺めが見つかったんですね。椅子の位置一つで景色が変わるんだなあ。","empathy"],["小さなことに目を向ける","どんな屋根が見えたんでしょう。明日の椅子の向きも気になります。","reflection"],["少し違う角度から返す","元に戻しても戻さなくても、どちらも普通の明日ですね。今夜はその夕方の景色をいただきました。","reflection"]],"dynamic":true},{"night":92,"who":"bread","subject":"明日の焼き上がり表","body":"こんばんは。\n\n明日の焼き上がりの予定を書き終えました。数字を確認して、最後に小さな丸を一つ描きました。合図でも記号でもなく、ただ丸を描きたくなっただけです。\n\n同僚に見せたら「その丸は何ですか」と聞かれました。思わず「明日の分の元気です」と答えてしまいました。\n\nそう言った以上、明日は少し元気に働きたいところです。でも、丸はまだ一つだけなので、ほどほどにしておきます。","choices":[["受け止める","明日の分の元気が丸一つ、かわいい単位ですね。ほどほどなのもいいと思います。","empathy"],["小さなことに目を向ける","予定表に描いた小さな丸が、同僚との会話になったんですね。","reflection"],["少し違う角度から返す","丸を一つ描いただけで、明日の焼き上がりが少し楽しみになりますね。無理のない一日になりますように。","reflection"]],"dynamic":true},{"night":92,"who":"fish","subject":"次の返却日","body":"こんばんは。\n\n図書館の本に挟まっていた返却日の紙を、手帳に写しました。数字だけ書けばいいのに、曜日も一緒に書いてしまいました。\n\nその曜日には、きっと本以外のこともあるはずです。洗濯物が乾いたり、友人から連絡が来たり、ただ眠かったり。\n\n今日の私は、まだその日のことを知りません。でも、予定が一つあるだけで、知らない日にも少し形ができる気がします。","choices":[["受け止める","返却日ひとつで、まだ知らない日の輪郭ができるんですね。","empathy"],["小さなことに目を向ける","本のこと以外にも何があるか、まだわからない曜日ですね。その感じがいいです。","reflection"],["少し違う角度から返す","数字だけでなく曜日を書きたくなったのが印象的です。次の返却日が穏やかな日だといいですね。","reflection"]],"dynamic":true},{"night":92,"who":"moon","subject":"来週の月面委員会","body":"こんばんは。月面委員会から次回予告です。\n\n来週の議題は「雲に隠れた月は欠勤扱いになるのか」です。欠勤なら有給休暇を申請できるはずですが、雲のせいで見えないだけなら、勤務実態はあるとも言えます。\n\n家族からは「月本人に聞いたら」と言われました。もっともな意見です。ただ、現在、月の連絡先が不明です。\n\n次回の議事録をどこかに出す予定はありませんが、ひとりで考えておきます。","choices":[["受け止める","月本人の連絡先が見つからないとは、大きな問題ですね。委員会の調査に期待しています。","empathy"],["小さなことに目を向ける","雲に隠れただけなら、出勤していることにしたいですね。有給は別の日に取ってほしいですね。","reflection"],["少し違う角度から返す","議事録を公開しなくても、会議は開けるんですね。来週も月面は忙しそうです。","reflection"]],"dynamic":true},{"night":92,"who":"driver","subject":"明日のポケット","body":"こんばんは。仕事から戻って、上着のポケットを空にしました。\n\nレシートが一枚、使いかけのメモが一枚、それから小さな飴が一つ。飴は休憩のときに食べようと思って忘れたものです。\n\n明日は上着を替えるので、飴だけ新しいポケットに入れました。たぶん明日も、休憩中に忘れてしまう気がします。\n\n忘れたら、次の日の自分に引き継ぎます。猫主任には報告不要の案件です。","choices":[["受け止める","ポケットの中にも、翌日へ引き継ぐ仕事があるんですね。飴の担当者はご本人だけです。","empathy"],["小さなことに目を向ける","レシートとメモと飴。帰ってきた日の小さな記録みたいですね。","reflection"],["少し違う角度から返す","明日は休憩中に飴を思い出せるでしょうか。主任への報告が不要で何よりです。","reflection"]],"dynamic":true},{"night":92,"who":"sugar","subject":"朝のカップ","body":"こんばんは。\n\n明日の朝に使おうと思って、カップを一つ洗って伏せておきました。特別なカップではありません。持ち手のところに、少しだけ色がついています。\n\n洗ったあとに気づいたのですが、まだ明日の飲み物を決めていませんでした。コーヒーかもしれないし、お茶かもしれません。\n\n何を入れるか決まっていないカップが、台所にある。今日はそれがちょっと楽しく思えました。","choices":[["受け止める","何が入るかわからないカップを用意しておく、というのがいいですね。","empathy"],["小さなことに目を向ける","持ち手の小さな色まで覚えているんですね。明日の飲み物は、何になるでしょう。","reflection"],["少し違う角度から返す","先にカップだけ決める日があってもいいですね。朝になったら、おいしいほうを選んでください。","reflection"]],"dynamic":true},{"night":92,"who":"clock","subject":"まだ巻いていない時計","body":"こんばんは。\n\n夜、机に置いてある小さな時計を見ました。そろそろねじを巻こうと思ったのですが、今日はそのままにしておきました。\n\n止まったわけではありません。明日の朝でも間に合うと思っただけです。\n\n以前は、思いついたときにすぐ手を動かしていた気がします。今は、一晩待ってもかまわないことが少し増えました。明日の朝、忘れずに巻こうと思います。","choices":[["受け止める","明日の朝で間に合うことも、あるんですね。時計のねじが待っていてくれそうです。","empathy"],["小さなことに目を向ける","止まっていない時計を、そのまま置く夜。慌てずに決めた時間が伝わります。","reflection"],["少し違う角度から返す","明日の朝に巻くつもりで机に置いたんですね。静かな約束のように聞こえました。","reflection"]],"dynamic":true},{"night":92,"who":"umbrella","subject":"名札のない鉢","body":"こんばんは。\n\n窓辺の小さな鉢の名前を書こうとして、札を一枚切りました。でも、何を書くか決めきれずに、白いまま差してあります。\n\n植物にはもちろん名前があります。ただ、札に何を書いたら、自分が一番わかりやすいのか迷ったのです。\n\n明日には学名を書くかもしれないし、自分だけの呼び名を書くかもしれません。今日は、白い札も悪くないと思っています。","choices":[["受け止める","白い札があるだけで、これから名前を考える楽しみが生まれますね。","empathy"],["小さなことに目を向ける","植物の名前と、自分が呼びたい名前は、必ずしも同じではないんですね。","reflection"],["少し違う角度から返す","明日の札には何が書かれるのでしょう。今夜は白いままで、よさそうです。","reflection"]],"dynamic":true},{"night":92,"who":"terminal","subject":"新しい紙袋","body":"こんばんは。\n\n明日のために、小さな紙袋を玄関に置きました。中身はまだありません。朝、寄り道をしたくなったら使うつもりです。\n\n袋があると、何かを入れて帰らなくてはいけないような気もします。でも、使わずに持ち帰っても、それはそれでかまいません。\n\n明日どこに行くかは、朝になってから決めます。駅へ向かうかどうかも、今は決めていません。","choices":[["受け止める","空の紙袋だけが、明日の予定なんですね。それもいいと思います。","empathy"],["小さなことに目を向ける","使っても使わなくてもいい袋、少し自由な持ち物ですね。","reflection"],["少し違う角度から返す","駅へ向かう日も、別の道へ行く日もあるでしょう。明日の朝に決める余白が残っていますね。","reflection"]],"dynamic":true},{"night":92,"who":"triangle","subject":"空欄のままの予定","body":"こんばんは。\n\n明日の予定表に、何も書いていない枠が一つあります。埋め忘れたわけではなく、あとで何かしたくなったときのために空けてあります。\n\n友人には「予定がないのも予定だね」と言われました。そう言われると、その枠にも名前をつけたくなりますが、名前をつけたら空欄じゃなくなるんですよね。\n\nとりあえず、定規で四角をきれいに引き直しました。中身は明日の自分に任せます。","choices":[["受け止める","空欄を大切にするために、枠だけきれいに引く。三角定規さんらしいですね。","empathy"],["小さなことに目を向ける","「予定がないのも予定」という言葉に、ちょっと困ってしまう気持ちが伝わります。","reflection"],["少し違う角度から返す","四角の中身は明日の自分へ。何が入ってもいいし、何も入らなくてもいいですね。","reflection"]],"dynamic":true},{"night":92,"who":"fridge","subject":"洗っておいた箸","body":"こんばんは。\n\n食事のあと、箸を一膳だけ洗って、いつもより見えるところに置きました。明日使うためです。\n\n料理の段取りなら、材料や時間から考えます。でも、自分の食事は、箸から始めてもいいのかもしれません。\n\n明日何を食べるかは、まだ決まっていません。温かいものがよければ温かいものを。簡単なものがよければ簡単なものを。そういう予定にしてあります。","choices":[["受け止める","箸を一膳用意するところから、明日の食事が始まるんですね。","empathy"],["小さなことに目を向ける","食べるものを決めない予定、いいですね。明日の自分に合わせられそうです。","reflection"],["少し違う角度から返す","ちゃんと自分の箸を洗って置く。その小さな段取りが、やさしい時間に聞こえます。","reflection"]],"dynamic":true},{"night":92,"who":"anon","subject":"明日の余白","body":"こんばんは。\n\n手帳を閉じる前に、明日の欄を少し見ました。書いてあるのは、時間だけです。\n\n何の時間なのか、ここには書かないことにします。大切な約束でも、気の進まない用事でも、ありません。ただ、明日の自分がその時刻に何をしているか、少し気になりました。\n\n欄の下は、まだ白いままです。書くことができたら、書きます。","choices":[["受け止める","書いていないところまで含めて、一日の予定なんですね。","empathy"],["小さなことに目を向ける","明日の時刻だけが残っている。その下の白い欄が印象的です。","reflection"],["少し違う角度から返す","書くことができたら書く。それで十分だと思います。明日の時間は、まだこれからです。","reflection"]],"dynamic":true}];
+const CH4_INDEX=new Map(CH4_CONTENT.map(x=>[`${x.night}:${x.who}`,x]));
+const CH4_PEOPLE=['cat','clock','bread','moon','driver','fish','sugar','anon','terminal','umbrella','triangle','fridge'];
+function createChapter4State(fromNight=79){return {schema:1,fromNight,planned:[],queue:[],sent:[],dynamicSelected:[],finished:false}}
+function migrateChapter4(data){
+ if(data.chapter4&&typeof data.chapter4==='object'){
+  const old=data.chapter4,c={...createChapter4State(),...old};
+  for(const k of ['planned','queue','sent','dynamicSelected'])c[k]=Array.isArray(c[k])?c[k]:[];
+  data.chapter4=c;return;
+ }
+ const n=Math.max(1,Number(data.night)||1);
+ const hasNight=Boolean(data.letterSets?.[n])||!['intro','prepare'].includes(data.phase);
+ // 途中の準備済みの夜は絶対に変更せず、翌夜以降にのみ章を追加する。
+ const start=n<=79? (n===79&&hasNight?80:79):n+(hasNight?1:0);
+ data.chapter4=createChapter4State(start);
+ data.chapter4.finished=n>92;
+}
+function chapter4IsNight(n=s.night){return n>=79&&n<=92&&n>=s.chapter4?.fromNight}
+function chapter4ChooseDynamic(n){
+ const excluded=new Set(s.chapter4.dynamicSelected);
+ const pool=CH4_PEOPLE.filter(who=>!excluded.has(who));
+ const prior=(s.played||[]).filter(p=>p.night<n&&CH4_PEOPLE.includes(p.who));
+ const stats=pool.map(who=>{const hist=prior.filter(p=>p.who===who);return {who,count:hist.length,last:hist.length?Math.max(...hist.map(p=>p.night)):-1,tie:simHash(`ch4:rank:${n}:${who}`)%100000}});
+ const quiet=stats.slice().sort((a,b)=>a.last-b.last||a.count-b.count||a.tie-b.tie||a.who.localeCompare(b.who))[0];
+ const familiar=stats.filter(x=>x.who!==quiet?.who).sort((a,b)=>b.count-a.count||b.last-a.last||a.tie-b.tie||a.who.localeCompare(b.who))[0];
+ const selected=[quiet?.who,familiar?.who].filter(Boolean);
+ s.chapter4.dynamicSelected.push(...selected);
+ return selected;
+}
+function chapter4PlanNight(n){
+ const c=s.chapter4;if(!c||!chapter4IsNight(n)||c.planned.includes(n))return;
+ const whoList=n<=90?CH4_CONTENT.filter(x=>x.night===n&&!x.dynamic).map(x=>x.who):chapter4ChooseDynamic(n);
+ for(const who of whoList){if(CH4_INDEX.has(`${n}:${who}`))c.queue.push({night:n,who})}
+ c.planned.push(n);
+}
+function chapter4Letters(n){
+ // 特別放送の既存の投稿を優先し、章の便箋は後日まで順序を保って保留する。
+ chapter4PlanNight(n);
+ if(s.special&&specialActive(n))return specialCreateLetters(n);
+ const normal=createRegularLetters(n),c=s.chapter4;
+ if(!c||!c.queue.length||n<c.fromNight)return normal;
+ const send=c.queue.slice(0,2),ids=[];
+ for(const {night,who} of send){
+  const d=CH4_INDEX.get(`${night}:${who}`);if(!d)continue;
+  const id=`chapter4_${night}_${who}`;
+  s.regular.letterArchive[id]={...d,id,regular:true,chapter4:true,special:false,kind:'chapter4',tag:`ch4:${night}:${who}`,choices:d.choices.map(row=>[...row])};
+  ids.push(id);
+ }
+ // 通常便箋の居場所を保証し、同じ差出人の連続便箋を防止する。
+ const craftedWho=new Set(send.map(x=>x.who));
+ const keep=normal.filter(id=>!craftedWho.has(s.regular.letterArchive[id]?.who)).slice(0,Math.max(3,8-ids.length));
+ // 使用しなかった自律投稿の下書きを、届けた履歴に残さない。
+ for(const id of normal)if(!keep.includes(id))delete s.regular.letterArchive[id];
+ c.queue.splice(0,send.length);c.sent.push(...send.map(x=>({...x,deliveredNight:n})));
+ return [...ids,...keep];
 }

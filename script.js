@@ -14,6 +14,7 @@ if(!s.microWorld)s.microWorld=createMicroWorldState();
 if(!s.socialWorld)s.socialWorld=createSocialWorldState();
 if(!s.newListeners)s.newListeners=createNewListenerState();
 if(!s.chapter3)s.chapter3=createChapter3State();
+if(!s.chapter4)s.chapter4=createChapter4State();
 if(!s.regular)s.regular=createRegularState();
 if(!s.quiet)s.quiet=createQuietState();
 if(!s.radioCulture)s.radioCulture=createRadioCultureState();
@@ -48,6 +49,7 @@ function migrateState(data){
   migrateSurprise46(data);
   migrateChapter2(data);
   migrateChapter3(data);
+  migrateChapter4(data);
   migrateMicroWorld(data);
   migrateSimulation(data);
   migrateSocialWorld(data);
@@ -331,7 +333,7 @@ function nightLetters(n){
   else if(n===3)fresh=['fish3','clock3',s.flags.driverRead?'driver3':'driver3first','bread3','moon3'];
   else if(n>=15&&n<=28)fresh=chapter2Letters(n);
   else if(chapter3IsNight(n))fresh=chapter3Letters(n);
-  else if(n>=29)fresh=specialActive(n)?specialCreateLetters(n):createRegularLetters(n);
+  else if(n>=29)fresh=chapter4Letters(n);
   else fresh=createNightLetters(n);
   const carried=n>=5?(s.pending||[]).filter(x=>x.until>=n).map(x=>x.id):[];
   // 前夜までに実際に起きた出来事をもとに書かれた新しいお便り。
@@ -350,7 +352,7 @@ function nightLetters(n){
   const picked=[...new Set([...order,...aftermath,...echoes,...carried,...(climateMail?[climateMail]:[])])].filter(id=>{
     const l=letterDB[id]||s.regular?.letterArchive?.[id];
     // 自律投稿だけを控える。物語の手書きイベントには介入しない。
-    return l&&(!l.regular||l.chapter2||l.chapter3||!quietScheduledFor(l.who,n));
+    return l&&(!l.regular||l.chapter2||l.chapter3||l.chapter4||!quietScheduledFor(l.who,n));
   });
   s.letterSets[n]=applyNightlyLetterLimits(n,picked.slice(0,8));
   regularConfirmDelivered40(n,s.letterSets[n]);
@@ -382,7 +384,7 @@ function setStudioVisuals(kind,value){
   save();render();
 }
 function studioDisplayPhase(){
-  if(s.phase==='after'||['complete','chapter2_complete','chapter3_complete','final_complete'].includes(s.phase))return 'finished';
+  if(s.phase==='after'||['complete','chapter2_complete','chapter3_complete','chapter4_complete','final_complete'].includes(s.phase))return 'finished';
   if(s.phase==='intro'||s.phase==='prepare'||s.phase==='final_intro')return 'preparing';
   if(s.phase==='final_broadcast')return s.finale?.stage===0?'opening':s.finale?.stage>=(s.finale?.snapshot?.letters?.length||0)+2?'music':'speaking';
   if(s.phase==='reply')return 'speaking';
@@ -441,6 +443,9 @@ function beginBroadcast(){
  if(s.broadcastModePref==='letters')s.opening=automaticStylePick('opening',opening.length);
  if(!Number.isInteger(s.opening)||s.opening<0||s.opening>=opening.length)return;
  s.nightBroadcastMode=s.broadcastModePref;
+ // v4.9.16: 新規開始した『おたより中心』の夜だけ表示文バリエーションを適用。
+ // アップデート時に進行中だった旧版の放送原稿は書き換えない。
+ s.lettersPhrase4916=activeProfile==='main'&&s.nightBroadcastMode==='letters'?s.night:null;
  s.guidance.seen.choose=true;recordOpening();s.phase='broadcast';s.cursor=0;save();render();
 }
 function chooseReply(i){let l=letter(s.current);let c=l.choices[i];applyReply(l,c[2],c[1])}
@@ -449,15 +454,16 @@ function finishBroadcast(){
  s.phase='after';
  if(s.finale?.status==='planned'&&s.night===s.finale.announcedNight){s.finale.status='announced';log('閉局予告',FINALE_ANNOUNCEMENTS[s.finale.announcementChoice??1]);}
  log('曲',`「${songs[s.song][0]}」を流した。`);
- log('エンディング',STATION_CLOSINGS[s.broadcastStyle.closing][1]);
+ log('エンディング',lettersBroadcastPhrase4916('closing',s.broadcastStyle.closing));
  s.broadcastStyle.history.push(nightStyleRecord());
  if(s.broadcastStyle.history.length>120)s.broadcastStyle.history.splice(0,s.broadcastStyle.history.length-120);
  applySongMood();radioCultureAfterBroadcast(s.night);radioMemoryAfterBroadcast39(s.night);longEchoAfterBroadcast43(s.night);const omitted=nightLetters(s.night).filter(id=>!s.chosen.includes(id));log('未紹介',omitted.length?omitted.map(id=>NAMES[letter(id).who]).join('、')+'のお便りは放送で紹介されなかった。':'今夜届いたお便りはすべて紹介した。');updatePendingLetters();if(s.night<=14)advanceWorld();if(s.night>=29)specialBeginAnnouncement(s.night);simulateDailyLives(s.night);newListenerAfterDaily(s.night);dailyThreadsAfterWorld41(s.night);relationThreadsAfterWorld42(s.night);surpriseAfterWorld46(s.night);simulateSocialWorld(s.night);quietAfterDaily(s.night);if(s.night<=14){lifeAfterDaily(s.night);simulateMicroWorld(s.night)}else {regularAfterWorld(s.night);chapter2AfterWorld(s.night);chapter3AfterWorld(s.night);specialProcessNight(s.night);storyProgramsAfterWorld(s.night)}save();render()}
 function nextNight(){
-  if(!['after','complete','chapter2_complete','chapter3_complete'].includes(s.phase)||s.finale?.status==='completed'||s.finale?.status==='on_air')return;
+  if(!['after','complete','chapter2_complete','chapter3_complete','chapter4_complete'].includes(s.phase)||s.finale?.status==='completed'||s.finale?.status==='on_air')return;
   if(s.finale?.status==='announced'&&s.night===s.finale.announcedNight){s.night=s.finale.finalNight;s.phase='final_intro';s.tab='studio';s.opening=null;s.chosen=[];s.cursor=0;s.current=null;s.replyParts=[null,null,null];s.replyStep=0;s.song=null;s.broadcastStyle.closing=null;s.broadcastStyle.interludes={};s.broadcastStyle.completed={};s.nightBroadcastMode=null;save();render();return;}
   if(s.phase==='after')s.guidance.seen.after=true;
   if(chapter3Offset(s.night)===CH3_DAYS.length-1&&s.chapter3?.finished){s.phase='chapter3_complete';save();render();return}
+  if(s.night===92&&chapter4IsNight(92)&&!s.chapter4.finished){s.chapter4.finished=true;s.phase='chapter4_complete';save();render();return}
   if(s.night===28&&s.chapter2?.legacyThrough<28){s.phase='chapter2_complete';save();render();return}
   if(s.night===14){s.phase='complete';save();render();return}
   s.night++;
@@ -724,7 +730,7 @@ function ensureAutomaticBroadcastSelections(){
   const i=automaticStylePick('interlude',STATION_INTERLUDES.length);
   s.broadcastStyle.interludes[s.cursor]=i;
   s.broadcastStyle.completed[s.cursor]=true;
-  if(i>=0)log('つなぎの一言',STATION_INTERLUDES[i][1]);dirty=true;
+  if(i>=0)log('つなぎの一言',lettersBroadcastPhrase4916('bridge',i,s.cursor));dirty=true;
  }
  if(s.cursor>=s.chosen.length){
   if(!Number.isInteger(s.song)||s.song<0||s.song>=songs.length){s.song=automaticStylePick('song',songs.length);dirty=true}
@@ -779,7 +785,9 @@ function stationHabitText(){
 function stationStylePanel(){
  const now=(s.broadcastStyle?.history||[]).find(x=>x.night===s.night);
  if(!now)return '';
- return `<section class="night-style-note"><div class="overline">TONIGHT'S VOICE / 今夜の放送の言葉</div><p>始まりの一言：${esc(now.opening)}</p>${now.interludes.length?`<p class="small">お便りの間に添えた言葉：${now.interludes.length}回</p>`:'<p class="small">手紙の合間には、言葉を足さない夜でした。</p>'}<p>最後の一曲：「${esc(now.song)}」</p><p>締めの言葉：${esc(now.closing)}</p><p class="small">言葉に点数や正解はありません。放送日誌にも記録されます。</p></section>`;
+ const actualOpen=s.logs.find(x=>x.night===s.night&&x.type==='オープニング')?.message||now.opening;
+ const actualClosing=s.logs.find(x=>x.night===s.night&&x.type==='エンディング')?.message||now.closing;
+ return `<section class="night-style-note"><div class="overline">TONIGHT'S VOICE / 今夜の放送の言葉</div><p>始まりの一言：${esc(actualOpen)}</p>${now.interludes.length?`<p class="small">お便りの間に添えた言葉：${now.interludes.length}回</p>`:'<p class="small">手紙の合間には、言葉を足さない夜でした。</p>'}<p>最後の一曲：「${esc(now.song)}」</p><p>締めの言葉：${esc(actualClosing)}</p><p class="small">言葉に点数や正解はありません。放送日誌にも記録されます。</p></section>`;
 }
 const GUIDE_SECTIONS=[
   ['enjoy','どんなゲーム？','真夜中に届くお便りを選び、言葉を返していく、小さなラジオ局の物語です。点数や正解はありません。気になる人の声を覚えたり、少しずつ変わる近況を楽しんでみてください。'],
@@ -987,13 +995,22 @@ const UI_NAV=[['studio','radio','放送'],['letters','mail','お便り'],['journ
 
 const dayTitles=['','はじめましての夜','誰かが聴いている','言えなかった言葉',
   '終点のひとつ前','いつもの道の途中','言いそびれた返事','ひとり分の余白','返事をしない自由','描かれなかった余白','窓の明かり','木曜日の駅','自分の声','返ってこない約束','それぞれの朝'];
-function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete',done3=s.phase==='chapter3_complete',sp=specialActive(s.night);return `<header class="header"><div class="header-identity"><div class="brand">SOMEWHERE ON AIR</div><h1>午前二時の周波数</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':done3?'第3章 14夜 終了':`第${s.night}夜　${s.finale?.status==='completed'?'閉局':s.phase.startsWith('final_')?'最終放送':regularDayTitle(s.night)}`}</div><div class="climate-meta">${esc(climateCaption(s.night))}</div></div><div class="header-tools" aria-label="放送の補助操作と状態"><button class="guide-launch" type="button" onclick="openGuide()" aria-label="あそび方・手引きを開く">${uiIcon('help')}<span>あそび方</span></button><div class="chip" role="status" aria-label="放送状態">${s.phase==='broadcast'||s.phase==='reply'||s.phase==='final_broadcast'?'● ON AIR':'◌ OFF AIR'}</div></div></header>${studioScene(s.tab!=='studio'||readerSetupOpen)}<div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}${readerEntry()}</div><div class="panel"><div class="overline">${sp?'特別放送':s.night>=15&&s.night<=28?'第2章':chapter3IsNight(s.night)?'第3章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>放送スタイル</span><span>${s.phase==='intro'||s.phase==='prepare'?(s.broadcastModePref==='letters'?'おたより中心':'いつもの放送'):(isLettersMode()?'おたより中心':'いつもの放送')}</span></div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー">${UI_NAV.map(([id,icon,label])=>`<button type="button" class="${s.tab===id?'active':''}" ${s.tab===id?'aria-current="page"':''} onclick="setTab('${id}')">${uiIcon(icon)}<span class="nav-label">${label}</span></button>`).join('')}</nav><div class="footer">『午前二時の周波数』 · SOMEWHERE ON AIR · v4.9.7</div>`}
+// 第4章・放送後の情景。未紹介の章便箋を知っていることにしない。
+const CH4_INTRO_SCENES={"79":"よく知る差出人の名前が、今夜も机の上にある。\n\n手紙の外で過ぎてきた時間は、きっと誰にも全部はわからない。","80":"まだ開いていない便箋が、机の隅に重なっている。","81":"窓の外を走る車のライトが、スタジオの壁を一瞬照らした。","82":"卓上の時計を見て、針が進むのを確かめる。","83":"放送予定の欄に、今夜の日付を書き込む。","84":"便箋の折り目をそろえて、マイクのそばに置く。","85":"放送用のメモに、また新しい日付を書き足した。","86":"マグカップの中身が少し冷めるころ、放送の時刻が近づいた。","87":"ペンを置くと、机の上の原稿が少し浮いた。","88":"スタジオの外には、夜更けの静けさがある。","89":"今日の日付の下は、まだ空白のままだ。","90":"放送台本の最後のページが、まだ白い。","91":"届いた声を選ぶ前の、短い静けさがある。","92":"今夜も、午前二時のマイクが開く。"};
+const CH4_AFTER_SCENES={"79":["放送終了のランプが消えた。時計は、もう午前三時を回っている。","机の端で原稿をそろえる。紙の手ざわりだけが残った。","いつもの名前にも、まだ聞いていない話がある。"],"80":["窓の向こうは暗いまま、原稿の上に小さな影が落ちている。","開いたままのノートと、しまっておく言葉のことを考える。","言葉になるものも、ならないものも、朝まで急がなくていい。"],"81":["ヘッドホンを外すと、スタジオの空調の音が戻ってくる。","マイクの前では、遠くの道も少し近くに感じられた。","放送が終われば、それぞれが自分の道へ戻っていく。"],"82":["卓上の時計を確かめる。針が進む音は、マイクを切っても変わらない。","手になじんだ道具も、毎回同じようには役立たない。","使い道を決めずに置く時間があってもいい。"],"83":["放送卓に残ったメモには、行き先のない線が一本引かれていた。","予定のない道を歩いてみたくなる夜もある。","次の角を曲がるかどうかは、まだ誰にもわからない。"],"84":["読み終えた便箋の端をそろえ、マイクを覆う。","誰にも見せるつもりのない言葉は、きっとまだある。","この放送が聞けたのは、そのほんの一部分だった。"],"85":["時計の針が午前三時を指す。片づける紙が、少しだけ増えた。","短い会話も、あとから思い出すと違う顔をしている。","今日の言葉が明日どう残るかは、まだ決めなくていい。"],"86":["スタジオのドアの向こうから、遠い足音が聞こえる。","早めに帰ることにも、いくつもの理由がある。","家に着いてから始まる時間も、誰かの大事な一日だ。"],"87":["マイクを切ったあとも、返答の下書きが手元に残っている。","言い切れない感想は、書き直さずに置いておける。","一つの言葉で全部を説明しなくても、手紙は届く。"],"88":["放送終了の時刻を日誌に書く。紙にペン先が触れる音だけがする。","いつもと違う午後を過ごしても、それで何かが終わるわけではない。","次の木曜日も、何が起こるかはまだ知らない。"],"89":["明日の放送準備の欄は、まだ空いている。","予定は、決めることだけでできているわけではない。","書き込まずに残した時間にも、きっと使い道がある。"],"90":["放送卓に一枚、何も書かれていない紙が残った。","紙の余白は、今夜すべて埋めなくてもいい。","また次に、書きたくなることがあれば書けばいい。"],"91":["今夜の原稿を片づけると、引き出しの奥に少し空きができた。","紹介した手紙は違っても、夜が明ければそれぞれに用事がある。","誰かの普通の一日を、次も聞けるとは限らない。それでも放送は続く。"],"92":["午前三時。読み終えた原稿が、放送卓の上に重ねられている。","この局に届くのは、それぞれの暮らしのほんの一部分だ。","窓の外はまだ暗い。誰かの朝は、このあとも続いていく。"]};
+const CH4_HEARD_DETAILS={"79:cat":"喫茶店では、開かなかったスケッチブックの代わりに、窓の外の歩幅が記憶に残った。","79:bread":"パン売り場では、同じパンに違う名前がつく。その呼び方を聞く楽しみもあるらしい。","80:fish":"閉められなかった窓の場面が、感想の一行に残った。理由はまだ言葉になっていない。","80:moon":"月の忘れ物係には、星くずの夜勤手当と、冷蔵庫のプリンの管理責任がある。","81:driver":"猫主任は尻尾だけの出勤だったのかもしれない。次の点検を待つしかない。","81:sugar":"砂糖はいつもと同じ三杯。それでも、友人と飲むと甘さの感じ方が違うらしい。","82:clock":"古い小さなドライバーには、今日は出番がなかった。磨かれて箱に戻ったという。","82:umbrella":"三冊の青いノートから選んだのは、まだ名前のない色だった。","83:terminal":"駅とは反対の道で、古い地図のある店を見つけた。今日は窓の外から眺めるだけ。","83:triangle":"架空の街の地図には、用途を決めない四角い土地が残された。","84:fridge":"自分のために選んだ茶碗で、温かいご飯を食べたという手紙だった。","84:anon":"「今日は、何も決めませんでした。」消されなかった読点の場所が残っている。","85:bread":"「くるみ寄り」の札は訂正されたけれど、捨てずに取っておいたという。","85:clock":"思い出せなかった本の名前は、次に図書室で会うときの話題になりそうだ。","86:moon":"家庭内委員会では、プリンの提案より洗い物の対案が支持された。","86:driver":"仕事帰りに買ったハンカチ。猫主任の査定には関係ないけれど、本人は気に入っている。","87:sugar":"理由を決めないまま、紙コップで乾杯した短い時間があった。","87:fish":"同じ本でも、友達とは好きな場面が違った。その違いを、まだうまく説明できない。","88:umbrella":"花のためではないお湯を、自分のカップに注いだ午後があった。","88:terminal":"誰も待たない午後に、窓の向こうの食器の音が聞こえてきた。","89:triangle":"予定表には、調べたい角と雲の形、そしてまだ決まらない空き地のことが書かれていた。","89:fridge":"まかないを食べ損ねた帰り道、自分の夕食は帰ってから決めることにした。","90:anon":"読みかけの本には、何も書かれていないしおりが残っている。","90:cat":"白い紙の端に一本だけ引かれた線は、まだ何にもならなくていい。","91:cat":"雨宿りの時間に、窓に映る自分の姿を見たと書かれていた。","91:bread":"パンを入れる袋の向きだけで、同僚と長い相談になった。","91:fish":"本の返却前に、折れたページの角を見つけたという。","91:moon":"「何も見つからなかった日」は、架空の暦に加わった新しい祝日だ。","91:driver":"停車場で拾った短い鉛筆を、落とし物入れに届けたらしい。","91:sugar":"氷がぶつかる音のするコーヒーも、砂糖は三杯のままだった。","91:clock":"本棚の下から、日焼けした栞が出てきた。","91:umbrella":"花の色を見比べる人が、靴下には迷わず灰色を選んだ。","91:terminal":"買い物メモの半分だけを済ませて帰る日もある。","91:triangle":"丸くなった消しゴムの角を見ながら、図形のことを考えた。","91:fridge":"冷蔵庫の残りご飯を、どう食べるか迷った夜の話だった。","91:anon":"探していたものとは別の、小さな白い紙を引き出しへ戻した。","92:cat":"掃除のために動かした椅子が、夕方になっても窓のほうを向いていた。","92:bread":"明日の焼き上がり表に、理由のない丸が一つ加わった。","92:fish":"本の返却日を書いた手帳には、曜日も一緒に残っている。","92:moon":"次の月面委員会は、雲に隠れた月の勤怠を話し合うらしい。","92:driver":"明日の上着のポケットへ、食べ忘れた飴を移した。","92:sugar":"朝に使うカップが、洗われて伏せてある。","92:clock":"机の上の時計は、ねじを巻かないまま明日の朝を待っている。","92:umbrella":"名前を書いていない白い札が、窓辺の鉢に差してある。","92:terminal":"中身のない紙袋が、玄関で明日の寄り道を待っている。","92:triangle":"明日の予定表には、埋めないままの一枠が残った。","92:fridge":"明日の食事のために、洗った箸が一膳、見えるところに置かれた。","92:anon":"手帳の明日の欄には、時間だけが書かれている。"};
+const CH4_READER_CODA='放送卓の隅には、次の放送のための白い紙が一枚残されている。';
+
+
+
+function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete',done3=s.phase==='chapter3_complete',sp=specialActive(s.night);return `<header class="header"><div class="header-identity"><div class="brand">SOMEWHERE ON AIR</div><h1>午前二時の周波数</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':done3?'第3章 14夜 終了':s.phase==='chapter4_complete'?'第4章 14夜 終了':`第${s.night}夜　${s.finale?.status==='completed'?'閉局':s.phase.startsWith('final_')?'最終放送':regularDayTitle(s.night)}`}</div><div class="climate-meta">${esc(climateCaption(s.night))}</div></div><div class="header-tools" aria-label="放送の補助操作と状態"><button class="guide-launch" type="button" onclick="openGuide()" aria-label="あそび方・手引きを開く">${uiIcon('help')}<span>あそび方</span></button><div class="chip" role="status" aria-label="放送状態">${s.phase==='broadcast'||s.phase==='reply'||s.phase==='final_broadcast'?'● ON AIR':'◌ OFF AIR'}</div></div></header>${studioScene(s.tab!=='studio'||readerSetupOpen)}<div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}${readerEntry()}</div><div class="panel"><div class="overline">${sp?'特別放送':s.night>=15&&s.night<=28?'第2章':chapter3IsNight(s.night)?'第3章':chapter4IsNight(s.night)?'第4章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>放送スタイル</span><span>${s.phase==='intro'||s.phase==='prepare'?(s.broadcastModePref==='letters'?'おたより中心':'いつもの放送'):(isLettersMode()?'おたより中心':'いつもの放送')}</span></div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー">${UI_NAV.map(([id,icon,label])=>`<button type="button" class="${s.tab===id?'active':''}" ${s.tab===id?'aria-current="page"':''} onclick="setTab('${id}')">${uiIcon(icon)}<span class="nav-label">${label}</span></button>`).join('')}</nav><div class="footer">『午前二時の周波数』 · SOMEWHERE ON AIR · v4.9.16</div>`}
 function navButtons(){return UI_NAV.map(([id,icon,label])=>`<button type="button" class="navbtn ${s.tab===id?'active':''}" ${s.tab===id?'aria-current="page"':''} onclick="setTab('${id}')">${uiIcon(icon)}<span>${id==='journal'?'放送日誌':id==='settings'?'設定・セーブ':label}</span></button>`).join('')}
 
 function intro(){
   milestoneEnsure(s.night);
   if(s.night>=15&&s.night<=28)return chapter2Intro();
   if(chapter3IsNight(s.night))return chapter3Intro();
+  if(chapter4IsNight(s.night)&&!specialActive(s.night))return chapter4Intro();
   if(s.night>=29)return specialActive(s.night)?specialIntro():regularIntro();
   const t=s.night;
   const texts={
@@ -1025,7 +1042,7 @@ function prepare(){
  const specialCount=currentSpecial?ids.filter(id=>letter(id)?.programSpecial).length:0;
  const specialSelectionNote=currentSpecial?`<p class="prepare-special-guide">${specialCount?`今夜は特別企画への投稿が${specialCount}通届いています。`:'今夜は特別企画への投稿がありません。'}普段のお便りも自由に選べます。</p>`:'';
  const steps=`<div class="prepare-steps" aria-label="放送準備の進行状況"><span class="${!styleStep?'active':''}">1 · おたよりを選ぶ</span><span class="${styleStep?'active':''}">2 · 放送の準備</span></div>`;
- const theme=s.night>=15?`<div class="notice">${s.night<=28?'第2章：'+esc(CH2_NIGHTS[s.night][0]):chapter3IsNight(s.night)?'第3章：'+esc(CH3_DAYS[chapter3Offset(s.night)][0]):specialActive(s.night)?'特別放送：'+esc(SPECIAL_THEMES[s.special.planned.themeId].title):'今夜のテーマ：'+esc(regularTheme(s.night)[0])+' · '+esc(regularTheme(s.night)[1])}</div>`:'';
+ const theme=s.night>=15?`<div class="notice">${s.night<=28?'第2章：'+esc(CH2_NIGHTS[s.night][0]):chapter3IsNight(s.night)?'第3章：'+esc(CH3_DAYS[chapter3Offset(s.night)][0]):chapter4IsNight(s.night)&&!specialActive(s.night)?'第4章：'+esc(CH4_DAYS[s.night-79][0]):specialActive(s.night)?'特別放送：'+esc(SPECIAL_THEMES[s.special.planned.themeId].title):'今夜のテーマ：'+esc(regularTheme(s.night)[0])+' · '+esc(regularTheme(s.night)[1])}</div>`:'';
  if(!styleStep){
   return `<section class="panel prepare-panel prepare-letters"><div class="overline">BEFORE BROADCAST / 01:59</div><h2>今夜のお便り</h2>${steps}${studioPrelude()}${theme}${specialSelectionNote}<p class="muted">最大3通を紹介できます。読まなかったお便りの送り主も、明日を生きていきます。まずお便りを選びましょう。</p><div class="prepare-selection-bar" role="status" aria-live="polite"><div class="prepare-selection-count"><strong>紹介予定 ${s.chosen.length} / 3通</strong><span>${esc(selectedNames)}</span></div><button type="button" class="btn" ${s.chosen.length===0?'disabled':''} onclick="prepareUIStage('style')">放送準備へ →</button></div>${ids.map(id=>{let l=letter(id),selected=s.chosen.includes(id);return `<div class="letter"><div class="letter-top"><span class="letter-title">${esc(NAMES[l.who])}</span><span class="tag">${l.programSpecial?'企画への投稿':l.kind==='everyday47'?'日常のおたより':l.special?'特別返答':''}</span></div><div class="small">${esc(l.subject)}</div><hr class="divider"><div class="letter-text">${fmt(l.body)}</div><div class="actions"><button class="btn ${selected?'secondary':'ghost'}" onclick="selectLetter('${id}')" ${!selected&&s.chosen.length>=3?'disabled':''}>${selected?'✓ 紹介する予定':'＋ このお便りを紹介'}</button></div></div>`}).join('')}<div class="prepare-later"><button type="button" class="btn secondary" ${s.chosen.length===0?'disabled':''} onclick="prepareUIStage('style')">${s.chosen.length}通を選んで、放送準備へ →</button></div><button class="reader-inline-entry" type="button" onclick="openReaderSetup()">${uiIcon('moon')}<span class="reader-entry-copy">今夜は聴くだけにする <small>本編とは別の物語として読みます</small></span></button></section>`;
  }
@@ -1033,12 +1050,12 @@ function prepare(){
 }
 function broadcast(){
  if(s.cursor>=s.chosen.length){
-  if(isLettersMode())return `<section class="panel station-ending"><div class="overline">02:53 / ENDING · おたより中心</div><h2>今夜の最後の一曲</h2><p>お便りを読み終えた。マイクの向こうでは、まだ誰かが聴いている。</p><div class="station-script-preview"><div class="overline">自動で選んだ曲</div><p>♪ ${esc(songs[s.song]?.[0]||'')}</p><p class="small">${esc(songs[s.song]?.[1]||'')}（実際の音声は再生されません）</p></div><h3>エンディングの言葉</h3><div class="station-script-preview"><p>${esc(STATION_CLOSINGS[s.broadcastStyle.closing]?.[1]||'')}</p></div><p class="muted station-tiny-hint">演出の選択は自動ですが、最後の言葉はそのまま読めます。</p>${finaleAnnouncementPreview()}<div class="actions"><button type="button" class="btn" onclick="finishBroadcast()">エンディングを放送する →</button></div></section>`;
+  if(isLettersMode())return `<section class="panel station-ending"><div class="overline">02:53 / ENDING · おたより中心</div><h2>今夜の最後の一曲</h2><p>お便りを読み終えた。マイクの向こうでは、まだ誰かが聴いている。</p><div class="station-script-preview"><div class="overline">自動で選んだ曲</div><p>♪ ${esc(songs[s.song]?.[0]||'')}</p><p class="small">${esc(songs[s.song]?.[1]||'')}（実際の音声は再生されません）</p></div><h3>エンディングの言葉</h3><div class="station-script-preview"><p>${esc(lettersBroadcastPhrase4916('closing',s.broadcastStyle.closing))}</p></div><p class="muted station-tiny-hint">演出の選択は自動ですが、最後の言葉はそのまま読めます。</p>${finaleAnnouncementPreview()}<div class="actions"><button type="button" class="btn" onclick="finishBroadcast()">エンディングを放送する →</button></div></section>`;
   return `<section class="panel station-ending"><div class="overline">02:53 / ENDING</div><h2>今夜の最後の一曲</h2><p>お便りを読み終えた。マイクの向こうでは、まだ誰かが聴いている。</p><p class="muted station-tiny-hint">曲は文字で描く架空の楽曲です。実際の音声は再生されません。</p><div class="station-choice-grid">${songs.map((a,i)=>`<button type="button" class="choice station-compact-choice ${s.song===i?'selected':''}" aria-pressed="${s.song===i}" onclick="chooseSong(${i})"><strong>♪ ${esc(a[0])}</strong><span>${esc(a[1])}</span></button>`).join('')}</div><h3>エンディングの言葉</h3><p class="muted station-tiny-hint">誰かの人生を締めくくるのではなく、今夜の放送をそっと閉じる言葉を選びましょう。</p><div class="station-choice-grid">${STATION_CLOSINGS.map((c,i)=>`<button type="button" class="choice station-compact-choice ${s.broadcastStyle.closing===i?'selected':''}" aria-pressed="${s.broadcastStyle.closing===i}" onclick="chooseClosing(${i})"><strong>${esc(c[0])}</strong><span>${esc(c[1])}</span></button>`).join('')}</div>${s.song!==null&&s.broadcastStyle.closing!==null?`<div class="station-script-preview"><div class="overline">放送原稿 / PREVIEW</div><p>♪ ${esc(songs[s.song][0])}</p><p>${esc(STATION_CLOSINGS[s.broadcastStyle.closing][1])}</p></div>`:''}${finaleAnnouncementPreview()}<div class="actions"><button type="button" class="btn" ${s.song===null||s.broadcastStyle.closing===null?'disabled':''} onclick="finishBroadcast()">エンディングを放送する →</button></div></section>`;
  }
  if(s.cursor>0&&!s.broadcastStyle.completed[s.cursor])return interludeScreen();
  let id=s.chosen[s.cursor],l=letter(id);
- return `<section class="panel"><div class="overline">${['02:08','02:23','02:39'][s.cursor]} / ON AIR · LETTER ${s.cursor+1} / ${s.chosen.length}</div><h2>お便りを紹介する</h2>${s.cursor===0?`<div class="station-onair-voice"><div class="overline">02:00 / あなたのオープニング</div><p>${esc(opening[s.opening]||opening[0])}</p></div>`:Number.isInteger(s.broadcastStyle.interludes[s.cursor])&&s.broadcastStyle.interludes[s.cursor]>=0?`<div class="station-onair-voice"><div class="overline">BETWEEN LETTERS / つなぎの一言</div><p>${esc(STATION_INTERLUDES[s.broadcastStyle.interludes[s.cursor]][1])}</p></div>`:studioSilentBridge()}${s.cursor===0&&specialActive(s.night)?`<div class="special-opening">${esc(SPECIAL_THEMES[s.special.planned.themeId].opening)}</div>`:''}<div class="letter"><div class="letter-title">${esc(NAMES[l.who])}</div><div class="small">${esc(l.subject)}</div><hr class="divider"><div class="letter-text">${fmt(l.body)}</div></div><div class="actions"><button class="btn" onclick="s.current='${id}';s.phase='reply';save();render()">このお便りに返答する →</button></div></section>`;
+ return `<section class="panel"><div class="overline">${['02:08','02:23','02:39'][s.cursor]} / ON AIR · LETTER ${s.cursor+1} / ${s.chosen.length}</div><h2>お便りを紹介する</h2>${s.cursor===0?`<div class="station-onair-voice"><div class="overline">02:00 / あなたのオープニング</div><p>${esc(lettersBroadcastPhrase4916('opening',s.opening))}</p></div>`:Number.isInteger(s.broadcastStyle.interludes[s.cursor])&&s.broadcastStyle.interludes[s.cursor]>=0?`<div class="station-onair-voice"><div class="overline">BETWEEN LETTERS / つなぎの一言</div><p>${esc(lettersBroadcastPhrase4916('bridge',s.broadcastStyle.interludes[s.cursor],s.cursor))}</p></div>`:studioSilentBridge()}${s.cursor===0&&specialActive(s.night)?`<div class="special-opening">${esc(SPECIAL_THEMES[s.special.planned.themeId].opening)}</div>`:''}<div class="letter"><div class="letter-title">${esc(NAMES[l.who])}</div><div class="small">${esc(l.subject)}</div><hr class="divider"><div class="letter-text">${fmt(l.body)}</div></div><div class="actions"><button class="btn" onclick="s.current='${id}';s.phase='reply';save();render()">このお便りに返答する →</button></div></section>`;
 }
 
 function reply(){
@@ -1069,6 +1086,7 @@ function confirmSpecial(){
 function after(){
   if(s.night>=15&&s.night<=28)return chapter2After();
   if(chapter3IsNight(s.night))return chapter3After();
+  if(chapter4IsNight(s.night)&&!specialActive(s.night))return chapter4After();
   if(s.night>=29)return specialActive(s.night)?specialAfter():regularAfter();
   const n=s.night;
   // 第1章の情景は、実際に放送で紹介したお便りしか知り得ない。
@@ -1163,7 +1181,7 @@ function listeners(){
   const unknown=undiscovered.length?`<div class="archive-undiscovered"><h3>まだ出会っていない声</h3><p class="small">お便りを放送で紹介すると、その人の記録が開きます。まだ紹介していない人の名前や暮らしは、ここでは明かされません。</p><div class="archive-unknown-grid">${undiscovered.map(()=>`<div class="listener archive-unknown"><span class="archive-unknown-mark" aria-hidden="true">✧</span><span>まだよく知らないリスナー</span></div>`).join('')}</div></div>`:'';
   return `<section class="panel"><div class="overline">LISTENER ARCHIVE</div><h2>リスナーの記録</h2><p class="muted">放送で紹介したお便りからわかったことを記録します。お便りを紹介していない人の暮らしも、番組の外で続いています。</p>${published}${unknown}</section>`;
 }
-function settings(){return `<section class="panel"><div class="overline">SETTINGS</div><h2>設定・セーブデータ</h2><button class="btn secondary settings-guide-btn" type="button" onclick="openGuide()">${uiIcon('help')}<span>ラジオ局の手引きを読む</span></button><p class="settings-save-note">進行状況は、この端末のブラウザ内に自動保存されます。別の端末に引き継ぐ場合は、バックアップを書き出してください。「聴くだけの夜」の保存と復元は読書画面から別に行います。</p><div class="actions settings-backup-actions"><button class="btn" onclick="downloadSave()">バックアップを保存</button><label class="btn secondary" style="cursor:pointer">バックアップを読み込む<input class="screen-reader" type="file" accept=".json,application/json" onchange="importSave(this)"></label></div><hr class="divider"><h3>スタジオ演出</h3><p class="small">放送前後の静けさと、マイク横の小さなメーターです。効果音や音声はありません。</p><label class="studio-setting"><input type="checkbox" ${s.studioVisuals?.enabled!==false?'checked':''} onchange="setStudioVisuals('enabled',this.checked)"> スタジオ演出を表示する</label><div class="studio-setting-modes settings-motion-modes"><span class="small">アニメーション：</span>${[['normal','通常'],['reduced','控えめ'],['off','動きなし']].map(([id,name])=>`<label><input type="radio" name="studio-motion" value="${id}" ${s.studioVisuals?.motion===id?'checked':''} ${s.studioVisuals?.enabled===false?'disabled':''} onchange="setStudioVisuals('motion',this.value)"> ${name}</label>`).join('')}</div><p class="small settings-motion-note">動きを止めても、時計とON AIRの表示は残ります。端末で動きを減らす設定を使用している場合は、その設定が優先されます。</p><hr class="divider"><h3>最初から遊ぶ</h3><p class="small">現在のセーブデータを消して、第1夜からやり直します。必要なら先にバックアップしてください。</p><button class="btn secondary" onclick="${s.finale?.status==='completed'?'finaleRestart()':'resetGame()'}">進行状況をリセット</button><hr class="divider"><p class="small">バージョン 4.9.7</p></section>`}
+function settings(){return `<section class="panel"><div class="overline">SETTINGS</div><h2>設定・セーブデータ</h2><button class="btn secondary settings-guide-btn" type="button" onclick="openGuide()">${uiIcon('help')}<span>ラジオ局の手引きを読む</span></button><p class="settings-save-note">進行状況は、この端末のブラウザ内に自動保存されます。別の端末に引き継ぐ場合は、バックアップを書き出してください。「聴くだけの夜」の保存と復元は読書画面から別に行います。</p><div class="actions settings-backup-actions"><button class="btn" onclick="downloadSave()">バックアップを保存</button><label class="btn secondary" style="cursor:pointer">バックアップを読み込む<input class="screen-reader" type="file" accept=".json,application/json" onchange="importSave(this)"></label></div><hr class="divider"><h3>スタジオ演出</h3><p class="small">放送前後の静けさと、マイク横の小さなメーターです。効果音や音声はありません。</p><label class="studio-setting"><input type="checkbox" ${s.studioVisuals?.enabled!==false?'checked':''} onchange="setStudioVisuals('enabled',this.checked)"> スタジオ演出を表示する</label><div class="studio-setting-modes settings-motion-modes"><span class="small">アニメーション：</span>${[['normal','通常'],['reduced','控えめ'],['off','動きなし']].map(([id,name])=>`<label><input type="radio" name="studio-motion" value="${id}" ${s.studioVisuals?.motion===id?'checked':''} ${s.studioVisuals?.enabled===false?'disabled':''} onchange="setStudioVisuals('motion',this.value)"> ${name}</label>`).join('')}</div><p class="small settings-motion-note">動きを止めても、時計とON AIRの表示は残ります。端末で動きを減らす設定を使用している場合は、その設定が優先されます。</p><hr class="divider"><h3>最初から遊ぶ</h3><p class="small">現在のセーブデータを消して、第1夜からやり直します。必要なら先にバックアップしてください。</p><button class="btn secondary" onclick="${s.finale?.status==='completed'?'finaleRestart()':'resetGame()'}">進行状況をリセット</button><hr class="divider"><p class="small">バージョン 4.9.16</p></section>`}
 function specialPlanningPanel(){
  const n=s.night;
  const p=s.special?.planned;
@@ -1193,18 +1211,35 @@ function specialAfter(){
 function regularIntro(){
  const n=s.night,theme=regularTheme(n),day=['月','火','水','木','金','土','日'][(n-1)%7];
  const intro=['手紙の束に新しい宛名を見つけた。','窓の外に、帰りの遅い人の灯りが見える。','昨夜の放送から、街ではまた一日が過ぎた。','スタジオに湯気の立つカップが置かれている。'][simHash(`reg:scene:${n}`)%4];
- return `<section class="panel"><div class="overline">REGULAR BROADCAST / 第${n}夜・${day}曜日</div><h2>今日も、午前2時</h2><p>${fmt(intro+'\n\n第2章も一区切りを迎えた。でも、ラジオはまだ続いている。\n\n今夜の小さなテーマは「'+theme[0]+'」。\n'+theme[1]+'。\n\n読む手紙は、まだ決まっていない。')}</p><div class="notice">通常放送では、これまでの人生分岐・感情・自律生活からお便りが届きます。</div>${s.finale?.status==='planned'&&s.night===s.finale.announcedNight?finaleAnnounceIntro():specialPlanningPanel()}<div class="actions"><button class="btn" ${s.finale?.status==='planned'&&s.finale.announcementChoice===null?'disabled':''} onclick="startNight()">今夜のお便りを確認する →</button></div></section>`;
+ // 章を抜けた説明は初回のみ。第100夜以降も「章を終えた」説明を繰り返さない。
+ const afterThird=!!s.chapter3?.finished&&n===s.chapter3.startNight+CH3_DAYS.length;
+ const afterFourth=!!s.chapter4?.finished&&s.chapter4.fromNight<=92&&n===93;
+ const transition=n===29?'第2章も一区切りを迎えた。でも、ラジオはまだ続いている。':afterThird?'第3章の十四夜も過ぎた。ここからは、いつもの放送が続いていく。':afterFourth?'第4章も一区切りを迎えた。でも、ラジオはまだ続いている。':'';
+ const text=intro+(transition?'\n\n'+transition:'')+'\n\n今夜の小さなテーマは「'+theme[0]+'」。\n'+theme[1]+'。\n\n読む手紙は、まだ決まっていない。';
+ const guidance=n===29?'<div class="notice">通常放送では、これまでの人生分岐・感情・自律生活からお便りが届きます。</div>':'';
+ return `<section class="panel"><div class="overline">REGULAR BROADCAST / 第${n}夜・${day}曜日</div><h2>今日も、午前2時</h2><p>${fmt(text)}</p>${guidance}${s.finale?.status==='planned'&&s.night===s.finale.announcedNight?finaleAnnounceIntro():specialPlanningPanel()}<div class="actions"><button class="btn" ${s.finale?.status==='planned'&&s.finale.announcementChoice===null?'disabled':''} onclick="startNight()">今夜のお便りを確認する →</button></div></section>`;
 }
 function regularAfter(){
+ const n=s.night;
  const messages=['放送が終わったあと、スタジオには時計の音が残った。','曲が止み、誰かの街の夜はまだ続いている。','机の上には、読み上げなかった便箋も残っている。','マイクの向こうに、今夜もいくつかの生活があった。'];
- const text=messages[simHash(`reg:after:${s.night}`)%messages.length];
- return `<section class="panel end"><div class="overline">03:00 / OFF AIR · 通常放送</div><h2>また明日の午前2時に</h2><p>${fmt(text+'\n\n声が届いた人も、届かなかった人もいる。\n\n放送の外では、今日もそれぞれの暮らしが続いている。')}</p>${s.special?.planned?.announceNight===s.night&&s.special.planned.status==='ready'?`<div class="special-planning"><div class="overline">SPECIAL PROGRAM · 募集の告知</div><h3>${esc(SPECIAL_THEMES[s.special.planned.themeId].title)}</h3><p>${esc(SPECIAL_THEMES[s.special.planned.themeId].invitation)}</p><p class="small">第${s.special.planned.night}夜に放送します。</p></div>`:''}<hr class="divider"><div class="small">今夜紹介したお便り：${s.played.filter(x=>x.night===s.night).length}通</div><div class="small">次の夜には、今日の出来事から別のお便りが届くかもしれません。</div><div class="actions"><button class="btn" onclick="nextNight()">次の夜へ進む →</button></div></section>`;
+ const tails=[
+  '窓の向こうでは、家々の灯りが少しずつ変わっていく。明日届く言葉は、まだ誰も知らない。',
+  '封筒を束ねて、机の端に置く。今夜の放送が終わっても、街の時間は止まらない。',
+  '選ばれた便箋にも、紹介されなかった便箋にも、それぞれの持ち主がいる。',
+  'スタジオの明かりを落とす。次の夜に何が届くかは、まだ決まっていない。',
+  'マイクを切ったあとも、時計の針はいつもの速さで進んでいく。',
+  '机の上の紙をそろえる。放送の外にも、まだ語られていない日常がある。'
+ ];
+ const text=messages[simHash(`reg:after:${n}`)%messages.length]+'\n\n'+tails[n%tails.length];
+ return `<section class="panel end"><div class="overline">03:00 / OFF AIR · 通常放送</div><h2>また明日の午前2時に</h2><p>${fmt(text)}</p>${s.special?.planned?.announceNight===n&&s.special.planned.status==='ready'?`<div class="special-planning"><div class="overline">SPECIAL PROGRAM · 募集の告知</div><h3>${esc(SPECIAL_THEMES[s.special.planned.themeId].title)}</h3><p>${esc(SPECIAL_THEMES[s.special.planned.themeId].invitation)}</p><p class="small">第${s.special.planned.night}夜に放送します。</p></div>`:''}<hr class="divider"><div class="small">今夜紹介したお便り：${s.played.filter(x=>x.night===n).length}通</div><div class="small">次の夜には、今日の出来事から別のお便りが届くかもしれません。</div><div class="actions"><button class="btn" onclick="nextNight()">次の夜へ進む →</button></div></section>`;
 }
-
 function chapter2Intro(){
  const n=s.night,theme=CH2_NIGHTS[n],first=n===15;
- const text=(first?'第1章の放送から一夜が過ぎた。\n\n何かを決めた人にも、決められなかった人にも、朝が来た。\n\n今夜からまた、新しい便箋が机に積まれていく。':'前夜の放送から、街ではまた一日が過ぎた。\n\n')+theme[1]+'\n\n今夜も、誰かの暮らしから届いた手紙を開く。';
- return `<section class="panel"><div class="overline">CHAPTER TWO / NIGHT ${n} · 01:46</div><h2>${esc(theme[0])}</h2><p>${fmt(text)}</p><div class="notice">第2章「選んだ道の、その先」。第1章で選んだ人生の方針と、続いている日常を引き継ぎます。手紙を読まなかった人にも出来事が起こります。</div><div class="actions"><button class="btn" onclick="startNight()">今夜のお便りを確認する →</button></div></section>`;
+ const scenes=['スタジオに、新しい便箋が積まれている。','街の灯りのいくつかが、まだ眠っていない。','日付が変わり、机の上にもまた一日の記録が届いた。','窓の向こうで、遅い帰り道の足音が遠ざかる。','ページをめくる音が、静かな室内に残る。'];
+ const beginning=first?'第1章の放送から一夜が過ぎた。\n\n何かを決めた人にも、決められなかった人にも、朝が来た。\n\n今夜からまた、新しい便箋が机に積まれていく。':scenes[(n-16)%scenes.length];
+ const text=beginning+'\n\n'+theme[1]+'\n\n今夜も、誰かの暮らしから届いた手紙を開く。';
+ const note=first?'<div class="notice">第2章「選んだ道の、その先」。人々の生活は、番組で紹介されなかった時間にも続いています。</div>':'';
+ return `<section class="panel"><div class="overline">CHAPTER TWO / NIGHT ${n} · 01:46</div><h2>${esc(theme[0])}</h2><p>${fmt(text)}</p>${note}<div class="actions"><button class="btn" onclick="startNight()">今夜のお便りを確認する →</button></div></section>`;
 }
 function chapter2After(){
  const n=s.night,scenes=[
@@ -1214,8 +1249,15 @@ function chapter2After(){
  '誰かの返事を待っているあいだにも、生活は続く。',
  '大きな決断のあとに来るのは、たいてい何でもない一日だ。'
  ];
+ const endings=[
+ 'マイクを切る。明日の朝にどんな答えが見つかるかは、まだわからない。',
+ 'まだ開いていない封筒を、そっと束の端へ寄せる。',
+ '時計の音が戻ってくる。誰かの一日も、また新しく始まる。',
+ '放送卓の明かりを落とす。話の続きを急がなくても、夜は明ける。',
+ '机の上には、言葉にならなかった時間のぶんだけ余白が残る。'
+ ];
  const scene=scenes[simHash(`ch2:after:${n}`)%scenes.length];
- return `<section class="panel end"><div class="overline">03:00 / OFF AIR · CHAPTER TWO</div><h2>今夜の放送が終わった</h2><p>${fmt(scene+'\n\nマイクを切ると、机にはまだ開いていない便箋が残る。\n\nその人が明日どうするかは、まだ誰にもわからない。')}</p><hr class="divider"><div class="small">今夜紹介したお便り：${s.played.filter(x=>x.night===n).length}通</div><div class="small">今夜紹介しなかったお便り：${Math.max(0,nightLetters(n).length-s.chosen.length)}通</div><div class="actions"><button class="btn" onclick="nextNight()">${n===28?'第2章の放送を振り返る →':'次の夜へ進む →'}</button></div></section>`;
+ return `<section class="panel end"><div class="overline">03:00 / OFF AIR · CHAPTER TWO</div><h2>今夜の放送が終わった</h2><p>${fmt(scene+'\n\n'+endings[(n-15)%endings.length])}</p><hr class="divider"><div class="small">今夜紹介したお便り：${s.played.filter(x=>x.night===n).length}通</div><div class="small">今夜紹介しなかったお便り：${Math.max(0,nightLetters(n).length-s.chosen.length)}通</div><div class="actions"><button class="btn" onclick="nextNight()">${n===28?'第2章の放送を振り返る →':'次の夜へ進む →'}</button></div></section>`;
 }
 function chapter2Complete(){
  const heard=['cat','driver','fish','clock','terminal'].map(id=>{
@@ -1238,11 +1280,11 @@ function beginAfterChapter2(){
 // --- v4.8 「聴くだけの夜」: 本編と別の世界を読む。将来の出来事・非公開感情は選択に使わない。 ---
 let readerRestoring=activeProfile==='reader';
 function readerEntry(){
- if(!['intro','after','complete','chapter2_complete','chapter3_complete'].includes(s.phase))return '';
+ if(!['intro','after','complete','chapter2_complete','chapter3_complete','chapter4_complete'].includes(s.phase))return '';
  return `<div class="reader-subtle-entry"><button type="button" class="reader-entry-button" onclick="openReaderSetup()">${uiIcon('moon')}<span class="reader-entry-copy">今夜は聴くだけにする <small>別のDJの放送を、物語として読む</small></span></button></div>`;
 }
 function openReaderSetup(){
- if(activeProfile!=='main'||!['intro','prepare','after','complete','chapter2_complete','chapter3_complete'].includes(s.phase))return;
+ if(activeProfile!=='main'||!['intro','prepare','after','complete','chapter2_complete','chapter3_complete','chapter4_complete'].includes(s.phase))return;
  readerSetupOpen=true;render();
 }
 function closeReaderSetup(){readerSetupOpen=false;render()}
@@ -1269,7 +1311,7 @@ function makeReaderState(base){
 }
 function createReader(kind){
  if(activeProfile!=='main'||!readerSetupOpen||!['fresh','branch'].includes(kind))return;
- if(kind==='branch'&&!['intro','after','complete','chapter2_complete','chapter3_complete'].includes(s.phase))return;
+ if(kind==='branch'&&!['intro','after','complete','chapter2_complete','chapter3_complete','chapter4_complete'].includes(s.phase))return;
  const old=localStorage.getItem(READER_SAVE);
  if(old&&!confirm('保存済みの「聴くだけの夜」を上書きします。続けますか？'))return;
  if(!save()){alert('本編の保存に失敗しました。バックアップを取ってからお試しください。');return}
@@ -1328,6 +1370,7 @@ function readerEditorialScene(input,kind,night){
  const cuts=[
   '企画しないまま、いつもの放送を続けても大丈夫です。募集は今夜、本番は翌夜です。',
   '第2章も一区切りを迎えた。でも、ラジオはまだ続いている。',
+  '第4章も一区切りを迎えた。でも、ラジオはまだ続いている。',
   '読む手紙は、まだ決まっていない。',
   'リスナーたちは、それぞれの一日を過ごします。変化の一部は、次の放送で届くかもしれません。'
  ];
@@ -1373,6 +1416,14 @@ function autoDJPickLetters(ids){
   }
  }
  const prior=s.played||[];
+ // v4.9.12: 読書用DJが特定の常連ばかり紹介し続けないよう、
+ // 直近の登場数と通算の登場数から控えめな補正を加える。
+ // 章の専用便箋・記念放送の優先、本文の雰囲気、既読の抑制は従来どおり。
+ const recentWindow=prior.filter(p=>p.night>=s.night-27&&p.night<s.night);
+ const recentTally=Object.create(null),overallTally=Object.create(null);
+ for(const p of recentWindow)if(p.who)recentTally[p.who]=(recentTally[p.who]||0)+1;
+ for(const p of prior)if(p.who)overallTally[p.who]=(overallTally[p.who]||0)+1;
+ const typicalRecent=recentWindow.length/12,typicalOverall=prior.length/12;
  while(picked.length<Math.min(3,pool.length)){
   const ranked=pool.filter(l=>!picked.includes(l.id)).map(l=>{
    const recent=prior.filter(p=>p.who===l.who);
@@ -1387,12 +1438,16 @@ function autoDJPickLetters(ids){
    const varied=selectedMoods.length&&!sameTone?1.1:0;
    const topicMatch=selectedMoods.some(x=>x.reflective>=1.5&&mood.reflective>=1.5)?0.35:0;
    const special=l.special?1.0:0;
+   const newStory=l.kind==='laterlife4914'?1.25:0;
    const connection=['crossTalk4830','crossAfter4831'].includes(l.kind)?2.4:0;
    // 同じ題材でも本文が変われば別の近況。まったく同じ手紙の短期再紹介だけ抑える。
    const identical=prior.slice().reverse().find(p=>p.who===l.who&&p.subject===l.subject&&p.body===l.body);
    const exactGap=identical?s.night-identical.night:Infinity;
    const seenExact=exactGap<=10?-5.5:exactGap<=30?-3.5:exactGap<=80?-1.5:prior.some(p=>p.id===l.id)?-.9:0;
-   const score=2.0+continuity+gapBonus+varied+topicMatch+special+connection+repeatInNight+seenExact+autoDJNoise(`letter:${l.id}`)*1.65;
+   // 均等割り当てではなく順位に軽く影響させるだけ。候補にない人は選ばない。
+   const recentBalance=Math.max(-1.4,Math.min(2.0,(typicalRecent-(recentTally[l.who]||0))*.045));
+   const longBalance=Math.max(-.5,Math.min(.8,(typicalOverall-(overallTally[l.who]||0))*.007));
+   const score=2.0+continuity+gapBonus+varied+topicMatch+special+newStory+connection+repeatInNight+seenExact+recentBalance+longBalance+autoDJNoise(`letter:${l.id}`)*1.65;
    return {id:l.id,score};
   }).sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id));
   if(!ranked.length)break;
@@ -2020,7 +2075,7 @@ function autoDJReply(l){
   autoDJRememberReply(l,'特別返答',body,autoDJOptionTag('',body));
   return {tag:'special',response:body};
  }
- const choices=(l.programSpecial&&(WHIMSICAL_SPECIAL_CHOICES[l.themeId]||MILESTONE_SPECIAL_CHOICES[l.themeId]))?(l.choices||[]):
+ const choices=l.chapter4?(l.choices||[]):(l.programSpecial&&(WHIMSICAL_SPECIAL_CHOICES[l.themeId]||MILESTONE_SPECIAL_CHOICES[l.themeId]))?(l.choices||[]):
    autoDJTaughtChoices(l)||[...(l.choices||[]),...autoDJMomentChoices(l),...autoDJLatePersonalChoices(l),...autoDJHeardLetterChoices(l),...autoDJEverydayChoices(l)];
  const ranked=autoDJRankChoices(l,choices);
  let c=ranked[0]?.i===-1?autoDJNeutralReply(l):choices[ranked[0]?.i??0];
@@ -2089,10 +2144,10 @@ const READER_DJ_VOICE={
   {text:'描く前の時間にも、その人にしかわからない長さがあるのでしょうね。',tone:'gentle',facet:'curious',pattern:/まだ描け|描こうと|描き始める前|これから絵/},
   {text:'パンの話を聞くと、スタジオにトースターが欲しくなります。',tone:'playful',facet:'wry',pattern:/パン/},
   {text:'猫主任の査定基準は、今夜も非公開のままのようです。',tone:'playful',pattern:/猫主任|主任.{0,9}猫|猫.{0,9}主任/},
-  {text:'プリンの隠し場所については、番組では捜索を請け負っておりません。',tone:'playful',pattern:/プリン/},
+  {text:'プリンのお話、真夜中に聴くには少しお腹のすく話題ですね。',tone:'playful',pattern:/プリン/},
   {text:'パンの話のあとは、深夜の空腹が少し困ります。',tone:'playful',pattern:/パン/},
   {text:'時計の話を聞くと、ついスタジオの時計まで見てしまいます。',tone:'light',pattern:/時計/},
-  {text:'月の秘密については、まだ番組にも正式な報告が来ていません。',tone:'playful',pattern:/月.{0,12}(?:秘密|裏側)|秘密.{0,12}月/}
+  {text:'月の秘密は、考え始めると話が尽きませんね。',tone:'playful',pattern:/月.{0,12}(?:秘密|裏側)|秘密.{0,12}月/}
  ],
  ending:[
   {text:'三通の手紙が並ぶと、同じ夜にもいろいろな速さがあるとわかります。',tone:'gentle'},
@@ -2111,7 +2166,7 @@ const READER_DJ_VOICE={
   {text:'今夜も、知らなかった一日が三つ増えました。おやすみなさい。',tone:'gentle',facet:'curious'},
   {text:'マイクを切ると、つい次の手紙のことを考えます。これは職業病かもしれません。',tone:'light',facet:'wry'},
   {text:'猫主任の夜勤が終わるのは、いったい何時なのでしょう。',tone:'playful',pattern:/猫主任|主任.{0,9}猫|猫.{0,9}主任/},
-  {text:'プリンの無事については、明日の報告を気長に待つことにしましょう。',tone:'playful',pattern:/プリン/},
+  {text:'今夜のプリンのお話、いろいろな展開があるものですね。',tone:'playful',pattern:/プリン/},
   {text:'パンの話を聞いた夜に、お腹が空かない方法があれば知りたいですね。',tone:'light',pattern:/パン/},
   {text:'時計の話が届く夜は、時間を忘れるわけにもいきませんね。',tone:'light',pattern:/時計/}
  ]
@@ -2135,6 +2190,144 @@ function readerDJVoiceTopicText(item){
  const distinctNames=/眠れないパン屋さん|古時計さん|月の裏側さん/g;
  return subject.replace(distinctNames,'')+'\n'+body.replace(distinctNames,'');
 }
+// v4.9.15: 読書モードの放送文だけに小さな言い換えを用意する。
+// 元の選択肢の意味・感情を維持し、通常モードの文面や選出には触れない。
+// 未紹介の出来事・未来の出来事を勝手に示唆しない独立した短文のみ。
+const READER_RADIO_PHRASING_4915={
+ opening:[
+  [
+   'こんばんは。今夜も、眠れない人のそばにこの声が届けばうれしいです。',
+   '午前二時。まだ灯りを消せない人にも、静かに寄り添えたらと思います。',
+   'こんばんは。眠れない夜なら、少しのあいだ一緒に過ごしましょう。',
+   '今夜の声が、どこかで起きている誰かの小さなおともになりますように。'
+  ],[
+   '今日という一日を過ごした皆さん、お疲れさまでした。ここでは急がずに。',
+   'こんばんは。お疲れの夜にも、ひと息つける時間をお届けします。',
+   'ここまで一日を過ごしてきた皆さんへ。肩の力を少し抜いて、お便りを。',
+   'こんな時間まで頑張った方も、休みながら聴く方も。今夜はゆっくりどうぞ。'
+  ],[
+   '午前二時になりました。皆さんのいる場所では、どんな夜が続いているでしょう。',
+   'まだ起きている皆さん、こんばんは。今夜の気分はどんな色でしょうか。',
+   '時計は午前二時を指しています。さて、どんな声が届いているでしょう。',
+   'ここから始まる一時間。今夜はどんな話と出会えるでしょうね。'
+  ],[
+   '午前二時です。眠れないことを急いで片づけずに、手紙を開いていきましょう。',
+   '夜がまだ続く方へ。ここでは、眠くなるまで慌てずにお付き合いください。',
+   '午前二時。寝つけない夜にも、誰かの手紙を聴いて過ごす時間があります。',
+   '無理に夜を終わらせなくてもいい時間です。一通目から始めますね。'
+  ],[
+   'こんばんは。帰り道の方にも、部屋で休んでいる方にも、午前二時の声を。',
+   '外を移動している人も、家で灯りをつけている人も。どうぞご一緒に。',
+   '帰り道でも、いつもの部屋でも。今夜の放送をそっと始めましょう。',
+   '今夜も、いろいろな場所で聴いている皆さんへ。まずは最初のお便りです。'
+  ],[
+   '窓の外には静かな道。それでも、今夜もどこかで誰かが起きています。',
+   '明かりのついた窓が、街にはまだあります。ここにも一通目の手紙が届きました。',
+   '街が寝静まったように見えても、夜の話はまだ終わりません。',
+   '遠くの街灯を見ながら、今夜はどんな声に会えるだろうと考えています。'
+  ]
+ ],
+ bridge:[
+  [
+   '一通目をそっと重ねて、別の封筒に手を伸ばします。',
+   'ひとつの話を大切にしまって、次の便箋を開きましょう。',
+   '今の手紙を閉じます。続いては、また別の人の今日です。',
+   '机に新しい封筒を置きました。もう一通、読んでいきます。'
+  ],[
+   'ここで少しだけ、静かな時間を置きましょう。……次のお便りです。',
+   '今の言葉を急いで流さずに。しばらくして、次の封筒を開きます。',
+   '少しの沈黙を挟みます。……さて、続きを聴いていきましょう。',
+   '言葉が途切れたまま、時計が少し進みます。次の手紙へ。'
+  ],[
+   '聴いている皆さんは、今どんな場所にいるでしょう。もう一通、読んでみます。',
+   'ラジオの向こうの景色を想像しながら、次の封筒を開きます。',
+   'それぞれ違う夜を過ごしている皆さんへ。次のお便りです。',
+   'この声がどこへ届くのか、想像することがあります。続けましょう。'
+  ],[
+   '机の上では、次の封筒が出番を待っています。順番に開けましょう。',
+   '封筒はまだあります。急かされてはいませんが、そろそろ次の一通を。',
+   '机の端で控えていたお便りにも、そろそろマイクの前へ来てもらいます。',
+   '手紙の順番を間違えないように。次の封筒に移りましょう。'
+  ]
+ ],
+ closing:[
+  [
+   'ここまでのお付き合い、ありがとうございました。明日の午前二時も、ここで。',
+   '今夜の放送はここまで。また次の午前二時に、お会いしましょう。',
+   '聴いてくださった皆さん、ありがとうございます。次の夜も同じ周波数で。',
+   '今夜もお便りを届けられました。また明日の午前二時、ここからお送りします。'
+  ],[
+   '眠りにつく人にも、まだ起きている人にも、穏やかな時間がありますように。',
+   'これから眠る方も、もう少し起きている方も。どうぞ静かな夜を。',
+   '夜の続きが、皆さんにとって少しでも落ち着いたものになりますように。',
+   'どうか、それぞれの場所で無理のない夜を。今夜はここまでです。'
+  ],[
+   '決めきれないことも、この夜の中に置いておきましょう。また聞かせてください。',
+   '答えを急がずに閉じておく手紙があってもいいですね。また次の夜に。',
+   '今夜すぐ答えの出ない話にも、続きの時間があります。では、おやすみなさい。',
+   '何もひとつにまとめなくていい夜でした。お話の続きは、またいつか。'
+  ],[
+   '帰り道をゆく皆さん、どうぞお気をつけて。今夜もありがとうございました。',
+   '夜道を歩く方は、足元に気をつけて。それぞれの場所へ、どうぞご無事に。',
+   '街の明かりが、まだ誰かの帰りを照らしています。今夜はこのへんで。',
+   'これから帰る方も、家で休む方も。どうかよい夜の続きを。'
+  ],[
+   'そろそろ終了です。机のコーヒーまで夜更かしさせてしまいました。',
+   '今夜はここまで。冷めたコーヒーには、少し申し訳ない気もします。',
+   '番組は終わりです。コーヒーカップにも、そろそろ仕事を終えてもらいましょう。',
+   '締めのご挨拶です。机の上のコーヒーも、お疲れさまでした。'
+  ],[
+   '今夜の手紙はここまでです。まだ届いていない声にも、また会えるでしょうか。',
+   '今日の便箋を閉じます。また新しい手紙が届く夜を楽しみにしています。',
+   '次の夜には、どんな声が届くでしょう。今夜もありがとうございました。',
+   'ここに届いた言葉も、これから届く言葉も。次の放送でお待ちしています。'
+  ]
+ ]
+};
+// 既に保存した原稿は書き換えない。過去の読書記録に現れた表現も
+// 重複回避の参考にし、読書本文だけに変化を加える。世界の乱数は消費しない。
+function readerRadioPhrase4915(kind,index,slot=0){
+ const standard=kind==='opening'?opening[index]:kind==='closing'?STATION_CLOSINGS[index]?.[1]:STATION_INTERLUDES[index]?.[1];
+ if(typeof standard!=='string'||!standard)return '';
+ const options=[standard,...(READER_RADIO_PHRASING_4915[kind]?.[index]||[])];
+ const recent=(s.reader?.pages||[]).slice(-75);
+ const used=recent.map(p=>kind==='opening'?[p.radioOpening||p.opening]:kind==='closing'?[p.radioClosing||p.closing]:(p.radioBridges||p.interludes?.map(i=>STATION_INTERLUDES[i]?.[1]||'')||[])).flat();
+ const ranked=options.map((line,i)=>{
+  const latest=recent.findLastIndex(p=>kind==='opening'?(p.radioOpening||p.opening)===line:kind==='closing'?(p.radioClosing||p.closing)===line:(p.radioBridges||p.interludes?.map(j=>STATION_INTERLUDES[j]?.[1]||'')||[]).includes(line));
+  const gap=latest<0?999:recent.length-latest;
+  const occurrences=used.filter(x=>x===line).length;
+  const noise=(automaticStyleHash(`radio-phrase4915:${s.night}:${kind}:${slot}:${index}:${i}`)%10000)/10000;
+  return {i,score:noise*1.1-occurrences*.85-Math.max(0,22-gap)*.35};
+ }).sort((a,b)=>b.score-a.score||a.i-b.i);
+ return options[ranked[0].i];
+}
+
+// v4.9.16 『おたより中心』用の、演出の意味を変えない言い換え。
+// リスナー・返答・楽曲・元の演出履歴は維持し、画面と放送日誌だけ実際の言い方を記録。
+// 今夜以前に記録済みの言い回しだけを参照するため、同じ夜の再描画や再開で変わらない。
+// 保存済みの途中放送は lettersPhrase4916 がないため、従来の言い方を保持する。
+function lettersBroadcastPhrase4916(kind,index,slot=0){
+ const standard=kind==='opening'?opening[index]:kind==='closing'?STATION_CLOSINGS[index]?.[1]:STATION_INTERLUDES[index]?.[1];
+ if(typeof standard!=='string'||!standard)return '';
+ if(!isLettersMode()||s.lettersPhrase4916!==s.night)return standard;
+ const options=[standard,...(READER_RADIO_PHRASING_4915[kind]?.[index]||[])];
+ const type=kind==='opening'?'オープニング':kind==='closing'?'エンディング':'つなぎの一言';
+ const previous=(s.logs||[]).filter(x=>x.night<s.night&&x.night>=s.night-80&&x.type===type);
+ const ranked=options.map((line,i)=>{
+  const prior=previous.filter(x=>x.message===line);
+  const last=prior.length?prior[prior.length-1].night:-9999;
+  let score=(automaticStyleHash(`letters-voice4916:${s.night}:${kind}:${slot}:${index}:${i}`)%10000)/10000*1.35;
+  score-=prior.length*.95+Math.max(0,15-(s.night-last))*.18;
+  // 同じ夜の2つの幕間が同文にならないよう、2通目との違いだけ確認。
+  if(kind==='bridge'&&slot===2&&s.broadcastStyle?.interludes?.[1]>=0){
+   const earlier=lettersBroadcastPhrase4916('bridge',s.broadcastStyle.interludes[1],1);
+   if(earlier===line)score-=6;
+  }
+  return {i,score};
+ }).sort((a,b)=>b.score-a.score||a.i-b.i);
+ return options[ranked[0].i];
+}
+
 function readerDJChooseVoice(){
  const night=s.night,all=(s.played||[]).filter(p=>p.night===night);
  const blank={opening:'',interludes:['',''],ending:''};
@@ -2205,6 +2398,7 @@ function readerProduceNight(){
   if(s.phase==='complete')beginRegular();
   if(s.phase==='chapter2_complete')beginAfterChapter2();
   if(s.phase==='chapter3_complete')beginAfterChapter3();
+  if(s.phase==='chapter4_complete')beginAfterChapter4();
   // 予告放送を読了した次の操作では、通常夜ではなく最後の原稿を一度だけ生成。
   if(s.phase==='final_intro'){readerBatch=false;finaleReaderProduce();return;}
   if(s.phase!=='intro'&&s.phase!=='prepare')throw Error('読書用の夜の開始位置が不正です: '+s.phase);
@@ -2229,6 +2423,7 @@ function readerProduceNight(){
   finishBroadcast();
   if(s.phase!=='after')throw Error('放送が終了できませんでした');
   const outro=readerTextFromPanel(after());
+  if(s.night===92&&chapter4IsNight(92))outro.text+='\n\n'+CH4_READER_CODA;
   const night=s.night;
   const source=s.special?.planned?.night===night?s.special.planned.storySource:null;
   const specialOrigin=source&&Number.isInteger(source.originNight)?{night:source.originNight,subject:String(source.sourceSubject||'')}:null;
@@ -2237,6 +2432,9 @@ function readerProduceNight(){
   const page={night,djVoice,title:readerEditorialTitle(introduction.title,night),intro:readerEditorialScene(introduction.text,'intro',night),outro:readerEditorialScene(outro.text,'outro',night),specialOrigin,specialIntro:specialIntroText,
    opening:opening[s.opening]||'',song:songs[s.song]?.slice(0,2)||[],closing:STATION_CLOSINGS[s.broadcastStyle.closing]?.[1]||'',
    interludes:s.chosen.slice(1).map((id,i)=>s.broadcastStyle.interludes[i+1]??-1),letterIds:s.chosen.slice()};
+  page.radioOpening=readerRadioPhrase4915('opening',s.opening);
+  page.radioClosing=readerRadioPhrase4915('closing',s.broadcastStyle.closing);
+  page.radioBridges=page.interludes.map((index,slot)=>index>=0?readerRadioPhrase4915('bridge',index,slot):'');
   if(s.finale?.status==='announced'&&s.night===s.finale.announcedNight)page.finaleAnnouncement=FINALE_ANNOUNCEMENTS[s.finale.announcementChoice??1];
   if(djSmallStory)page.djSmallStory=djSmallStory; // ほかの夜には追加情報を一切保存しない。
   r.pages.push(page);r.viewIndex=r.pages.length-1;r.scrollY=0;
@@ -2324,7 +2522,7 @@ function readerNightContents(entries){
  return `<details class="reader-contents"><summary><span class="reader-contents-title">${uiIcon('list')}今夜の目次</span><span class="reader-contents-summary-detail">おたより${entries.length}通・選曲・終幕</span></summary><nav class="reader-contents-links" aria-label="今夜の放送内を移動"><a href="#reader-introduction" onclick="readerJumpToSection('reader-introduction');return false"><span>OPENING</span><strong>放送のはじまり</strong></a>${items}<a href="#reader-ending" onclick="readerJumpToSection('reader-ending');return false"><span>FINAL SONG</span><strong>選曲と終幕</strong></a></nav></details>`;
 }
 function readerShell(content){
- return `<div class="reader-layout"><header class="reader-header"><div><div class="brand reader-brand">SOMEWHERE ON AIR</div><div class="reader-mode-label">${uiIcon('moon')}<span>ANOTHER FREQUENCY / 読書モード</span></div><h1>聴くだけの夜</h1><div class="small">誰かが選んだ言葉の、その先を読む</div></div><button class="btn secondary" type="button" onclick="switchToMain()">${uiIcon('radio')}<span>本編に戻る</span></button></header><main id="main" class="reader-main">${content}</main><footer class="reader-footer">本編の選択と記憶は変更されません · v4.9.5</footer></div>`;
+ return `<div class="reader-layout"><header class="reader-header"><div><div class="brand reader-brand">SOMEWHERE ON AIR</div><div class="reader-mode-label">${uiIcon('moon')}<span>ANOTHER FREQUENCY / 読書モード</span></div><h1>聴くだけの夜</h1><div class="small">誰かが選んだ言葉の、その先を読む</div></div><button class="btn secondary" type="button" onclick="switchToMain()">${uiIcon('radio')}<span>本編に戻る</span></button></header><main id="main" class="reader-main">${content}</main><footer class="reader-footer">本編の選択と記憶は変更されません · v4.9.16</footer></div>`;
 }
 function readerView(){
  const r=s.reader;
@@ -2335,12 +2533,12 @@ function readerView(){
  const entries=p.letterIds.map(id=>s.played.find(x=>x.night===p.night&&x.id===id)).filter(Boolean);
  const djVoice=p.djVoice||{};
  const displayIntro=readerEditorialScene(p.intro,'intro',p.night),displayOutro=readerEditorialScene(p.outro,'outro',p.night),displayTitle=readerEditorialTitle(p.title,p.night);
- let content=`<div class="reader-page-head" id="reader-introduction"><div class="overline">第${p.night}夜 / THE NIGHT'S VOICES</div><h2>${esc(displayTitle||'今夜の放送')}</h2><p>${fmt(displayIntro||'午前二時。マイクの灯りがともる。')}</p><p class="reader-mic">${fmt(p.opening)}</p>${djVoice.opening?`<p class="reader-dj-voice">${fmt(djVoice.opening)}</p>`:''}${p.specialIntro?`<p class="reader-special-line">${fmt(p.specialIntro)}</p>`:''}</div>`;
+ let content=`<div class="reader-page-head" id="reader-introduction"><div class="overline">第${p.night}夜 / THE NIGHT'S VOICES</div><h2>${esc(displayTitle||'今夜の放送')}</h2><p>${fmt(displayIntro||'午前二時。マイクの灯りがともる。')}</p><p class="reader-mic">${fmt(p.radioOpening||p.opening)}</p>${djVoice.opening?`<p class="reader-dj-voice">${fmt(djVoice.opening)}</p>`:''}${p.specialIntro?`<p class="reader-special-line">${fmt(p.specialIntro)}</p>`:''}</div>`;
  entries.forEach((entry,i)=>{
-  const bridge=i===0?'':p.interludes[i-1]===-1?'少しのあいだ、言葉のない時間が流れた。':STATION_INTERLUDES[p.interludes[i-1]]?.[1]||'次の手紙を開く。';
+  const bridge=i===0?'':p.interludes[i-1]===-1?'少しのあいだ、言葉のない時間が流れた。':p.radioBridges?.[i-1]||STATION_INTERLUDES[p.interludes[i-1]]?.[1]||'次の手紙を開く。';
   content+=`${i?`<p class="reader-transition">${esc(bridge)}</p>${djVoice.interludes?.[i-1]?`<p class="reader-dj-voice reader-dj-between">${fmt(djVoice.interludes[i-1])}</p>`:''}`:''}<article class="reader-letter" id="reader-letter-${i+1}"><div class="overline">LETTER ${i+1} / ${entries.length}</div><h3>${esc(NAMES[entry.who]||entry.who)}　「${esc(entry.subject)}」</h3><div class="reader-letter-body">${fmt(entry.body||'')}</div><div class="reader-response-label">パーソナリティからの返答</div><div class="reader-response">${fmt(entry.response||'')}</div></article>`;
  });
- content+=`<section class="reader-ending" id="reader-ending"><div class="overline">02:53 / A FINAL SONG</div><p>♪ ${esc(p.song?.[0]||'')}</p><p class="small">${esc(p.song?.[1]||'')}</p>${djVoice.ending?`<p class="reader-dj-voice reader-dj-final">${fmt(djVoice.ending)}</p>`:''}<p>${fmt(p.closing||'')}</p>${p.finaleAnnouncement?`<div class="finale-callout"><div class="overline">02:59 / 閉局のお知らせ</div><p>${fmt(p.finaleAnnouncement)}</p></div>`:''}<div class="overline">03:00 / OFF AIR</div><p>${fmt(displayOutro||'今夜も放送が終わった。')}</p>${p.djSmallStory&&typeof p.djSmallStory.text==='string'?`<aside class="reader-dj-small-story" aria-label="放送後のひとこま"><div class="overline">03:07 / AFTER THE LIGHTS</div><h3>${esc(p.djSmallStory.title||'スタジオの小さな時間')}</h3><p>${fmt(p.djSmallStory.text)}</p></aside>`:''}${readerOriginFootnote(p)}<a class="reader-back-to-top" href="#reader-page-top" onclick="readerJumpToSection('reader-page-top');return false">↑ 今夜の最初に戻る</a></section>`;
+ content+=`<section class="reader-ending" id="reader-ending"><div class="overline">02:53 / A FINAL SONG</div><p>♪ ${esc(p.song?.[0]||'')}</p><p class="small">${esc(p.song?.[1]||'')}</p>${djVoice.ending?`<p class="reader-dj-voice reader-dj-final">${fmt(djVoice.ending)}</p>`:''}<p>${fmt(p.radioClosing||p.closing||'')}</p>${p.finaleAnnouncement?`<div class="finale-callout"><div class="overline">02:59 / 閉局のお知らせ</div><p>${fmt(p.finaleAnnouncement)}</p></div>`:''}<div class="overline">03:00 / OFF AIR</div><p>${fmt(displayOutro||'今夜も放送が終わった。')}</p>${p.djSmallStory&&typeof p.djSmallStory.text==='string'?`<aside class="reader-dj-small-story" aria-label="放送後のひとこま"><div class="overline">03:07 / AFTER THE LIGHTS</div><h3>${esc(p.djSmallStory.title||'スタジオの小さな時間')}</h3><p>${fmt(p.djSmallStory.text)}</p></aside>`:''}${readerOriginFootnote(p)}<a class="reader-back-to-top" href="#reader-page-top" onclick="readerJumpToSection('reader-page-top');return false">↑ 今夜の最初に戻る</a></section>`;
  const i=r.viewIndex;
  return `<div id="reader-page-top" class="reader-page-top"></div>${readerNightNavigation(r,i)}<section class="reader-paper">${readerNightContents(entries)}${content}<div class="reader-actions"><button class="btn secondary" ${i<=0?'disabled':''} onclick="readerGotoPage(${i-1})">← 前の夜</button><button class="btn" onclick="readerProduceNight()">${i<r.pages.length-1?'次の記録を読む':s.finale?.status==='announced'?'最終放送を読む →':'次の夜へ →'}</button></div><p class="reader-page-count">${i+1} / ${r.pages.length} 夜分の記録</p></section>${i===r.pages.length-1?finalePlanExplanation():''}${readerReaderTools()}`;
 }
@@ -2383,7 +2581,7 @@ function render(){
   ensureAutomaticBroadcastSelections();
   if(!['studio','letters','journal','listeners','settings'].includes(s.tab))s.tab='studio';
   const content=readerSetupOpen?readerSetupScreen():s.tab==='letters'?lettersTab():s.tab==='journal'?journal():s.tab==='listeners'?listeners():s.tab==='settings'?settings():
-    s.phase==='final_intro'?finaleIntroduction():s.phase==='final_broadcast'?finaleBroadcast():s.phase==='final_complete'?finaleView==='review'?finaleArchiveHtml():finaleView==='keepsakes'?finaleKeepsakes():finaleCompletedView():s.phase==='intro'?intro():s.phase==='prepare'?prepare():s.phase==='broadcast'?broadcast():s.phase==='reply'?reply():s.phase==='after'?after():s.phase==='chapter2_complete'?chapter2Complete():s.phase==='chapter3_complete'?chapter3Complete():complete();
+    s.phase==='final_intro'?finaleIntroduction():s.phase==='final_broadcast'?finaleBroadcast():s.phase==='final_complete'?finaleView==='review'?finaleArchiveHtml():finaleView==='keepsakes'?finaleKeepsakes():finaleCompletedView():s.phase==='intro'?intro():s.phase==='prepare'?prepare():s.phase==='broadcast'?broadcast():s.phase==='reply'?reply():s.phase==='after'?after():s.phase==='chapter2_complete'?chapter2Complete():s.phase==='chapter3_complete'?chapter3Complete():s.phase==='chapter4_complete'?chapter4Complete():complete();
   let decorated=s.tab==='studio'&&s.phase==='intro'?climateIntroText(s.night)+content:content;
   if(s.tab==='studio'&&s.phase==='prepare')decorated=hideableHint('choose','気になる手紙を選んでみましょう。紹介しなかった人も、その後の生活を続けます。')+decorated;
   if(s.tab==='studio'&&s.phase==='reply')decorated=hideableHint('reply','どれが正しいかより、自分ならこの人に何を伝えたいかで選んでみてください。')+decorated;
@@ -2836,17 +3034,47 @@ if(!['final_intro','final_broadcast','final_complete'].includes(s.phase))nightLe
 // 第3章（新リスナーの初登場と50夜記念を経た、51夜目からの14夜）
 function chapter3Intro(){
  const n=s.night,idx=chapter3Offset(n),theme=CH3_DAYS[idx];
- const initial=idx===0?'新しい声が三つ、ラジオに加わった。\n\n知らない人だった誰かが、今日も自分の仕事や学校へ向かっている。\n\n':'昨夜の放送のあとにも、街では別々の一日が過ぎた。\n\n';
- return `<section class="panel chapter3-panel"><div class="overline">CHAPTER THREE / NIGHT ${n} · 01:47</div><h2>${esc(theme[0])}</h2><p>${fmt(initial+theme[1]+'\n\n第3章「変わらないもの、変わっていくもの」。今夜も、まだ知らないことが多い。')}</p><div class="notice">新旧のリスナーたちが、生活の中でそれぞれ選んだことを手紙にします。読まれなかった便りの向こうでも、人生は続きます。</div><div class="actions"><button class="btn" onclick="startNight()">今夜のお便りを確認する →</button></div></section>`;
+ const scenes=[
+  '昨夜の放送から、街ではまた一日が過ぎた。',
+  '机の上の紙が、一枚ずつ新しい順に並べられる。',
+  '窓の向こうはまだ暗い。誰かはもう朝の準備を始めている。',
+  '誰かが送った封筒が、今夜もこの机に届いている。',
+  'スタジオの静けさの中で、次の便箋を手に取る。',
+  'いつもと同じ時間でも、届く言葉は少しずつ違う。'
+ ];
+ const first=idx===0;
+ const initial=first?'新しい声が三つ、ラジオに加わった。\n\n知らない人だった誰かが、今日も自分の仕事や学校へ向かっている。':scenes[(idx-1)%scenes.length];
+ const text=initial+'\n\n'+theme[1]+(first?'\n\n第3章「変わらないもの、変わっていくもの」。今夜も、まだ知らないことが多い。':'');
+ const note=first?'<div class="notice">新旧のリスナーたちが、それぞれの暮らしから手紙を送ります。読まれなかった便りの向こうでも、人生は続きます。</div>':'';
+ return `<section class="panel chapter3-panel"><div class="overline">CHAPTER THREE / NIGHT ${n} · 01:47</div><h2>${esc(theme[0])}</h2><p>${fmt(text)}</p>${note}<div class="actions"><button class="btn" onclick="startNight()">今夜のお便りを確認する →</button></div></section>`;
 }
 function chapter3After(){
  const n=s.night,idx=chapter3Offset(n),scenes=[
   '誰かの暮らしが変わったことは、いつも大きなニュースになるわけではない。',
   '読まれなかったお便りの送り主にも、今夜の食事と明日の予定がある。',
   '同じ街の灯りが、一つずつ消えていった。',
-  '前の手紙と違うことを書いた人も、書かなかった人もいる。'
+  '前の手紙と違うことを書いた人も、書かなかった人もいる。',
+  '雨の匂いが残る通りにも、普段どおりの朝が来る。',
+  '机の上には、言いかけたままの文章が残っている。',
+  '今夜の返事が届くころには、誰かはもう別のことを考えているかもしれない。',
+  '窓の外を、遅い車の明かりが一つ通り過ぎた。',
+  '誰かの小さな選択を、この局がすべて知ることはない。',
+  '手紙をしまう音が、曲の終わったスタジオに響いた。',
+  '今夜は、答えを急がずに置いておける話もあった。',
+  '離れた街のいくつかの窓では、まだ灯りがともっている。',
+  '読んだ便箋と、読まなかった便箋が、別々の束になった。',
+  '窓の向こうには、この局の知らない明日がある。'
  ];
- return `<section class="panel end"><div class="overline">03:00 / OFF AIR · CHAPTER THREE</div><h2>今夜の放送が終わった</h2><p>${fmt(scenes[idx%scenes.length]+'\n\nマイクの灯りを消す。届いた声をすべて知った気にはなれない。\n\nそれでも、明日も午前2時がやって来る。')}</p><hr class="divider"><div class="small">今夜紹介したお便り：${s.played.filter(x=>x.night===n).length}通</div><div class="small">紹介しなかったお便り：${Math.max(0,nightLetters(n).length-s.chosen.length)}通</div><div class="actions"><button class="btn" onclick="nextNight()">${idx===CH3_DAYS.length-1?'第3章を振り返る →':'次の夜へ進む →'}</button></div></section>`;
+ const endings=[
+  'マイクの灯りを消す。次の夜にも、また新しい便箋が届くだろう。',
+  'スタジオを片づける間にも、誰かの一日は先へ進んでいる。',
+  '少し冷めた飲み物を置いて、次の放送の準備を始める。',
+  '時計は午前三時を指している。まだ話していないことは、たくさんある。',
+  '手紙をそろえて、机の上に少しの空きを作った。',
+  '放送は終わった。それぞれの朝は、ここからも続く。',
+  '最後の原稿を閉じる。今夜の先のことは、まだ誰にもわからない。'
+ ];
+ return `<section class="panel end"><div class="overline">03:00 / OFF AIR · CHAPTER THREE</div><h2>今夜の放送が終わった</h2><p>${fmt(scenes[idx]+'\n\n'+endings[idx%endings.length])}</p><hr class="divider"><div class="small">今夜紹介したお便り：${s.played.filter(x=>x.night===n).length}通</div><div class="small">紹介しなかったお便り：${Math.max(0,nightLetters(n).length-s.chosen.length)}通</div><div class="actions"><button class="btn" onclick="nextNight()">${idx===CH3_DAYS.length-1?'第3章を振り返る →':'次の夜へ進む →'}</button></div></section>`;
 }
 function chapter3Complete(){
  const c=s.chapter3;
@@ -2857,12 +3085,44 @@ function chapter3Complete(){
   const l=heard.at(-1);
   return `<div class="listener"><b>${esc(NAMES[id])}</b><div class="small">第${l.night}夜に紹介した「${esc(l.subject)}」が、今は最後に聴いた声。</div></div>`;
  }).join('');
- const prose='十四夜が過ぎた。\n\n新しい人の名前を覚えるようになり、前から知っている人の意外な一面も聴いた。\n\n返事を送った手紙も、紹介しなかった手紙もある。\n\nそれでも、番組の外には今夜とは違う明日がある。';
+ const prose='十四夜が過ぎた。\n\n新しい名前も、昔から届いている名前も、便箋の数だけ異なる暮らしを持っている。\n\n返事を送った手紙も、紹介しなかった手紙もある。\n\nそれでも、番組の外には今夜とは違う明日がある。';
  return `<section class="panel end chapter3-panel"><div class="overline">CHAPTER THREE / FOURTEEN NIGHTS</div><h2>それぞれの窓</h2><p>${fmt(prose)}</p><hr class="divider"><h3>放送で知ったこと</h3><p class="muted">実際に紹介したお便りだけを振り返ります。本人だけが知っている決断は表示しません。</p>${items}<div class="notice">第3章完了。3つの章を経た性格・記憶・人間関係・人生の目標は、これからの通常放送にも引き継がれます。</div><div class="actions"><button class="btn secondary" onclick="setTab('journal')">放送日誌を読む</button><button class="btn" onclick="beginAfterChapter3()">通常放送を続ける →</button><button class="btn secondary" onclick="setTab('settings')">バックアップを保存</button></div></section>`;
 }
 function beginAfterChapter3(){
  if(s.phase!=='chapter3_complete'||chapter3Offset(s.night)!==CH3_DAYS.length-1)return;
  s.night++;s.phase='intro';s.tab='studio';s.opening=null;s.chosen=[];s.cursor=0;
  s.current=null;s.replyStep=0;s.replyParts=[null,null,null];s.song=null;s.broadcastStyle.closing=null;s.broadcastStyle.interludes={};s.broadcastStyle.completed={};s.nightBroadcastMode=null;
+ nightLetters(s.night);save();render();
+}
+
+
+
+// v4.9.8 第4章表示。DJが知らない私生活を既知のものとして語らない。
+function chapter4Intro(){
+ const n=s.night,d=CH4_DAYS[n-79];
+ const opening=CH4_INTRO_SCENES[n];
+ const text=opening+'\n\n'+d[1];
+ const notice=n===79?'<div class="notice">第4章「声の届かない朝にも」。章のお便りも、いつものお便りも紹介候補です。</div>':'';
+ return `<section class="panel chapter4-panel"><div class="overline">CHAPTER FOUR / NIGHT ${n} · 01:48</div><h2>${esc(d[0])}</h2><p>${fmt(text)}</p>${notice}${specialPlanningPanel()}<div class="actions"><button class="btn" onclick="startNight()">今夜のお便りを確認する →</button></div></section>`;
+}
+function chapter4After(){
+ const n=s.night,d=CH4_DAYS[n-79],scene=CH4_AFTER_SCENES[n];
+ const heard=(s.played||[]).filter(p=>p.night===n&&typeof p.id==='string'&&p.id.startsWith('chapter4_'));
+ const details=heard.map(p=>{const m=/^chapter4_(\d+)_([a-z]+)$/.exec(p.id);return m?CH4_HEARD_DETAILS[`${m[1]}:${m[2]}`]:null}).filter(Boolean);
+ // 第4章の手紙を選ばなかった夜にも、通常のお便りの余韻を損なわない。
+ const middle=details.length?details.slice(0,2).join('\n\n'):scene[1];
+ const text=scene[0]+'\n\n'+middle+'\n\n'+scene[2];
+ return `<section class="panel end chapter4-panel"><div class="overline">03:00 / OFF AIR · CHAPTER FOUR</div><h2>${esc(d[0])}</h2><p>${fmt(text)}</p><hr class="divider"><div class="small">今夜紹介したお便り：${s.played.filter(x=>x.night===n).length}通</div><div class="small">紹介しなかったお便り：${Math.max(0,nightLetters(n).length-s.chosen.length)}通</div><div class="actions"><button class="btn" onclick="nextNight()">${n===92?'第4章を振り返る →':'次の夜へ進む →'}</button></div></section>`;
+}
+function chapter4Complete(){
+ const seen=(s.played||[]).filter(p=>p.night>=79&&p.night<=92&&p.id?.startsWith('chapter4_'));
+ const shown=new Set(seen.map(p=>p.who));
+ const entries=CH4_PEOPLE.map(who=>{const mails=seen.filter(p=>p.who===who);const latest=mails.at(-1);return `<div class="listener"><b>${esc(NAMES[who])}</b><div class="small">${latest?`第${latest.night}夜の「${esc(latest.subject)}」がこの章で紹介した便り。`:'この章ではお便りを紹介しなかった。局の知らない一日も続いている。'}</div></div>`}).join('');
+ const text='午前三時。放送卓には、今夜の原稿が重ねられている。\n\n読まれた手紙と、読まれなかった手紙。そこに書かれなかった出来事も、きっとたくさんある。\n\n窓の向こうでは、誰かが朝の支度を始めている。\n\nこの局の知らない時間にも、それぞれの暮らしは続いていく。\n\n机の上には、次の放送のための白い紙が一枚残されていた。';
+ return `<section class="panel end chapter4-panel"><div class="overline">CHAPTER FOUR / FOURTEEN NIGHTS</div><h2>声の届かない朝にも</h2><p>${fmt(text)}</p><hr class="divider"><h3>この章で紹介した声</h3><p class="muted">実際に放送で紹介した手紙だけを振り返ります。</p>${entries}<div class="notice">第4章が終わっても番組は続きます。第93夜から、また新しい放送へ。</div><div class="actions"><button class="btn secondary" onclick="setTab('journal')">放送日誌を読む</button><button class="btn" onclick="beginAfterChapter4()">次の夜へ進む →</button><button class="btn secondary" onclick="setTab('settings')">バックアップを保存</button></div></section>`;
+}
+function beginAfterChapter4(){
+ if(s.phase!=='chapter4_complete'||s.night!==92)return;
+ s.night=93;s.phase='intro';s.tab='studio';s.opening=null;s.chosen=[];s.cursor=0;s.current=null;s.replyStep=0;s.replyParts=[null,null,null];s.song=null;s.broadcastStyle.closing=null;s.broadcastStyle.interludes={};s.broadcastStyle.completed={};s.nightBroadcastMode=null;
  nightLetters(s.night);save();render();
 }

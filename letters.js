@@ -593,7 +593,7 @@ const REGULAR_INTROS = {
  clock:['こんばんは。今夜は時計の音がよく聞こえます。','こんばんは。散歩から帰って、お茶を淹れました。','こんばんは。古時計から、また小さなお便りです。'],
  terminal:['こんばんは。今日は帰りの電車が静かでした。','こんばんは。駅に行かない夜にも、時刻表は眺めます。','こんばんは。短いお便りですが、送ります。'],
  bread:['こんばんは。閉店後の厨房から失礼します。','こんばんは。今日は粉まみれになりました。','こんばんは。焼き上がりを待ちながら聴いています。'],
- moon:['こんばんは。今夜の月にも、何か事情がありそうです。','こんばんは。冷蔵庫のプリンは、まだ無事です。','こんばんは。少し変な話を思いつきました。'],
+ moon:['こんばんは。今夜の月にも、何か事情がありそうです。','こんばんは。今日は、地上の小さな報告です。','こんばんは。少し変な話を思いつきました。'],
  anon:['こんばんは。聴いている時間のほうが長い者です。','こんばんは。今夜は短いお便りをひとつ送ります。','こんばんは。声にしないまま考えていたことがあります。'],
  sugar:['こんばんは。コーヒーを淹れたところです。','こんばんは。いつもの砂糖は三杯です。','こんばんは。夜更けの一言です。']
 };
@@ -1767,12 +1767,12 @@ function lateReplyChoices486(l,key,base){
  const m=String(l.id||'').match(/^regular_(\d+)_/);
  if(!l.regular||!m||Number(m[1])<90)return base;
  // special, curated, culture, thread など、既存の固有シナリオには介入しない。
- if(l.kind==='culture'||l.kind==='variety'||l.kind==='radio-memory'||l.kind==='long-echo'||l.kind==='daily-thread'||l.kind==='relation-thread'||l.kind==='surprise46')return base;
+ if(l.kind==='laterlife4914'||l.kind==='culture'||l.kind==='variety'||l.kind==='radio-memory'||l.kind==='long-echo'||l.kind==='daily-thread'||l.kind==='relation-thread'||l.kind==='surprise46')return base;
  const extra=LATE_REPLY_CHOICES_486[key]||LATE_REPLY_CHOICES_486.ordinary;
  return [...base,...extra].map(row=>[...row]);
 }
 function replyTopicChoices(l){
- if(l.kind==='everyday47'&&Array.isArray(l.choices)&&l.choices.length>=3)return l.choices.map(x=>[...x]);
+ if(['everyday47','laterlife4914'].includes(l.kind)&&Array.isArray(l.choices)&&l.choices.length>=3)return l.choices.map(x=>[...x]);
  if(l.kind==='variety'&&Array.isArray(l.choices)&&l.choices.length>=3)return l.choices.map(x=>[...x]);
  if(l.kind==='culture'&&l.culture){
   const top=RADIO_CULTURE_TOPICS[l.culture.topic],name=top?.name||'あの話題';
