@@ -1076,9 +1076,9 @@ function newListenerArcNote(id,n){
  const item=(meta.milestones||[]).find(x=>x.night>meta.lastArcMailNight&&x.night<n&&x.summary!==meta.lastArcSummary45);
  if(!item)return null;
  const paragraphs={
-  umbrella:'店を続けていると、花を手渡す時間は好きなのに、自分の休みをうまく作れないことがあります。今は'+item.summary+'。\n\n花屋を続けるかどうかではなく、続け方を少し考える夜です。',
-  triangle:'将来の夢は相変わらず一つに決まっていません。最近は'+item.summary+'。\n\n友達の答えと、自分の答えが違ってもいいのか、考えています。',
-  fridge:'料理の仕事をしていると、一日の終わりがわからなくなることがあります。最近は'+item.summary+'。\n\n仕事が好きだという気持ちは、そのまま持っていたいです。'
+  umbrella:'店を続けていると、花を手渡す時間は好きなのに、自分の休みをうまく作れないことがあります。今は'+letterPoliteProgress491(item.summary)+'。\n\n花屋を続けるかどうかではなく、続け方を少し考える夜です。',
+  triangle:'将来の夢は相変わらず一つに決まっていません。最近は'+letterPoliteProgress491(item.summary)+'。\n\n友達の答えと、自分の答えが違ってもいいのか、考えています。',
+  fridge:'料理の仕事をしていると、一日の終わりがわからなくなることがあります。最近は'+letterPoliteProgress491(item.summary)+'。\n\n仕事が好きだという気持ちは、そのまま持っていたいです。'
  };
  return {subject:{umbrella:'花屋を続ける時間',triangle:'まだ決めていない答え',fridge:'火を消したあとの時間'}[id],body:regularFirstSentence(id,n)+'\n\n'+paragraphs[id],kind:'new-arc',tag:`new-arc-${item.night}`,arcSummary45:item.summary};
 }
@@ -1091,7 +1091,7 @@ function newListenerPersonalNote(id,n){
   fridge:['厨房とは別に、自分の夜がちゃんとあると思いたいです。','仕事に慣れていても、自分の暮らしはまだ練習中です。','家では誰にも採点されないから、少し気楽です。']
  };
  const tail=tails[id][simHash(`new:tail:${id}:${n}`)%3];
- return {subject,body:regularFirstSentence(id,n)+'\n\n'+day.activity.replace(/。+$/,'')+'。\n\n'+tail,kind:'new-life',tag:`new-life-${day.actionId}`};
+ return {subject,body:regularFirstSentence(id,n)+'\n\n'+letterPoliteActivity491(day.activity)+'。\n\n'+tail,kind:'new-life',tag:`new-life-${day.actionId}`};
 }
 function newListenerCompose(id,n){
  const arc=newListenerArcNote(id,n);
@@ -1149,6 +1149,107 @@ function newListenerAfterDaily(n){
   privateRemember(id,describe); // 局には公開しない。
  }
 }
+
+// v4.9.1: 生活シミュレーション内部の行動記録（常体）を、便箋へ転記するときだけ丁寧体にする。
+// 書き換えるのは表示用の本文だけ。行動記録・記憶・乱数・保存済みの放送は変更しない。
+const LETTER_POLITE_ACTIVITY_491=Object.freeze({
+  "仕事の段取りを一つ見直した": "仕事の段取りを一つ見直しました",
+  "帰宅後、照明を落としてゆっくり休んだ": "帰宅後、照明を落としてゆっくり休みました",
+  "机の奥のスケッチブックを開いて眺めた": "机の奥のスケッチブックを開いて眺めました",
+  "帰り道に喫茶店へ寄った": "帰り道に喫茶店へ寄りました",
+  "上司に仕事の進め方を一つ相談した": "上司に仕事の進め方を一つ相談しました",
+  "昔の友人に送る文章を下書きした": "昔の友人に送る文章を下書きしました",
+  "机に向かって短い線を何本か描いた": "机に向かって短い線を何本か描きました",
+  "翌日の配送ルートを確認した": "翌日の配送ルートを確認しました",
+  "休憩所で温かい缶コーヒーを飲んだ": "休憩所で温かい缶コーヒーを飲みました",
+  "駐車場で猫主任の近くに座ってみた": "駐車場で猫主任の近くに座ってみました",
+  "同僚に休憩中の出来事を話した": "同僚に休憩中の出来事を話しました",
+  "いつもより長く仮眠を取った": "いつもより長く仮眠を取りました",
+  "妹への短い返事を下書きした": "妹への短い返事を下書きしました",
+  "妹と話したころの写真を見つめた": "妹と話したころの写真を見つめました",
+  "講義のメモを整理した": "講義のメモを整理しました",
+  "日記に今日の気持ちを一行書いた": "日記に今日の気持ちを一行書きました",
+  "ひとりで本屋を歩いた": "ひとりで本屋を歩きました",
+  "友人といつもの雑談をした": "友人といつもの雑談をしました",
+  "兄から届いた短いメッセージを読んだ": "兄から届いた短いメッセージを読みました",
+  "断りたいときの言葉をノートに書いた": "断りたいときの言葉をノートに書きました",
+  "文章に関わる仕事について少し調べた": "文章に関わる仕事について少し調べました",
+  "知らない花を見つけながら散歩した": "知らない花を見つけながら散歩しました",
+  "手元の古い時計を一つ磨いた": "手元の古い時計を一つ磨きました",
+  "図書室で子どもたちの話を聞いた": "図書室で子どもたちの話を聞きました",
+  "好きなお茶を丁寧に淹れた": "好きなお茶を丁寧に淹れました",
+  "散歩の帰りに近所の人と立ち話をした": "散歩の帰りに近所の人と立ち話をしました",
+  "写真の入った箱を少し整理した": "写真の入った箱を少し整理しました",
+  "海辺の駅までの道順を紙に書いてみた": "海辺の駅までの道順を紙に書いてみました",
+  "仕事帰りに時刻表を開いた": "仕事帰りに時刻表を開きました",
+  "休みの日の買い物リストを作った": "休みの日の買い物リストを作りました",
+  "駅へ向かう道とは別の通りを歩いた": "駅へ向かう道とは別の通りを歩きました",
+  "古い切符を取り出して戻した": "古い切符を取り出して戻しました",
+  "誰かに宛てた便箋を一枚書きかけた": "誰かに宛てた便箋を一枚書きかけました",
+  "近所の人に道を譲って会釈した": "近所の人に道を譲って会釈しました",
+  "早く帰って窓の灯りを眺めた": "早く帰って窓の灯りを眺めました",
+  "新しいパンの配合をノートに書いた": "新しいパンの配合をノートに書きました",
+  "売り場の札を書き直した": "売り場の札を書き直しました",
+  "店長に試作品の感想を聞いた": "店長に試作品の感想を聞きました",
+  "常連さんの好みを聞いた": "常連さんの好みを聞きました",
+  "閉店後に温かい飲み物を飲んだ": "閉店後に温かい飲み物を飲みました",
+  "月の形を勝手に命名した": "月の形を勝手に命名しました",
+  "冷蔵庫の奥を確認した": "冷蔵庫の奥を確認しました",
+  "家族と変ななぞなぞを考えた": "家族と変ななぞなぞを考えました",
+  "空想をノートに書き足した": "空想をノートに書き足しました",
+  "コーヒーの味を少し変えた": "コーヒーの味を少し変えました",
+  "夕方の雲を眺めた": "夕方の雲を眺めました",
+  "友達と短いメッセージを交わした": "友達と短いメッセージを交わしました",
+  "好きな本を数ページ読んだ": "好きな本を数ページ読みました",
+  "帰り道に少し遠回りした": "帰り道に少し遠回りしました",
+  "短いメモを机に残した": "短いメモを机に残しました",
+  "隣人と短い挨拶をした": "隣人と短い挨拶をしました",
+  "店で季節の花束を一つ組んだ": "店で季節の花束を一つ組みました",
+  "店の窓辺に小さな鉢を飾り直した": "店の窓辺に小さな鉢を飾り直しました",
+  "店でお客さんの好みを聞いた": "店でお客さんの好みを聞きました",
+  "朝の市場で小さな花を仕入れた": "朝の市場で小さな花を仕入れました",
+  "手伝いに来る知人と店の予定を話した": "手伝いに来る知人と店の予定を話しました",
+  "店を閉めてから、枯れかけた鉢の手入れをした": "店を閉めてから、枯れかけた鉢の手入れをしました",
+  "向かいの店の人と短く立ち話をした": "向かいの店の人と短く立ち話をしました",
+  "放課後、図書室で資料を読んだ": "放課後、図書室で資料を読みました",
+  "ノートに思いついた街の地図を描いた": "ノートに思いついた街の地図を描きました",
+  "友達と進路とは関係ない話をした": "友達と進路とは関係ない話をしました",
+  "なりたい職業を三つ書いて、一つ消した": "なりたい職業を三つ書いて、一つ消しました",
+  "先生に気になる授業について質問した": "先生に気になる授業について質問しました",
+  "帰宅途中、いつもと違う道を選んだ": "帰宅途中、いつもと違う道を選びました",
+  "家で夕食の支度を手伝った": "家で夕食の支度を手伝いました",
+  "閉店後に翌日の仕込みを少し済ませた": "閉店後に翌日の仕込みを少し済ませました",
+  "仕事帰りのコンビニで、おにぎりを二つ買った": "仕事帰りのコンビニで、おにぎりを二つ買いました",
+  "家の冷蔵庫にあるもので短い料理を作った": "家の冷蔵庫にあるもので短い料理を作りました",
+  "早朝に食材の卸売店へ仕入れに出た": "早朝に食材の卸売店へ仕入れに出ました",
+  "厨房で仲間に失敗談を一つ話した": "厨房で仲間に失敗談を一つ話しました",
+  "家に帰って、何も作らず静かに座った": "家に帰って、何も作らず静かに座りました",
+  "兄に短い近況を送った": "兄に短い近況を送りました",
+  "仕事の帰りに花屋の小さな鉢を眺めた": "仕事の帰りに花屋の小さな鉢を眺めました",
+  "朝の市場に寄り、季節の花を見た": "朝の市場に寄り、季節の花を見ました",
+  "深夜のコンビニに寄って温かい飲み物を買った": "深夜のコンビニに寄って温かい飲み物を買いました",
+  "朝の仕入れ先で小麦粉と果物を選んだ": "朝の仕入れ先で小麦粉と果物を選びました",
+  "仕事帰りにパン屋へ寄り、夕食のパンを選んだ": "仕事帰りにパン屋へ寄り、夕食のパンを選びました",
+  "地域の図書室へ行き、好きな本を探した": "地域の図書室へ行き、好きな本を探しました",
+  "昔の時計店があった通りを歩いた": "昔の時計店があった通りを歩きました",
+  "昔の時計店の窓を眺め、商店街をゆっくり歩いた": "昔の時計店の窓を眺め、商店街をゆっくり歩きました",
+  "地域の図書室で、レポートの資料を調べた": "地域の図書室で、レポートの資料を調べました",
+  "古い時計店のある通りへ荷物を届けた": "古い時計店のある通りへ荷物を届けました",
+  "駅前の配送先へ荷物を届けた": "駅前の配送先へ荷物を届けました",
+  "帰宅途中、駅前でしばらく時刻表を眺めた": "帰宅途中、駅前でしばらく時刻表を眺めました"
+});
+function letterPoliteActivity491(value){
+ const raw=String(value??'').replace(/[。！!]+$/,'');
+ if(!raw)return '';
+ if(Object.prototype.hasOwnProperty.call(LETTER_POLITE_ACTIVITY_491,raw))return LETTER_POLITE_ACTIVITY_491[raw];
+ // 将来の行動追加時にも、既に丁寧体の記述ならそのまま保持する。
+ if(/(?:ます|ました|です|でした|ません)$/.test(raw))return raw;
+ // 未登録の行動を誤った活用で置換しない。今後の追加時に検出できるようにする。
+ console.warn('便箋用の丁寧体が未登録:',raw);
+ return raw;
+}
+// 行動数に応じた内面的変化の要約は内部記録に常体で保存されている。
+function letterPoliteProgress491(summary){return String(summary??'').replace(/ている$/,'ています')}
 
 const REGULAR_MAIN=['cat','driver','fish','clock','terminal'];
 const REGULAR_SUPPORT=['bread','moon','anon','sugar'];
@@ -1272,7 +1373,7 @@ function quietReturnNote(id,n){
   fridge:'今日は自分のための夕飯も考えてみます。'
  }[id]||'また、気が向いた日に書きます。';
  // 本人が確かに経験した前日の行動だけを任意で振り返る。
- const fact=again?.activity?'\n\n昨日は、'+again.activity.replace(/。+$/,'')+'。':'';
+ const fact=again?.activity?'\n\n昨日は、'+letterPoliteActivity491(again.activity)+'。':'';
  return {subject:short?'数日ぶりのお便り':'久しぶりのお便り',kind:'return',tag:`return-${q.startNight}`,
   body:start+fact+'\n\n'+suffix,absenceReturn:true,voiceVersion:34};
 }
@@ -1580,7 +1681,7 @@ function radioMemoryCompose39(id,n){
   '\n\n'+line+'\n\n'+RADIO_MEMORY_THEMES39[x.topic];
  const day=regularDayAction(id,n);
  if(day&&(RADIO_MEMORY_ACTIONS39[x.topic]?.[id]||[]).includes(day.actionId)){
-  body+='\n\n昨日は、'+String(day.activity||'').replace(/[。！!]+$/,'')+'。そのとき、あの放送がふと戻ってきました。';
+  body+='\n\n昨日は、'+letterPoliteActivity491(day.activity)+'。そのとき、あの放送がふと戻ってきました。';
  }
  body+='\n\n'+RADIO_MEMORY_VOICES39[id];
  const choices=[
@@ -1736,7 +1837,7 @@ function regularDayNote(id,n){
   anon:['小さなことですが、書くと少し輪郭が見えてきます。','名前を付けるほどでもない一日を、少し残しておきます。']
  };
  const thoughts=n>=90?[...(personalThought[id]||narr),...(REGULAR_LATE_DAILY_THOUGHTS_486[id]||[])]:personalThought[id]||narr;
- return {subject,kind:'daily',tag:`daily-${yesterday.actionId}`,body:regularFirstSentence(id,n)+'\n\n'+yesterday.activity+(yesterday.activity.endsWith('。')?'':'。')+'\n\n'+thoughts[simHash(`reg:thought:${n}:${id}`)%thoughts.length]};
+ return {subject,kind:'daily',tag:`daily-${yesterday.actionId}`,body:regularFirstSentence(id,n)+'\n\n'+letterPoliteActivity491(yesterday.activity)+'。'+'\n\n'+thoughts[simHash(`reg:thought:${n}:${id}`)%thoughts.length]};
 }
 // v4.5: 交流の「感触」は同じでも、後味をどう言葉にするかは人によって異なる。
 const CONTACT_VOICES_45={
@@ -2050,7 +2151,7 @@ function regularThemeLetter(id,n){
  let reflection=observations[index]||'今の自分なりに、少し考えています。';
  // 行動と番組テーマが実際に重なるときだけ、昨日のことを具体的に述べる。
  if(linked&&action?.activity){
-  reflection='昨日は、'+action.activity.replace(/。+$/,'')+'。\n\n'+reflection;
+  reflection='昨日は、'+letterPoliteActivity491(action.activity)+'。\n\n'+reflection;
  }
  return {subject,kind:'theme',tag:`theme-${index}`,
   body:regularFirstSentence(id,n)+'\n\n今夜のテーマは「'+theme[0]+'」と聞きました。\n\n'+reflection};
@@ -3147,7 +3248,7 @@ function specialCancel(){
 function specialLifeExcerpt(id,n){
  const yesterday=regularDayAction(id,n);
  if(!yesterday||!yesterday.activity)return '';
- const verb=yesterday.activity.replace(/。+$/,'');
+ const verb=letterPoliteActivity491(yesterday.activity);
  return '\n\n追伸：昨日は、'+verb+'。そんな一日でした。';
 }
 function specialSubmitBody(themeId,id,n){
@@ -3179,14 +3280,14 @@ function specialSubmitBody(themeId,id,n){
     triangle:'一人で勝手に嬉しかったので、ここで少し自慢させてください。',
     fridge:'忙しい日でも、自分のことを一つできた気がします。'
    };
-   story='昨日、'+action.activity.replace(/。+$/,'')+'。\n\n'+endings[id];
+   story='昨日、'+letterPoliteActivity491(action.activity)+'。\n\n'+endings[id];
   }else{
    story='このお便りを書いて、送るところまでできました。普段は聴いているだけの日も多いので、それを今夜の小さな自慢にします。';
   }
  }
  if(CLIMATE_SPECIAL_INFO[themeId]){
   const actual=regularDayAction(id,n);
-  if(actual?.activity)ending+='\n\n昨日は、'+actual.activity.replace(/。+$/,'')+'。';
+  if(actual?.activity)ending+='\n\n昨日は、'+letterPoliteActivity491(actual.activity)+'。';
  }
  return {subject:src[0],body:'こんばんは。'+(s.special?.planned?.legacyNoAnnouncement?'今夜の記念放送にお便りします。':'特別放送の募集を聴いて、お便りします。')+'\n\n'+story+ending};
 }
@@ -3443,7 +3544,7 @@ function climateCreateLetter(n){
  const subject=kind==='season'?'季節が変わった夜':c.weather==='rain'?'雨音の話':c.weather==='snow'?'雪の夜':c.weather==='cloudy'?'曇り空の下で':'今夜の空';
  const text=intro[kind]||intro.season;
  const previous=regularDayAction(who,n);
- const yesterday=previous?.activity?'\n\n昨日は、'+previous.activity.replace(/。+$/,'')+'。そのことも、少しだけ思い出しています。':'';
+ const yesterday=previous?.activity?'\n\n昨日は、'+letterPoliteActivity491(previous.activity)+'。そのことも、少しだけ思い出しています。':'';
  const id=`climate_${n}_${who}`;
  s.regular.letterArchive[id]={who,subject,body:'こんばんは。\n\n'+text+yesterday+'\n\n何か大きな事件があったわけではありません。ただ、今夜の空気を誰かに話したくなりました。',regular:true,kind:'climate',tag:`climate-${c.season}-${c.weather}`,choices:REGULAR_CHOICES.map(x=>[...x])};
  return id;
