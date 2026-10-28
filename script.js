@@ -980,7 +980,7 @@ const UI_NAV=[['studio','radio','放送'],['letters','mail','お便り'],['journ
 
 const dayTitles=['','はじめましての夜','誰かが聴いている','言えなかった言葉',
   '終点のひとつ前','いつもの道の途中','言いそびれた返事','ひとり分の余白','返事をしない自由','描かれなかった余白','窓の明かり','木曜日の駅','自分の声','返ってこない約束','それぞれの朝'];
-function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete',done3=s.phase==='chapter3_complete',sp=specialActive(s.night);return `<header class="header"><div class="header-identity"><div class="brand">SOMEWHERE ON AIR</div><h1>午前二時の周波数</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':done3?'第3章 14夜 終了':`第${s.night}夜　${regularDayTitle(s.night)}`}</div><div class="climate-meta">${esc(climateCaption(s.night))}</div></div><div class="header-tools" aria-label="放送の補助操作と状態"><button class="guide-launch" type="button" onclick="openGuide()" aria-label="あそび方・手引きを開く">${uiIcon('help')}<span>あそび方</span></button><div class="chip" role="status" aria-label="放送状態">${s.phase==='broadcast'||s.phase==='reply'?'● ON AIR':'◌ OFF AIR'}</div></div></header>${studioScene(s.tab!=='studio'||readerSetupOpen)}<div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}${readerEntry()}</div><div class="panel"><div class="overline">${sp?'特別放送':s.night>=15&&s.night<=28?'第2章':chapter3IsNight(s.night)?'第3章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>放送スタイル</span><span>${s.phase==='intro'||s.phase==='prepare'?(s.broadcastModePref==='letters'?'おたより中心':'いつもの放送'):(isLettersMode()?'おたより中心':'いつもの放送')}</span></div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー">${UI_NAV.map(([id,icon,label])=>`<button type="button" class="${s.tab===id?'active':''}" ${s.tab===id?'aria-current="page"':''} onclick="setTab('${id}')">${uiIcon(icon)}<span class="nav-label">${label}</span></button>`).join('')}</nav><div class="footer">『午前二時の周波数』 · SOMEWHERE ON AIR · v4.8.43</div>`}
+function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete',done3=s.phase==='chapter3_complete',sp=specialActive(s.night);return `<header class="header"><div class="header-identity"><div class="brand">SOMEWHERE ON AIR</div><h1>午前二時の周波数</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':done3?'第3章 14夜 終了':`第${s.night}夜　${regularDayTitle(s.night)}`}</div><div class="climate-meta">${esc(climateCaption(s.night))}</div></div><div class="header-tools" aria-label="放送の補助操作と状態"><button class="guide-launch" type="button" onclick="openGuide()" aria-label="あそび方・手引きを開く">${uiIcon('help')}<span>あそび方</span></button><div class="chip" role="status" aria-label="放送状態">${s.phase==='broadcast'||s.phase==='reply'?'● ON AIR':'◌ OFF AIR'}</div></div></header>${studioScene(s.tab!=='studio'||readerSetupOpen)}<div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}${readerEntry()}</div><div class="panel"><div class="overline">${sp?'特別放送':s.night>=15&&s.night<=28?'第2章':chapter3IsNight(s.night)?'第3章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>放送スタイル</span><span>${s.phase==='intro'||s.phase==='prepare'?(s.broadcastModePref==='letters'?'おたより中心':'いつもの放送'):(isLettersMode()?'おたより中心':'いつもの放送')}</span></div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー">${UI_NAV.map(([id,icon,label])=>`<button type="button" class="${s.tab===id?'active':''}" ${s.tab===id?'aria-current="page"':''} onclick="setTab('${id}')">${uiIcon(icon)}<span class="nav-label">${label}</span></button>`).join('')}</nav><div class="footer">『午前二時の周波数』 · SOMEWHERE ON AIR · v4.8.45</div>`}
 function navButtons(){return UI_NAV.map(([id,icon,label])=>`<button type="button" class="navbtn ${s.tab===id?'active':''}" ${s.tab===id?'aria-current="page"':''} onclick="setTab('${id}')">${uiIcon(icon)}<span>${id==='journal'?'放送日誌':id==='settings'?'設定・セーブ':label}</span></button>`).join('')}
 
 function intro(){
@@ -1663,7 +1663,10 @@ function autoDJSelectSpecialParts(l,parts){
    return;
   }
   const k=indices.length;
-  for(let j=0;j<parts[k].options.length;j++){
+  // 原文にない行動を断定する候補は、得点が高くても選ばない。
+  // ただしすべてが検証に引っかかる場合は既存の選択方式を保ち、放送停止を防ぐ。
+  const safe=parts[k].options.map((o,j)=>j).filter(j=>autoDJFactualFit(l,parts[k].options[j][1])===0);
+  for(const j of (safe.length?safe:parts[k].options.map((o,j)=>j))){
    const o=parts[k].options[j],text=String(o[1]||'');
    const tag=autoDJOptionTag(o[0],text);
    const value=autoDJReplyScore(l,o[0],text,tag,k*17+j);
@@ -1672,6 +1675,66 @@ function autoDJSelectSpecialParts(l,parts){
  };
  walk([],0);
  return best?.indices||parts.map(()=>0);
+}
+// v4.8.45: 話の「時点」と「感情」を手紙に書かれた事実に合わせる。
+// 読書モードの自動DJに限り、断定的な汎用返答の採点を下げる。
+// 特別放送の企画名だけから「喜んでいる」「いま雨が降っている」とは推測しない。
+function autoDJConversationalFit(l,response){
+ if(activeProfile!=='reader')return 0;
+ const source=String(l.subject||'')+'\n'+String(l.body||'');
+ const body=String(l.body||''),text=String(response||'');
+ let score=0;
+ const realJoy=/(?:うれし|嬉し|喜び|喜ん|楽しかっ|楽しい|幸せ|ほっとし|やった|おめでとう|達成(?:できた|した)|成功(?:した|できた))/.test(body);
+ // 「明日の予定」「小さな迷い」は、それだけでは喜びの報告ではない。
+ if(/(?:その嬉しさ|その喜び|その成功|お祝いしましょう|よく頑張りました)/.test(text)&&!realJoy)score-=30;
+ // 雨の記憶・「雨の日は」という一般論を、今夜の天候と断定しない。
+ const currentRain=/(?:今夜|いま|今|今日|現在|さっき).{0,17}(?:雨(?:が|は|の音)|降っ|降り)|(?:雨(?:が|は)).{0,12}(?:降ってい|降り続|降り出)/.test(body);
+ if(/(?:今夜の雨|いま降っている雨|今日の雨は)/.test(text)&&!currentRain)score-=30;
+ // 昨日の会話は、今日実際に起きた会話ではない。空欄質問より文脈に即した返答へ。
+ if(/(?:昨日|先日|この前).{0,65}(?:話し|話しまし|会話し|声をかけ)/.test(body)
+    && !/(?:今日は|今日、|今夜は|今夜、).{0,28}(?:話し|会話し|話しまし)/.test(body)
+    && /(?:今日はどんな話が印象に残りましたか|今日の出来事で、いちばん心に残ったのは何でしたか)/.test(text))score-=7;
+ // 語りの流れを変えてしまう「全部もう解決した」型の受け取りを避ける。
+ if(/(?:まだ|迷っ|わからな|決めていない|決まっていない)/.test(body)
+    && /(?:もう迷いはない|これで解決しました|きっと正解だった)/.test(text))score-=12;
+ return score;
+}
+// 三段階の返答は全文一致を使って履歴照合できないため、段落単位で再登場を数える。
+// 他の候補が存在する時にだけ順位を変え、手動放送の返答候補には影響させない。
+function autoDJSpecialPartRepeatPenalty(l,response){
+ if(activeProfile!=='reader'||s.night<29)return 0;
+ const text=String(response||'').trim();
+ if(!text)return 0;
+ let total=0,recent=0,lastNight=-999,personal=0;
+ for(const p of s.played||[]){
+  if(typeof p.response!=='string'||!p.response.includes('\n\n')||!p.response.includes(text))continue;
+  if(!p.response.split(/\n\s*\n/).some(part=>part.trim()===text))continue;
+  total++;
+  if(s.night-p.night<=60)recent++;
+  if(p.who===l.who&&s.night-p.night<=120)personal++;
+  lastNight=p.night;
+ }
+ return total?Math.min(6.5,total*.23+recent*.52+personal*.43+(s.night-lastNight<=14?1.6:0)):0;
+}
+// 主題のある一文に具体的に返す。本文と完全に照合できた場面だけで候補を増やす。
+// 初期章の固定分岐、特別返答の選択肢、手動放送の選択肢は変更しない。
+const AUTO_DJ_MOMENT_REPLY_4845=[
+ [/重力が違うと、汁物は難しそう/, [['月面の食堂を思う','月の食堂では、まずお椀をどう置くかから会議になりそうですね。','humor'],['汁物の行方を考える','重力から献立を考えるなんて、地上の料理番組ではなかなか聴けない話です。','curiosity']]],
+ [/仕事を離れても鼻だけは残業/, [['鼻の残業をねぎらう','仕事を終えても鼻だけは残業中。パン屋さんならではの勤務表ですね。','humor'],['帰り道の匂いを思う','焼き上がりの匂いを帰り道でも見つける、その鼻はなかなか休めませんね。','reflection']]],
+ [/明日は自分が食べたいものを先に決めてみます/, [['自分の献立を尊重する','明日の一皿を自分で選ぶ。小さく見えても、あなたが決めることですね。','agency'],['先に決める楽しみ','自分の食べたいものを先に考える明日、どんな献立になるでしょう。','curiosity']]],
+ [/花の名前より、人の顔を覚えるほうが難しい/, [['花屋の覚え方を楽しむ','花の名前は覚えられても人の顔は難しい、というのが花屋さんらしい悩みですね。','empathy'],['会話の景色を思う','花の色とお客さんの顔が並ぶ、店先の賑やかさが少し見えました。','reflection']]],
+ [/明日は、自分の皿に何をのせるか先に考えてみます/, [['料理人の明日の皿を思う','誰かの献立ではなく、自分の皿の話を聴けるのがいいですね。','empathy'],['残業より難しい一皿','自分の夕飯を決めることが、残業より難しい課題になりませんように。','humor']]],
+ [/カップの中には時計がないのに不思議/, [['カップの時計を探す','カップに時計はないのに、飲む時間で味が変わる。ちょっと不思議な話ですね。','reflection'],['時間の入らないカップ','もしカップに時計がついたら、砂糖を入れる順番まで管理されそうですね。','humor']]],
+ [/雨の音がして、窓を開けるか迷いました/, [['開けなかった窓のそばで','窓を開けずに雨の音を聴いている時間も、その夜の過ごし方なんですね。','space'],['窓の向こうの雨を思う','窓を開けるか迷った、そのひとときまで伝えてくれてありがとうございます。','empathy']]],
+ [/木曜日でない日にも、時計を見る癖は残っています/, [['木曜日以外の時間を聴く','木曜日ではない日にも時刻表を見てしまう。その習慣も今の暮らしの一部ですね。','reflection'],['残った習慣を尊重する','急に変えなくてもいいと思える習慣の話として、静かに受け取りました。','space']]],
+ [/主任には言葉がなくても、報告した気分になります/, [['主任への無言の報告','猫主任への無言の業務報告、どうやらきちんと届いている気がしますね。','humor'],['無言の休憩を思う','話さずに同じ場所にいたことも、ちゃんと今夜の報告になりましたね。','reflection']]],
+ [/食べ終えた皿に残る色が、思いがけずきれい/, [['皿に残った色の話','食べ終えたお皿の色に目がとまるところが、あなたらしい発見ですね。','reflection'],['食卓の色を想像する','味ではなく色が心に残ったという話、なんだか絵を見ているようです。','curiosity']]],
+ [/長く生きても、人と話すのは毎回少し違/, [['いつもの挨拶の違い','長く交わしてきた挨拶でも、毎回少し違って聞こえるんですね。','reflection'],['短い会話を受け取る','ほんの短い挨拶も、その日の大切な出来事なんだと思いました。','empathy']]]
+];
+function autoDJMomentChoices(l){
+ if(activeProfile!=='reader'||s.night<29||l.special)return [];
+ const match=AUTO_DJ_MOMENT_REPLY_4845.find(([test])=>test.test(String(l.body||'')));
+ return match?match[1].map(row=>[...row,'grounded']):[];
 }
 function autoDJReplyScore(l,title,response,tag,offset=0){
  const mood=autoDJLetterMood(l),text=String(response||''),past=s.reader?.dj?.tags||[];
@@ -1699,7 +1762,7 @@ function autoDJReplyScore(l,title,response,tag,offset=0){
   score-=gap<=3?7:gap<=7?5.5:gap<=14?4.5:gap<=30?3.4:gap<=65?2.2:gap<=110?1.2:0;
   if(exact.who===l.who&&gap<=35)score-=1.5;
  }
- return score-autoDJFactualFit(l,text)+autoDJSpecificityFit(l,text)+autoDJGenericContextScore(l,text)-autoDJRepeatSaturation(text,l)+autoDJRelationshipScore(l,title,text,tag)+autoDJNightVarietyScore(text)-Math.min(1.8,last*.5)+autoDJNoise(`${l.id}:reply:${offset}:${tag}:${title}`)*1.4;
+ return score-autoDJFactualFit(l,text)+autoDJSpecificityFit(l,text)+autoDJGenericContextScore(l,text)+autoDJConversationalFit(l,text)-autoDJSpecialPartRepeatPenalty(l,text)-autoDJRepeatSaturation(text,l)+autoDJRelationshipScore(l,title,text,tag)+autoDJNightVarietyScore(text)-Math.min(1.8,last*.5)+autoDJNoise(`${l.id}:reply:${offset}:${tag}:${title}`)*1.4;
 }
 // v4.8.11: 後半の読書モードに、本人の実際の話題だけから選べる返答を追加。
 // 通常プレイの選択肢数は増やさず、別DJの声の細かな違いを作る。
@@ -1915,7 +1978,7 @@ function autoDJReply(l){
   return {tag:'special',response:body};
  }
  const choices=(l.programSpecial&&(WHIMSICAL_SPECIAL_CHOICES[l.themeId]||MILESTONE_SPECIAL_CHOICES[l.themeId]))?(l.choices||[]):
-   autoDJTaughtChoices(l)||[...(l.choices||[]),...autoDJLatePersonalChoices(l),...autoDJHeardLetterChoices(l),...autoDJEverydayChoices(l)];
+   autoDJTaughtChoices(l)||[...(l.choices||[]),...autoDJMomentChoices(l),...autoDJLatePersonalChoices(l),...autoDJHeardLetterChoices(l),...autoDJEverydayChoices(l)];
  const ranked=autoDJRankChoices(l,choices);
  let c=ranked[0]?.i===-1?autoDJNeutralReply(l):choices[ranked[0]?.i??0];
  // 同じ夜の別の手紙に全文一致の返答を繰り返さない。

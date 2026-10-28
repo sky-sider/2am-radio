@@ -441,6 +441,12 @@ const terminalParts=[
 
 function partsForLetter(l){
   if(l.chapter3&&l.special&&CH3_REPLY_PARTS[l.who])return CH3_REPLY_PARTS[l.who];
+  if(l.chapter2&&l.special&&l.who==='cat'&&CH2_CAT_ROUTE_REPLY_TEXT[chapter2Route('cat')]){
+    const script=CH2_CAT_ROUTE_REPLY_TEXT[chapter2Route('cat')];
+    return CH2_REPLY_PARTS.cat.map((part,k)=>({name:part.name,options:part.options.map((choice,j)=>[
+      script[k][j][0],script[k][j][1],choice[2]
+    ])}));
+  }
   if(l.chapter2&&l.special&&CH2_REPLY_PARTS[l.who])return CH2_REPLY_PARTS[l.who];
   if(l.regular&&l.special)return REGULAR_REPLY_PARTS;
   if(l.id==='cat7')return catParts;
@@ -647,15 +653,15 @@ const REGULAR_ROUTES = {
 const REGULAR_REPLY_PARTS=[
  {name:'どう受け取るか',options:[
   ['気持ちに寄り添う','その日々の中で感じたことを、こうして届けてくれて嬉しいです。',{trust:2,comfort:2}],
-  ['変化に目を向ける','小さな変化にも、その人にしかわからない重さがあるんですね。',{reflection:2}],
+  ['変化に目を向ける','今夜届けてくれた言葉にも、あなたの今日が重なっていますね。',{reflection:2}],
   ['立ち止まる','簡単な答えにせず、今の気持ちをそのまま聴いていたいです。',{comfort:2}],
-  ['率直に話す','決めたあとの日々にも、迷いが残ることはあると思います。',{reflection:1,trust:1}]
+  ['率直に話す','すぐに答えが出ない話も、こうして聞かせてもらっていいんですよ。',{reflection:1,trust:1}]
  ]},
  {name:'何を伝えるか',options:[
-  ['暮らしを大切に','大きな出来事だけでなく、今日食べたものや休めた時間も、あなたの暮らしです。',{comfort:1}],
-  ['人との距離','誰かとの関係は、一度の言葉だけでは決まらないのかもしれません。',{reflection:2}],
-  ['新しい選択','昨日の選択を大切にしながら、明日は違うことを試してもいいと思います。',{agency:2}],
-  ['残る気持ち','希望がある日にも不安がある。その両方があっていいと思います。',{comfort:2}]
+  ['暮らしを大切に','ここに書いてくれた出来事の外側にも、あなたの暮らしは続いていますね。',{comfort:1}],
+  ['人との距離','言葉にした部分も、まだ言葉になっていない部分も、急いでまとめなくていいと思います。',{reflection:2}],
+  ['新しい選択','明日も同じように過ごすか、少し違うことをするか、決めるのはそのときでもいいと思います。',{agency:2}],
+  ['残る気持ち','今夜は、書いてくれたことをそのまま大切に受け取りたいです。',{comfort:2}]
  ]},
  {name:'どう締めくくるか',options:[
   ['お礼を伝える','今夜のことを話してくれて、ありがとうございました。',{trust:1}],
@@ -877,6 +883,26 @@ const CH2_REPLY_PARTS={
   {name:'終わりの言葉',options:[['またの便りを願う','駅とは関係のない話も、いつか聞いてみたいです。',{trust:2}],['静かな励まし','どの道にも、帰り道の灯りがありますように。',{comfort:2}],['余白を残す','返事がない時間にも、暮らしは続いていきます。',{reflection:1}],['見守る','今夜もお便りをありがとうございました。',{trust:1}]]}
  ]
 };
+// v4.8.44: 第25夜の猫の特別返答は進路ごとに実際の本文が異なる。
+// 従来の共通文「描いた絵を見せる」を、まだ描いていない道にも当てはめない。
+// 影響値は元の選択肢を保持し、通常モード・読書モードで同じ本文を読む。
+const CH2_CAT_ROUTE_REPLY_TEXT={
+ change:[
+  [['迷いを受け取る','履歴書の短い欄にも、いま迷っていることが表れているんですね。'],['そっと尋ねる','その欄には、どんな言葉を書いてみたくなりましたか。'],['そのまま伝える','昔書けた言葉が今はすぐに書けなくても、不自然なことではないと思います。'],['余白を認める','今は空欄のままでも、答えを急ぐ必要はありませんね。']],
+  [['好きだったこと','仕事のための書類でも、好きだったことを思い出す時間はあるんですね。'],['暮らしのこと','転職先のことと、仕事の外の時間のことを一緒に考えてもいいと思います。'],['自分の言葉','何を書くか、いつ書くかを決めるのはあなた自身です。'],['急がない選択','趣味の欄ひとつで、これからの人生を決めなくてもいいですよね。']],
+  [['応援する','自分のために言葉を書こうとした気持ちを大切にしてください。'],['続きを待つ','もし書けたら、その日の話もまた聞かせてください。'],['余韻を残す','まだ空白の欄にも、考えてきた時間は残っていますね。'],['静かに見守る','今夜は、答えのない欄を閉じて休んでもいいと思います。']]
+ ],
+ leave:[
+  [['相談の迷いを受け取る','辞める理由も、続けるために変えてほしいことも、どちらも本当の気持ちなんですね。'],['そっと尋ねる','メモを見返して、いちばん伝えたいと思ったのはどの言葉でしょう。'],['率直に返す','どちらか一つに決めなくても、上司に相談することはできると思います。'],['結論を急がせない','話し合いの前に、今夜すべてを決めなくても大丈夫です。']],
+  [['書いた言葉を思う','相談のために書いた言葉は、自分の考えを見つめる手がかりにもなりますね。'],['生活のことを大切に','仕事のことも、これからの生活のことも、慎重に考えていいと思います。'],['選ぶ権利を伝える','何を伝えるかも、どの順番で伝えるかも、あなたが選べます。'],['残る迷いを受け取る','別々の気持ちが同じメモに並んでいても、おかしくはありませんね。']],
+  [['応援する','話し合いのあとにも、自分の言葉を大切にできるといいですね。'],['続きを待つ','もし話したくなったら、相談のあとのことも聞かせてください。'],['余白を残す','今日のメモには、これから書き足せる余白もありそうです。'],['見守る','明日の自分に考える時間を残しておいてもいいと思います。']]
+ ],
+ stay:[
+  [['まだ決めない気持ち','描くかどうかをまだ決めていない、その気持ちも聞かせてもらえたんですね。'],['そっと尋ねる','スケッチブックを手の届く場所へ移したとき、どんな気持ちでしたか。'],['率直に返す','何かを始める前の時間にも、あなた自身の選択がありますね。'],['余白を認める','今日はスケッチブックを開かなくてもいいと思います。']],
+  [['好きなものを思う','好きだったものを、もう一度近くに置いておくという選び方もありますね。'],['暮らしを大切に','仕事を続ける日々にも、自分のための時間があっていいと思います。'],['選択を尊重する','描く日も描かない日も、あなたが決めていいことですよね。'],['急がない自由','今は始めなくても、気が向いたときに開ける場所にあるんですね。']],
+  [['励ます','何かを始めなくても、今日の選択は残ると思います。'],['続きを待つ','いつか開いてみたら、そんな話も聞かせてください。'],['余韻を残す','手の届くところにある一冊が、今夜は少し違って見えますね。'],['見守る','明日も、その一冊はそこにありますね。']]
+ ]
+};
 function chapter2StageIndex(stage){return {start:0,friction:1,turn:2,end:3}[stage]??0}
 function chapter2Route(id){
  const got=s.lifePaths?.outcomes?.[id]?.route||s.flags?.[LIFE_BRANCH_KEYS[id]];
@@ -895,7 +921,9 @@ function chapter2BuildLetter(id,stage,n){
   const [who,subject,body]=CH2_SIDE[n];return {who,subject,body,kind:'chapter-side',tag:`ch2-side-${n}`,special:false};
  }
  const special=({cat:25,driver:22,fish:21,terminal:24})[id]===n;
- return {who:id,subject:CH2_TITLES[id][stage],body:chapter2LetterBody(id,stage,n),kind:'chapter-main',tag:`ch2-${id}-${stage}`,special};
+ const route=id==='cat'&&stage==='turn'?chapter2Route('cat'):null;
+ const routeTitle=route?({create:'誰かに見せる絵',change:'履歴書の余白',leave:'相談のメモ',stay:'手の届くスケッチブック'})[route]:null;
+ return {who:id,subject:routeTitle||CH2_TITLES[id][stage],body:chapter2LetterBody(id,stage,n),kind:'chapter-main',tag:`ch2-${id}-${stage}`,special};
 }
 
 
@@ -1579,6 +1607,11 @@ const CONTEXT_TOPICS={
     R('急いで結論にしない','一度うまく話せなかったからといって、関係のすべてが決まるわけではありませんね。','space'),
     R('距離について尋ねる','今はその人と、どんな距離でいたいですか。','reflection'),
     R('言えたことも見る','気まずくても、実際に言葉を交わしたという出来事は残りますね。','agency')),
+  milestone:replySet(
+    R('節目の声を受け取る','この節目の放送に、あなたの今夜の声も届けてくれてありがとうございます。','empathy'),
+    R('重ねた夜を振り返る','何度も同じ時刻を迎えても、一夜ずつ違う話が届くのが面白いですね。','reflection'),
+    R('今夜の一通を大切に','記念の夜も、こうしていつもの一通を読めることがうれしいです。','space'),
+    R('次の夜へつなぐ','これからの放送にも、何でもない日の話を聞かせてもらえたらうれしいです。','followup')),
   listen:replySet(
     R('聴いてくれたことにお礼','あの放送を聴いていてくれたんですね。教えてくれてありがとうございます。','empathy'),
     R('心に残った部分を尋ねる','昨日の放送の、どんな言葉が残っているのでしょう。','curiosity'),
@@ -1598,7 +1631,7 @@ const WEATHER_REPLIES={
  season:replySet(R('季節の変化を喜ぶ','季節が変わったことを、いつもの暮らしの中で感じたんですね。','empathy'),R('変化を尋ねる','いちばん最初に季節の変化を感じたのは、何でしたか。','curiosity'),R('日々の積み重ねを見る','何でもない毎日が続いた先に、次の季節があるんですね。','reflection'),R('次の便りを願う','また季節の小さな発見を、聞かせてください。','followup'))
 };
 const THEME_REPLY_TOPICS=['travel','smalljoy','memory','rain','rest','friends','cooking','ordinary','ordinary','ordinary','travel','smalljoy'];
-const SPECIAL_REPLY_TOPICS={pride:'smalljoy',food:'cooking',words:'memory',anniversary:'listen',rain:'rain',season_spring:'flowers',season_summer:'travel',season_autumn:'memory',season_winter:'rest',story_creative:'art',story_unsaid:'family',story_taught:'books',story_crossing:'travel'};
+const SPECIAL_REPLY_TOPICS={pride:'smalljoy',food:'cooking',words:'memory',anniversary:'milestone',rain:'rain',season_spring:'flowers',season_summer:'travel',season_autumn:'memory',season_winter:'rest',story_creative:'art',story_unsaid:'family',story_taught:'books',story_crossing:'travel'};
 const ACTION_REPLY_TOPICS={
  cat:{work:'work',rest:'rest',artlook:'art',cafe:'coffee',askboss:'work',frienddraft:'family',draw:'art',bakery:'bakery',flowerstop:'flowers'},
  driver:{route:'work',coffee:'coffee',chief:'smalljoy',coworker:'friends',sleep:'rest',sisterdraft:'family',sisterthink:'family',shoproute:'clock',stationdelivery:'station',conveniencestop:'cooking'},
