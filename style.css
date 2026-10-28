@@ -557,3 +557,14 @@ body.guide-open{overflow:hidden}
 /* v4.8.28 — 特別放送の投稿を手動選出時に識別しやすくする。 */
 .prepare-special-guide{margin:11px 0 16px;padding:11px 13px;border-left:2px solid #cba776;border-radius:0 8px 8px 0;background:#2c394a;color:#e9dcc8;font-size:.82rem;line-height:1.75}
 .prepare-letters .letter .tag{font-size:11px;line-height:1.4;color:#e8ca98;max-width:48%;text-align:right}
+
+/* v4.8.32: マイクの灯りを落としたあとだけ現れる、控えめな6篇 */
+.dj-small-story{margin:20px 0 22px;padding:18px 19px;background:linear-gradient(145deg,#1f2c3e,#253144);border:1px solid #576078;border-left:2px solid #c3a579;border-radius:12px}
+.dj-small-story .overline{font-size:.69rem;color:#d8ba90;letter-spacing:.11em}
+.dj-small-story h3{margin:10px 0 9px;font-size:1.02rem;color:#efd9b5;font-weight:600}
+.dj-small-story p{margin:0;color:#e3dfd8;line-height:2.0;font-size:.92rem}
+.reader-dj-small-story{margin:24px 0 10px;padding:19px 20px;border-top:1px solid #b7aa94;border-bottom:1px solid #b7aa94;background:rgba(176,155,116,.075)}
+.reader-dj-small-story .overline{font-size:.7rem;letter-spacing:.13em;opacity:.74}
+.reader-dj-small-story h3{font-size:1.05rem;margin:10px 0;color:inherit}
+.reader-dj-small-story p{margin:7px 0 1px;line-height:2.05}
+@media(max-width:420px){.dj-small-story{padding:15px 14px}.reader-dj-small-story{padding:15px 11px}}

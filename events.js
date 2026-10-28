@@ -2256,7 +2256,7 @@ const LETTER_VOICE_33={
  fridge:{daily:['厨房では片づけて帰るのに、家の台所は別問題ですね。','仕事の段取りなら得意なのに、自分の夜はうまくいきません。'],contact:['料理の話以外で誰かと話すのは、まだ少し慣れません。'],theme:['明日の仕込みの前に、こんなことを考えています。'],default:['自分用の皿も、たまには使うことにします。']}
 };
 function v33VoiceLetter(id,n,note){
- if(!note||!note.body||['new-intro','culture','variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47'].includes(note.kind)||note.absenceReturn)return note;
+ if(!note||!note.body||['new-intro','culture','variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831'].includes(note.kind)||note.absenceReturn)return note;
  const data=LETTER_VOICE_33[id]||LETTER_VOICE_33.anon;
  const group=note.kind==='new-life'?'daily':(data[note.kind]?note.kind:'default');
  const lines=data[group]||data.default||[];
@@ -2282,6 +2282,471 @@ function v33VoiceLetter(id,n,note){
   }
  }
  return {...note,body,voiceVersion:33};
+}
+
+// v4.8.30 — ラジオで実際に紹介した手紙だけから育つ、ささやかな往復。
+// 各篇3通。続編の受信条件は「実際に放送済み」であり、未紹介の手紙や内部記憶は参照しない。
+const CROSS_TALK_ARCS_4830={
+ lost:{start:52,stages:[
+  {who:'moon',minGap:0,subject:'月面落とし物係・仮設窓口',body:'こんばんは。月面落とし物係を、勝手に設立しました。\n\n預かるのは手袋の片方、書きかけの手紙、そして「あとでやろう」と思ったまま忘れた用事です。最後のものは返却期限がありません。\n\n地球に支部を作るなら、受付にはどんな箱を置きましょう。もちろん架空のお話です。',choices:[['仮設窓口を歓迎する','手袋も先延ばしの用事も預かる窓口。月面らしく、ずいぶん親切な規則ですね。','humor'],['受付の箱を考える','地球支部には、どんな形の箱が似合うでしょう。','curiosity'],['忘れ物の意味を考える','忘れた用事を責めずに置いておく場所があってもいいのかもしれません。','reflection']]},
+  {who:'driver',minGap:9,subject:'落とし物の地球支部',body:'こんばんは。少し前の放送で、月の裏側さんが月面の落とし物係を作っていましたよね。配送車のラジオで聴きました。\n\nうちにも小さな忘れ物箱があります。手袋が片方入っていて、いつまでも持ち主が現れません。\n\n地球支部の受付番号は「一番」でいいでしょうか。猫主任に決裁を頼むと、箱の上で寝てしまいそうです。',choices:[['地球支部を承認する','受付番号一番、よさそうです。猫主任の決裁は気長に待ちましょう。','humor'],['手袋を気にかける','片方の手袋が、いつか持ち主の手に戻るといいですね。','empathy'],['支部の仕事を尋ねる','猫主任が箱の上で寝ていたら、忘れ物はどこに預けるのでしょう。','curiosity']]},
+  {who:'moon',minGap:11,subject:'地球支部、受付番号一番',body:'こんばんは。先日の放送で配達員さんの地球支部の話を聴きました。\n\n月面本部としては、受付番号一番を正式に発行したいところです。ただし当局には紙も判子もありません。空想なので。\n\nあの片方の手袋が見つかるかは、まだわからないままでいいと思います。地球と月に、ひとつずつ小さな箱があるという報告です。',choices:[['受付番号を受け取る','月面本部からの一番、確かに受け取りました。判子はなくても大丈夫です。','humor'],['手袋の行方を見守る','片方の手袋の行き先を、急いで決めなくてもよさそうです。','empathy'],['ふたつの箱を想像する','遠く離れた場所に同じ空想の箱がある、というのがいいですね。','reflection']]}
+ ]},
+ breadclock:{start:104,stages:[
+  {who:'bread',minGap:0,subject:'名前のない、ちいさなパン',body:'こんばんは。売り場の隅に、ちいさな試作品を一つ置きました。\n\n形が少しいびつなので、値札に名前を書けずにいます。「なんでもないパン」では、さすがに失礼でしょうか。\n\n大人気にならなくても、誰かが帰り道につまめるようなパンです。名前を募集するほどの大事件でもないのですが。',choices:[['小ささを喜ぶ','帰り道につまめるパンって、いいですね。','empathy'],['名前を考える','「帰り道のパン」なんてどうでしょう。いびつな形にも似合いそうです。','curiosity'],['名前を急がない','名前がつく前の試作品にも、もう居場所があるんですね。','reflection']]},
+  {who:'clock',minGap:10,subject:'散歩帰りのパンの名前',body:'こんばんは。先日の放送で、パン屋さんが小さな試作品の名前を迷っておられましたね。散歩の帰りに思い出しました。\n\n私なら「寄り道」とつけるでしょうか。急いで帰る日にこそ、寄り道はおいしいものです。\n\n勝手に名づけただけですから、採用されなくても構いません。今朝の散歩の、小さな思いつきです。',choices:[['寄り道を味わう','「寄り道」という名前、散歩の途中で浮かんだところが素敵ですね。','empathy'],['散歩道を尋ねる','今日はどんな道を通って、その名前を思いついたんでしょう。','curiosity'],['名前の自由を残す','採用されなくても構わない、というところもいいですね。','reflection']]},
+  {who:'bread',minGap:10,subject:'寄り道という名札',body:'こんばんは。古時計さんが考えてくださった「寄り道」という名前、放送で聴きました。\n\n試作品の横に、その名前を小さく書いた紙を置いてみました。まだお店の正式な商品名ではありません。\n\n今日は誰かが一つ買っていきました。名前のおかげかどうかは、わかりません。それでも、名札の置き場所を作ってよかったです。',choices:[['小さな名札を祝う','紙の名札とパンが並んだ光景が浮かびます。ひとつ売れたのも嬉しいですね。','empathy'],['その先を尋ねる','次の日も同じ名前を置くのでしょうか。','curiosity'],['名前が渡ったことを喜ぶ','採用されるかどうかより、古時計さんの言葉がお店に届いたことがいいですね。','reflection']]}
+ ]},
+ blank:{start:162,stages:[
+  {who:'cat',minGap:0,subject:'予定表の白い四角',body:'こんばんは。予定表に、何も書いていない四角が一つあります。\n\n前は何かで埋めなくちゃと思っていました。でも最近は、そこを白いままにしておくのもいい気がしています。\n\n空いた時間に何をしたかと聞かれたら、うまく答えられないかもしれません。',choices:[['白いままを認める','その四角を埋めないという選択も、ひとつの暮らし方ですね。','empathy'],['使い道を決めない','何をする時間か、今は名前をつけなくてもよさそうです。','reflection'],['予定表の景色を聴く','白い四角がある予定表って、どんなふうに見えるのでしょう。','curiosity']]},
+  {who:'fish',minGap:9,subject:'空白にも丸をつける',body:'こんばんは。少し前に、夜明けの猫さんが予定表の白い四角の話をしていましたね。放送で聴いて、思い出したことがあります。\n\n私のノートにも書き損ねた空白があります。そこを失敗だと思っていました。\n\n今夜は空白の横に、小さく丸をつけてみました。丸だけ増えて、相変わらず何も書いていません。少し可笑しいです。',choices:[['丸を受け取る','書いていない場所に丸をつける。小さな発見ですね。','empathy'],['何の丸か尋ねる','その丸は合格の丸でしょうか、それともただの丸でしょうか。','curiosity'],['空白のままで笑う','丸だけ増えて何も書かない、というところに少し笑ってしまいました。','humor']]},
+  {who:'cat',minGap:12,subject:'余白のとなりの丸',body:'こんばんは。透明な金魚さんが、空白の横に丸をつけた話を聴きました。\n\n私も予定表の白い四角の隅に、小さな丸を一つ描いてみました。何かを達成した印ではありません。\n\n今日は結局、そこには何も書きませんでした。丸がついたぶんだけ、少し見つけやすくなった気がします。',choices:[['見つけやすさを喜ぶ','何も書かなかった時間に、目印だけができたんですね。','empathy'],['丸を尋ねる','その丸には、どんな色を使いましたか。','curiosity'],['余白を守る','白い四角はそのままで、丸だけある。気負わない記録ですね。','reflection']]}
+ ]}
+};
+function createCrossTalkState4830(){return {schema:1,delivered:{}}}
+function migrateCrossTalk4830(data){
+ const old=data.crossTalk4830;const next=createCrossTalkState4830();
+ if(old&&typeof old==='object'&&old.delivered&&typeof old.delivered==='object'){
+  for(const key of Object.keys(CROSS_TALK_ARCS_4830)){
+   const entries=old.delivered[key];if(!Array.isArray(entries))continue;
+   next.delivered[key]=entries.slice(0,3).map(x=>x&&Number.isInteger(x.night)&&x.night>0&&typeof x.id==='string'?{night:x.night,id:x.id}:null);
+  }
+ }
+ data.crossTalk4830=next;return data;
+}
+function listenerCrossCompose4830(id,n){
+ if(n<29||chapter3IsNight(n)||specialActive(n))return null;
+ const state=s.crossTalk4830 ||= createCrossTalkState4830();
+ for(const [arc,def] of Object.entries(CROSS_TALK_ARCS_4830)){
+  if(n<def.start)continue;
+  const sent=state.delivered[arc]||[];
+  const stage=sent.findIndex(x=>!x);
+  const i=stage<0?(sent.length<3?sent.length:3):stage;
+  if(i>=3||def.stages[i].who!==id)continue;
+  if(i>0){
+   const prior=sent[i-1];
+   // 投函しただけでは続かない。原稿が実際に放送で紹介されていること。
+   if(!prior||!s.played.some(x=>x.id===prior.id&&x.night===prior.night))continue;
+   if(n-prior.night<def.stages[i].minGap)continue;
+  }
+  // 連続投稿の押しつけを避ける。しばらく待てば送る候補にはなれる。
+  const elapsed=n-(i===0?def.start:sent[i-1].night);
+  if(elapsed<30&&simHash(`cross4830:${arc}:${i}:${n}`)%100>=64)continue;
+  const note=def.stages[i];
+  return {kind:'crossTalk4830',tag:`cross4830:${arc}:${i}`,subject:note.subject,body:note.body,
+   crossTalk:{arc,stage:i},choices:note.choices.map(row=>[...row])};
+ }
+ return null;
+}
+function listenerCrossConfirmDelivered4830(n,ids){
+ const state=s.crossTalk4830 ||= createCrossTalkState4830();
+ for(const uid of ids){
+  const l=s.regular?.letterArchive?.[uid];if(l?.kind!=='crossTalk4830'||!l.crossTalk)continue;
+  const {arc,stage}=l.crossTalk;
+  if(!CROSS_TALK_ARCS_4830[arc]||!Number.isInteger(stage)||stage<0||stage>2)continue;
+  const sent=state.delivered[arc] ||= [];
+  // 実際に受信した手紙だけ記録し、同じ段階は二度送らない。
+  if(!sent[stage])sent[stage]={night:n,id:uid};
+ }
+}
+
+// v4.8.31 — 完結した交流が、何十夜も後の日常にさりげなく残る。
+// 重要: すべての参照は「その手紙が届いたこと」ではなく「放送で実際に読まれたこと」に基づく。
+const CROSS_AFTER_LETTERS_4831 = {
+ "lost": [
+  {
+   "who": "driver",
+   "minGap": 42,
+   "subject": "支部の箱の、底のほう",
+   "body": "こんばんは。地球支部と呼んでいる忘れ物箱を、久しぶりに整理しました。\n\n受付番号一番の手袋は、まだそのままです。その下から、いつ誰が書いたのかわからない「ゆっくり探すこと」というメモが出てきました。たぶん私の字です。\n\n落とし物を探しているうちに、探し方そのものを忘れそうになりました。猫主任は相変わらず箱に座っています。",
+   "choices": [
+    [
+     "受付メモを読む",
+     "「ゆっくり探すこと」が箱の底にあったんですね。受付係自身への注意書きみたいで、いいです。",
+     "empathy"
+    ],
+    [
+     "主任の監督を確認する",
+     "猫主任は今日も箱の上ですか。重要書類の上で寝るのが主任の方針なのでしょうか。",
+     "humor"
+    ],
+    [
+     "手袋に時間をあげる",
+     "手袋がまだそこにあることにも、ひとつの時間が流れているんですね。",
+     "reflection"
+    ]
+   ]
+  },
+  {
+   "who": "moon",
+   "minGap": 37,
+   "subject": "宇宙から見た、片方の靴下",
+   "body": "こんばんは。配達員さんの地球支部に「ゆっくり探すこと」というメモがあったそうですね。月面本部の掲示板にも、勝手に書き加えました。\n\nこちらは最近、片方だけの靴下を預かる想像をしています。宇宙服は靴下が必要なのか、という疑問まで生まれました。\n\n研究班は私ひとりなので、答えが出ないまま会議を閉じました。",
+   "choices": [
+    [
+     "研究班の議事録を受け取る",
+     "ひとりの研究班なのに、ちゃんと会議を閉じたんですね。議事録は保存しておきましょう。",
+     "humor"
+    ],
+    [
+     "靴下の行方を想像する",
+     "宇宙服のなかにも、片方だけの靴下が迷い込むのでしょうか。",
+     "curiosity"
+    ],
+    [
+     "掲示板の言葉を味わう",
+     "「ゆっくり探すこと」が月にまで届いたのが、なんだか嬉しいです。",
+     "reflection"
+    ]
+   ]
+  },
+  {
+   "who": "driver",
+   "minGap": 54,
+   "subject": "猫主任の受付印",
+   "body": "こんばんは。月面本部の靴下研究を聴いた翌朝、うちの猫主任が忘れ物箱に前足を乗せていました。\n\n押したわけでもないのに、埃の上に小さな肉球の跡が残っていました。職場の人と「これが受付印か」と笑いました。\n\n手袋はまだ誰のものかわかりません。箱だけ、少し立派になりました。",
+   "choices": [
+    [
+     "受付印を祝う",
+     "肉球の受付印、ずいぶん本格的ですね。箱が立派になったのは確かです。",
+     "humor"
+    ],
+    [
+     "笑った朝を喜ぶ",
+     "職場の人と一緒に笑えた朝だったんですね。それが何よりの報告です。",
+     "empathy"
+    ],
+    [
+     "忘れ物の時間を聴く",
+     "手袋はまだそのまま。それでも箱の周りの日々は変わっていくんですね。",
+     "reflection"
+    ]
+   ]
+  },
+  {
+   "who": "moon",
+   "minGap": 48,
+   "subject": "月面本部、印鑑を検討する",
+   "body": "こんばんは。地球支部に猫主任の肉球印ができたと聞き、月面本部にも印鑑が必要ではないかと思いました。\n\nしかし月面本部には猫がいません。そこで、丸いコップの底を紙に押す想像をしました。肝心の紙もコップも架空なので、結果は丸だけです。\n\nこんな小さな話が遠くまで往復するのは、不思議ですね。",
+   "choices": [
+    [
+     "架空の丸を受理する",
+     "コップの底の丸も、立派な印鑑ということにしましょう。月面らしいです。",
+     "humor"
+    ],
+    [
+     "往復を喜ぶ",
+     "肉球の跡から月面の丸まで。ずいぶん遠い往復になりましたね。",
+     "reflection"
+    ],
+    [
+     "丸の大きさを尋ねる",
+     "月面本部の丸は、どのくらいの大きさにする予定ですか。",
+     "curiosity"
+    ]
+   ]
+  },
+  {
+   "who": "driver",
+   "minGap": 57,
+   "subject": "箱は、今日もそこにある",
+   "body": "こんばんは。忘れ物箱に新しいものは増えていません。肉球の受付印も、掃除をしたら消えました。\n\n少し寂しいような気もしましたが、あの朝みんなで笑ったことまで消えたわけではありません。\n\n地球支部は今日も通常営業です。猫主任は箱から降りて、窓辺へ異動しました。",
+   "choices": [
+    [
+     "通常営業をねぎらう",
+     "新しい報告がなくても、ちゃんと営業している地球支部ですね。",
+     "empathy"
+    ],
+    [
+     "主任の異動を見送る",
+     "猫主任、窓辺に異動ですか。辞令は不要そうですね。",
+     "humor"
+    ],
+    [
+     "消えないものを受け取る",
+     "受付印は消えても、笑った朝は残っている。その話が好きです。",
+     "reflection"
+    ]
+   ]
+  }
+ ],
+ "breadclock": [
+  {
+   "who": "clock",
+   "minGap": 39,
+   "subject": "散歩道で見つけた、寄り道",
+   "body": "こんばんは。以前、パン屋さんの小さなパンに「寄り道」と勝手に名前をつけたことを、散歩中に思い出しました。\n\n今日はいつもの角を一つ曲がらず、遠回りして帰りました。特別な景色はありませんでしたが、知らない家の鉢植えに小さな花が咲いていました。\n\n私の寄り道は、今のところ花を一つ見つけただけです。",
+   "choices": [
+    [
+     "小さな花を受け取る",
+     "角を一つ曲がらなかった先の、小さな花。いい寄り道でしたね。",
+     "empathy"
+    ],
+    [
+     "鉢植えを想像する",
+     "どんな花だったのでしょう。道の向こうにも季節があるんですね。",
+     "curiosity"
+    ],
+    [
+     "寄り道を急がない",
+     "特別な景色がなくても、曲がらなかった角の先に何かがあるんですね。",
+     "reflection"
+    ]
+   ]
+  },
+  {
+   "who": "bread",
+   "minGap": 36,
+   "subject": "雨の日の、ちいさな名札",
+   "body": "こんばんは。古時計さんが散歩の寄り道で花を見つけたそうですね。うちの店先にも、今朝は雨粒のついた植木鉢がありました。\n\nあの小さな試作品の横には、今もときどき「寄り道」と書いた紙を置きます。ただ、毎日焼くわけではありません。\n\n今日は雨なので一つだけ。売れたかどうかより、名札が濡れずに済んだことが嬉しかったです。",
+   "choices": [
+    [
+     "名札を気にかける",
+     "「寄り道」の名札、雨に濡れなかったんですね。ちいさな安心が伝わります。",
+     "empathy"
+    ],
+    [
+     "一つだけのパンを眺める",
+     "雨の日に一つだけ焼くパン。棚の景色が浮かびます。",
+     "reflection"
+    ],
+    [
+     "植木鉢の話を聴く",
+     "お店の植木鉢には、今どんなものが育っているのでしょう。",
+     "curiosity"
+    ]
+   ]
+  },
+  {
+   "who": "clock",
+   "minGap": 59,
+   "subject": "名前のつかない散歩道",
+   "body": "こんばんは。パン屋さんのお店でも「寄り道」の名札がときどき使われているのですね。\n\n私は最近、散歩道の曲がり角に自分だけの名前をつけています。「返事を待つ角」「風の弱い道」。ただし誰にも説明していません。\n\n地図には載らない名札も、案外役に立つものです。迷ったとき、少しだけ行き先がわかる気がします。",
+   "choices": [
+    [
+     "秘密の地図を思う",
+     "「返事を待つ角」と「風の弱い道」。名前だけで景色が見えてきそうです。",
+     "curiosity"
+    ],
+    [
+     "名札の役目を考える",
+     "地図に載らなくても、自分の中では道を見つける目印になるんですね。",
+     "reflection"
+    ],
+    [
+     "歩く時間を喜ぶ",
+     "ご自分だけの名前をつけて歩く時間があるの、素敵ですね。",
+     "empathy"
+    ]
+   ]
+  },
+  {
+   "who": "bread",
+   "minGap": 44,
+   "subject": "閉店後の小さな道案内",
+   "body": "こんばんは。古時計さんが散歩道に名前をつけている話を聴いて、店の中の道にも名前がある気がしました。\n\nオーブンから流し台までが「急ぎ足の道」、入口から売り場の端までは「寄り道の道」です。もちろん、お客さんには見えない標識です。\n\n今日は閉店後、その道を少しゆっくり歩いて帰りました。",
+   "choices": [
+    [
+     "店内の地図を広げる",
+     "オーブンから流し台までの「急ぎ足の道」、忙しい厨房らしい名前ですね。",
+     "humor"
+    ],
+    [
+     "閉店後の歩幅を聴く",
+     "同じお店の中でも、歩く速さが変わる場所があるんですね。",
+     "reflection"
+    ],
+    [
+     "見えない標識を歓迎する",
+     "お客さんには見えない標識、ちょっと見てみたい気がします。",
+     "curiosity"
+    ]
+   ]
+  },
+  {
+   "who": "clock",
+   "minGap": 52,
+   "subject": "今日の寄り道には、名前をつけない",
+   "body": "こんばんは。パン屋さんの「急ぎ足の道」の話を聴いて、家の中にも小さな道があると気づきました。\n\nですが今夜は、散歩から帰ったあと、何にも名前をつけませんでした。茶碗を洗って、窓を閉めて、ただ座りました。\n\n「寄り道」と呼ぶ日もあれば、何でもない日もある。それで充分だと思っています。",
+   "choices": [
+    [
+     "何でもない夜を受け取る",
+     "名前のない夜にも、ちゃんと一日の続きがありますね。",
+     "empathy"
+    ],
+    [
+     "座った時間を想像する",
+     "茶碗を洗って窓を閉める。そのあとの静かな時間が伝わります。",
+     "reflection"
+    ],
+    [
+     "寄り道を残しておく",
+     "今日は名前をつけない。その自由も、散歩の楽しみの一つですね。",
+     "agency"
+    ]
+   ]
+  }
+ ],
+ "blank": [
+  {
+   "who": "fish",
+   "minGap": 43,
+   "subject": "余白の丸は、まだ消していない",
+   "body": "こんばんは。以前、夜明けの猫さんの予定表の余白を聴いて、私のノートにも小さな丸をつけました。\n\nあれから別のページに移りましたが、最初の丸はまだ消していません。何をした日の印だったかは、正直もう思い出せません。\n\nでも、意味が曖昧な印をそのまま残しておくのも悪くありませんね。",
+   "choices": [
+    [
+     "曖昧な丸を眺める",
+     "何の印か忘れても、丸だけは残っている。ノートらしい記憶ですね。",
+     "reflection"
+    ],
+    [
+     "消さない気持ちを聴く",
+     "消さずに置いておけたことが、なんだかいいですね。",
+     "empathy"
+    ],
+    [
+     "ほかの丸を尋ねる",
+     "そのあともノートに丸は増えましたか。それとも最初の一つだけでしょうか。",
+     "curiosity"
+    ]
+   ]
+  },
+  {
+   "who": "cat",
+   "minGap": 38,
+   "subject": "予定表の端に、雨の絵",
+   "body": "こんばんは。透明な金魚さんが丸を残しているという話を聴いて、久しぶりに自分の予定表を開きました。\n\n白い四角の横に、今日は丸の代わりに小さな雨雲を描きました。実際には晴れていたのですが、鉛筆がなんとなくその形になったんです。\n\n予定表の天気まで正確でなくても、困らないものですね。",
+   "choices": [
+    [
+     "雨雲を見つめる",
+     "晴れの日の予定表に小さな雨雲。心の天気予報みたいですね。",
+     "reflection"
+    ],
+    [
+     "絵の自由を喜ぶ",
+     "鉛筆が勝手に雨雲を描く日もありますよね。描き直さなくていいと思います。",
+     "empathy"
+    ],
+    [
+     "雲の形を尋ねる",
+     "その雨雲は、今にも降りそうな形でしたか。",
+     "curiosity"
+    ]
+   ]
+  },
+  {
+   "who": "fish",
+   "minGap": 65,
+   "subject": "晴れの日の、雲の話",
+   "body": "こんばんは。夜明けの猫さんが晴れた日の予定表に雨雲を描いたそうですね。\n\n私も晴れた帰り道、空に一つだけ雲が浮かんでいるのを見ました。名前をつけようとして、途中でやめました。\n\nノートの丸も空の雲も、全部説明できなくてもいいのかもしれません。今日はそれだけです。",
+   "choices": [
+    [
+     "一つの雲を見送る",
+     "晴れた空に一つだけあった雲、静かな景色ですね。",
+     "empathy"
+    ],
+    [
+     "名前をつけない選択を聴く",
+     "名前をつけようとしてやめたことも、その日の小さな出来事ですね。",
+     "reflection"
+    ],
+    [
+     "帰り道を尋ねる",
+     "どんな帰り道で、その雲を見つけたのでしょう。",
+     "curiosity"
+    ]
+   ]
+  },
+  {
+   "who": "cat",
+   "minGap": 49,
+   "subject": "消し忘れた、小さな印",
+   "body": "こんばんは。透明な金魚さんの雲の話を聴いてから、予定表を見返しました。\n\n鉛筆で描いた雨雲の隣に、前に描いた丸がまだありました。消し忘れたというより、消す理由がなかったのかもしれません。\n\n二つ並んだ印を見て、特に何かを思い出したわけではありません。ただ、少し可笑しくなりました。",
+   "choices": [
+    [
+     "二つの印を見る",
+     "丸と雨雲が並んでいる。予定表が少し自由な場所になりましたね。",
+     "reflection"
+    ],
+    [
+     "小さな笑いを受け取る",
+     "何かを思い出さなくても笑える印があるって、いいですね。",
+     "empathy"
+    ],
+    [
+     "余白を尋ねる",
+     "ほかの白い四角には、まだ何も描いていないのでしょうか。",
+     "curiosity"
+    ]
+   ]
+  },
+  {
+   "who": "fish",
+   "minGap": 58,
+   "subject": "ノートを閉じる前に",
+   "body": "こんばんは。夜明けの猫さんが丸と雨雲を並べていた話を聴いて、今夜はノートを開きました。\n\n私は何も描きませんでした。机の上でページをめくって、端が少し折れたのを指で直しただけです。\n\nでも、前なら「何も書かなかった」と残念に思ったかもしれません。今夜は、ただノートを閉じました。",
+   "choices": [
+    [
+     "閉じたノートを思う",
+     "書かなかったページを、そのまま閉じたんですね。静かな夜です。",
+     "empathy"
+    ],
+    [
+     "指先の時間を聴く",
+     "折れた端を指で直す時間も、そのページに残っているようです。",
+     "reflection"
+    ],
+    [
+     "また開く日を待つ",
+     "何も書かずに閉じたノート。また開く日があってもなくてもいいですね。",
+     "agency"
+    ]
+   ]
+  }
+ ]
+};
+function createCrossAfterState4831(){return {schema:1,delivered:{}}}
+function migrateCrossAfter4831(data){
+ const old=data.crossAfter4831, next=createCrossAfterState4831();
+ if(old&&typeof old==='object'&&old.delivered&&typeof old.delivered==='object'){
+  for(const arc of Object.keys(CROSS_AFTER_LETTERS_4831)){
+   const entries=old.delivered[arc];if(!Array.isArray(entries))continue;
+   next.delivered[arc]=entries.slice(0,5).map(v=>v&&Number.isInteger(v.night)&&v.night>0&&typeof v.id==='string'?{night:v.night,id:v.id}:null);
+  }
+ }
+ data.crossAfter4831=next;return data;
+}
+function listenerCrossAfterCompose4831(id,n){
+ if(n<29||chapter3IsNight(n)||specialActive(n))return null;
+ const sent=s.crossAfter4831?.delivered||{}, original=s.crossTalk4830?.delivered||{};
+ for(const [arc,stages] of Object.entries(CROSS_AFTER_LETTERS_4831)){
+  const root=original[arc]?.[2];
+  if(!root||!s.played.some(x=>x.id===root.id&&x.night===root.night))continue;
+  const progress=sent[arc]||[], empty=progress.findIndex(x=>!x);
+  const i=empty<0?progress.length:empty;
+  if(i>=stages.length||stages[i].who!==id)continue;
+  const prior=i===0?root:progress[i-1];
+  if(!prior||!s.played.some(x=>x.id===prior.id&&x.night===prior.night))continue;
+  const age=n-prior.night;
+  if(age<stages[i].minGap)continue;
+  // 全ての送信夜を予告しない。話題が生活に自然に浮かぶまでの間を作る。
+  if(age<stages[i].minGap+24&&simHash(`after4831:${arc}:${i}:${n}`)%100>=62)continue;
+  const note=stages[i];
+  return {kind:'crossAfter4831',tag:`after4831:${arc}:${i}`,subject:note.subject,body:note.body,
+    crossAfter:{arc,stage:i},choices:note.choices.map(choice=>[...choice])};
+ }
+ return null;
+}
+function listenerCrossAfterConfirm4831(n,ids){
+ const state=s.crossAfter4831 ||= createCrossAfterState4831();
+ for(const uid of ids){
+  const mail=s.regular?.letterArchive?.[uid];
+  if(mail?.kind!=='crossAfter4831'||!mail.crossAfter)continue;
+  const {arc,stage}=mail.crossAfter;
+  if(!CROSS_AFTER_LETTERS_4831[arc]||!Number.isInteger(stage)||stage<0||stage>=5)continue;
+  const progress=state.delivered[arc] ||= [];
+  if(!progress[stage])progress[stage]={night:n,id:uid};
+ }
 }
 
 function createRegularLetters(n){
@@ -2317,18 +2782,18 @@ function createRegularLetters(n){
  const ids=[];
  for(const {id} of selected){
   const first=REGULAR_NEW.includes(id)&&!newListenerIntroduced(id,n);
-  const follow42=relationThreadCompose42(id,n),follow41=dailyThreadCompose41(id,n),surprise=surpriseCompose46(id,n);
+  const follow42=relationThreadCompose42(id,n),follow41=dailyThreadCompose41(id,n),surprise=surpriseCompose46(id,n),crossTalk=listenerCrossCompose4830(id,n),crossAfter=listenerCrossAfterCompose4831(id,n);
   const candidates=[follow42,follow41,surprise].filter(Boolean);
   // 各エピソードの続きが常に最優先にならないよう、夜ごとに順番を変える。
   const everyday=candidates.length?candidates[simHash(`surprise46:balance:${id}:${n}:${s.rng}`)%candidates.length]:null;
   const quietReturn=quietWaitingToReturn(id,n)&&n-quietLastActualMail461(id,n)>=3;
-  const note=quietReturn?quietReturnNote(id,n):first?newListenerFirstLetter(id,n):everyday|| (REGULAR_NEW.includes(id)?newListenerCompose(id,n):
+  const note=quietReturn?quietReturnNote(id,n):first?newListenerFirstLetter(id,n):crossTalk||crossAfter||everyday|| (REGULAR_NEW.includes(id)?newListenerCompose(id,n):
     id===support[(n%2)%support.length]?.id?(radioVarietyCompose38(id,n)||regularThemeLetter(id,n)):regularCompose(id,n));
   const voiced=v33VoiceLetter(id,n,note);
   const uuid=`regular_${n}_${id}`;
-  const special=!['culture','variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47'].includes(voiced.kind)&&n>=21&&(n-21)%7===0&&REGULAR_MAIN.includes(id)&&id===main[0]?.id;
-  archive[uuid]={who:id,subject:voiced.subject,body:voiced.body,special,regular:true,kind:voiced.kind,tag:voiced.tag,voiceVersion:voiced.voiceVersion||0,absenceReturn:Boolean(voiced.absenceReturn),culture:voiced.culture||null,variety:voiced.variety||null,radioMemory:voiced.radioMemory||null,longEcho:voiced.longEcho||null,surprise46:voiced.surprise46||null,thread:voiced.thread||null,relationThread:voiced.relationThread||null,arcSummary45:voiced.arcSummary45||null,replyVersion:['variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47'].includes(voiced.kind)?31:0,
-   choices:(['variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47'].includes(voiced.kind)?voiced.choices:REGULAR_CHOICES).map(x=>[...x])};
+  const special=!['culture','variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831'].includes(voiced.kind)&&n>=21&&(n-21)%7===0&&REGULAR_MAIN.includes(id)&&id===main[0]?.id;
+  archive[uuid]={who:id,subject:voiced.subject,body:voiced.body,special,regular:true,kind:voiced.kind,tag:voiced.tag,voiceVersion:voiced.voiceVersion||0,absenceReturn:Boolean(voiced.absenceReturn),culture:voiced.culture||null,variety:voiced.variety||null,radioMemory:voiced.radioMemory||null,longEcho:voiced.longEcho||null,surprise46:voiced.surprise46||null,crossTalk:voiced.crossTalk||null,crossAfter:voiced.crossAfter||null,thread:voiced.thread||null,relationThread:voiced.relationThread||null,arcSummary45:voiced.arcSummary45||null,replyVersion:['variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831'].includes(voiced.kind)?31:0,
+   choices:(['variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831'].includes(voiced.kind)?voiced.choices:REGULAR_CHOICES).map(x=>[...x])};
   // v4.0: ここでは「候補」を書いただけ。実際に届いたかは夜の最終確定時に決まる。
   ids.push(uuid);
  }
