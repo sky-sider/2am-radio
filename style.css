@@ -294,7 +294,7 @@ body.guide-open{overflow:hidden}
 /* 放送日誌：ページ操作と、その説明行の境目を明確に。 */
 .journal-bookmark-actions{margin-top:18px}
 .journal-page-actions{margin-top:16px}
-.layout main .panel > .journal-page-caption{margin:11px 0 17px;color:var(--sub)}
+.layout main .panel .journal-page-caption{margin:11px 0 17px;color:var(--sub)}
 /* お便り：差出人と件名を一続きの文章に見せない。 */
 .letter > .letter-title + .small,.letter > .letter-top + .small{margin-top:5px}
 /* 設定：バックアップ操作を横幅に合わせて整える。 */
@@ -581,3 +581,26 @@ body.guide-open{overflow:hidden}
 .finale-breath .overline{letter-spacing:.05em}
 .reader-paper .finale-breath{color:#41434c;background:rgba(126,103,69,.08);margin:13px 0 23px}
 @media(max-width:600px){.finale-onair-reply,.finale-breath{padding:11px 12px}}
+
+/* v4.9.19: 放送日誌でだけ、任意で開ける過去の二通 */
+.journal-two-letters{margin:20px 0 18px;padding:18px;border:1px solid #59677c;border-radius:12px;background:rgba(23,34,51,.64)}
+.journal-two-letters h3{margin:8px 0 10px;font-size:1.08rem}
+.journal-two-letters>.small,.journal-two-inner>.small{line-height:1.85}
+.journal-two-inner{padding-top:10px}
+.journal-two-person{margin:6px 0 14px;color:#f0d4a7;font-weight:700}
+.journal-two-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.journal-two-paper{min-width:0;padding:14px;border:1px solid #55627a;border-radius:10px;background:rgba(17,25,39,.78)}
+.journal-two-paper h4{margin:7px 0 10px;color:#f3ddb9;font-size:.98rem;overflow-wrap:anywhere}
+.journal-two-excerpt{font-size:.91rem;line-height:1.8;overflow-wrap:anywhere}
+.journal-two-paper details{margin-top:13px;border-top:1px solid #4e5b70;padding-top:12px}
+.journal-two-paper summary{cursor:pointer;color:#dfc6a1;font-size:.84rem;line-height:1.55}
+.journal-two-paper details .letter-text{margin-top:12px;line-height:1.9}
+.journal-two-paper details .quote{margin-top:13px}
+.journal-two-paper summary:focus-visible{outline:2px solid #f1c78b;outline-offset:3px}
+@media(max-width:620px){.journal-two-grid{grid-template-columns:minmax(0,1fr)}.journal-two-letters{padding:14px}.journal-two-paper{padding:13px}}
+
+/* v4.9.21 — 心に残ったお便り：一覧は20通ずつ。スマホでも操作可能なページ移動。 */
+.bookmark-page-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 18px}
+.bookmark-page-actions .btn{min-height:44px;flex:1 1 160px}
+.bookmark-page-caption{margin-top:16px!important}
+@media(max-width:420px){.bookmark-page-actions .btn{flex:1 1 100%;min-width:0}}
