@@ -573,3 +573,11 @@ body.guide-open{overflow:hidden}
 .finale-panel{border:1px solid rgba(217,185,132,.4);background:linear-gradient(145deg,#1b2b40,#172335);color:#ece4d7}.finale-panel h2,.finale-panel h3{color:#eed3a0}.finale-panel p{line-height:2}.finale-callout{padding:19px;margin:20px 0;background:#23354b;border:1px solid #627086;border-radius:12px;color:#eee4d7}.finale-callout p{line-height:1.85}.finale-deferred{padding:10px 12px;font-size:.88rem;opacity:.8}.finale-options{display:grid;gap:12px;margin:18px 0}.finale-options .choice{width:100%;text-align:left;white-space:normal;line-height:1.85;padding:16px}.finale-fragment{background:#eadfce;color:#28394a;padding:21px 23px;margin:16px 0;border-left:4px solid #b18a54;border-radius:6px}.finale-fragment p{margin:0 0 8px}.finale-fragment cite{font-size:.88rem;display:block;text-align:right}.finale-record{display:flex;flex-direction:column;gap:9px;margin:24px 0;padding:25px;background:#24364b;border-radius:10px}.finale-record strong{font-size:1.8rem}.finale-script{padding:18px;border-left:2px solid #c4aa80}.finale-image-preview{display:grid;gap:22px;margin:22px 0}.finale-image-preview>div{display:grid;gap:8px}.finale-preview-img{width:100%;max-width:410px;height:auto;border:1px solid #ad997b;display:block}.finale-reader .finale-fragment{margin:20px 0}.finale-reader .reader-ending{margin-top:22px}.finale-finished .actions{display:flex;flex-wrap:wrap;gap:10px}@media(max-width:600px){.finale-panel{padding:18px}.finale-fragment{padding:15px}.finale-options .choice{padding:13px}}
 
 @media(max-width:600px){.finale-panel{margin-bottom:78px}}
+
+/* v4.9.5: 最終放送の返答と次のお便りをつなぐ短い間 */
+.finale-onair-reply,.finale-breath{border-left:2px solid #bca579;border-radius:0 8px 8px 0;padding:12px 17px;margin:18px 0;background:rgba(223,204,167,.07);min-width:0}
+.finale-onair-reply{background:rgba(223,204,167,.11)}
+.finale-onair-reply p,.finale-breath p{margin:6px 0 0;line-height:1.9;overflow-wrap:anywhere}
+.finale-breath .overline{letter-spacing:.05em}
+.reader-paper .finale-breath{color:#41434c;background:rgba(126,103,69,.08);margin:13px 0 23px}
+@media(max-width:600px){.finale-onair-reply,.finale-breath{padding:11px 12px}}
