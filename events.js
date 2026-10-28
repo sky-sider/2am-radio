@@ -3128,7 +3128,7 @@ function specialAvailable(n=s.night){
    !s.special.history.some(h=>h.themeId===seasonTheme&&Math.floor((h.night-1)/112)===Math.floor((n-1)/112)))basic.push(seasonTheme);
  return basic;
 }
-function specialPlan(themeId){
+function specialPlan(themeId){if(['planned','announced','on_air','completed'].includes(s.finale?.status))return;
  if(milestoneUpcoming(s.night))return; // 固定記念は手動予約・変更しない
  if(!specialAvailable(s.night).includes(themeId))return;
  const offer=themeId.startsWith('story_')?storyOfferFor(themeId):null;
