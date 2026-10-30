@@ -2530,7 +2530,7 @@ function timeEchoCompose4933(id,n){
  if(latest&&n-latest<90)return null;
  if(history.some(x=>n-x.night<6))return null;
  if(simHash(`timeEcho4933:chance:${id}:${n}`)%100>=45)return null;
- const prior=(s.played||[]).filter(x=>x.who===id&&x.night>=15&&n-x.night>=70&&n-x.night<=160&&x.subject&&x.body);
+ const prior=(s.played||[]).filter(x=>x.who===id&&x.night>=15&&n-x.night>=70&&n-x.night<=160&&x.subject&&x.body&&x.subject!=='あのころの一通と、今夜');
  if(!prior.length)return null;
  const x=prior[simHash(`timeEcho4933:source:${id}:${n}`)%prior.length];
  if(!x)return null;
@@ -2589,10 +2589,98 @@ const LIFE_AXES_ENDINGS_4935={
  triangle:['一つの答えで二問とも採点したら、たぶん先生に注意されますよね。今日は二つの欄を残します。','この前の二問は、まだどちらも解き終わっていません。別々の途中式として、ノートに残しておきます。'],
  fridge:['店の献立なら順番を決めます。でも、自分の時間にはメニュー表がないんですよね。今日はそこまでです。','前に二皿分の話を送りました。今日も一つの皿で全部を説明しようとは思いません。']
 };
+// v4.9.37: Only connect yesterday's REAL action to the second life axis when
+// the transition is meaningful for that listener. No invented event or conclusion.
+// Each entry: eligible action IDs, narrative bridge, DJ's concrete follow-up.
+const LIFE_AXIS_BRIDGES_4937={
+ cat:[
+  [['rest','cafe'],'答えを急がない時間も、自分の予定に入れておきたいと思っています。','その休憩は、どんなふうに過ごせましたか。'],
+  [['artlook','draw'],'仕事の答えが出ない日にも、紙との距離は毎日少し違います。','紙を前にしたとき、どんなことが頭に浮かびましたか。'],
+  [['frienddraft'],'絵と仕事だけでなく、人に伝える言葉もまだ途中にあります。','書きかけた言葉は、今はしまっておきたいですか。']
+ ],
+ driver:[
+  [['route','coworker'],'家族への言葉はすぐ決まらなくても、配送の一日はいつもどおり進みます。','仕事の区切りに、何がいちばん残りましたか。'],
+  [['coffee','sleep','chief'],'家族の話には保留があっても、休憩所で過ごす時間には今日の形があります。','休憩を終えたあと、どんな気分でしたか。'],
+  [['sisterdraft','sisterthink'],'荷物の配達と違って、家族への言葉には決まった到着時刻がないですね。','その言葉の続きを、今は考えていたいですか。']
+ ],
+ fish:[
+  [['study','diary','practice','career'],'答えを出せないことがあっても、ノートは別の一行を受け入れてくれます。','ノートには、どんな気持ちが残りましたか。'],
+  [['bookshop','friendchat','brother'],'将来のことを考えながらも、目の前の人や場所には新しい発見があります。','今日のやりとりで、気になったことはありましたか。']
+ ],
+ clock:[
+  [['walk','tea','photo','stationplan'],'昔の店のことを覚えたまま、今の暮らしの小さな時刻も過ごしております。','その時間は、どんなふうに心に残りましたか。'],
+  [['repair','library','neighbor'],'昔の仕事で覚えた手つきも、今出会う人たちとの時間も、どちらも私の一日です。','今の時間の中で、何がいちばん印象に残りましたか。']
+ ],
+ terminal:[
+  [['chores','walk','neighbor','rest'],'駅で待っている時間だけで、暮らしのすべてを数えたくはありません。','その帰り道や用事の中で、覚えている景色はありますか。']
+ ],
+ bread:[
+  [['rest'],'焼き上がりの時間を気にしなくていいひとときも、私には必要なようです。','閉店後の時間は、どんなふうに感じられましたか。'],
+  [['bake','store','boss','customer'],'パン屋の仕事はいつも考えています。でも、それだけで一日を採点するのは少し違う気がします。','今日の店で、何がいちばん面白かったですか。']
+ ],
+ moon:[
+  [['moon','sketch'],'月面議事録を書いていても、地上の自分が何を感じたかは別紙です。','その新しい案件は、どんな見出しになりそうですか。'],
+  [['pudding','family'],'月面議会の審議とは別に、地上の家にも小さな議題があります。','地上での出来事は、どんなふうに議事録へ載せましょう。']
+ ],
+ sugar:[
+  [['coffee','cloud','friend'],'決まった一杯があっても、その日の景色や誰かとの話まで同じ配合にはなりません。','今夜の一杯と、その出来事を並べるとどんな感じがしますか。']
+ ],
+ anon:[
+  [['read','walk','notes','greet'],'名前を明かすかどうかとは別に、その日に目に留まったことは書いておきたいのです。','書いてくれた出来事の、どの部分が気になりましたか。']
+ ],
+ umbrella:[
+  [['bouquet','window','flowercustomer','market','assistanttalk','plantrest','neighborchat'],'花の様子は毎日確かめます。でも、その日の自分の気持ちは、花のように並べて比べられません。','その出来事を終えたあと、店の景色はどう見えましたか。']
+ ],
+ triangle:[
+  [['librarystudy','diagram','future','teacher'],'ノートの問題とは別に、今の自分にしか書けない途中式もある気がします。','そのときノートには、何を書き残しましたか。'],
+  [['friends','freewalk','familydinner'],'勉強の答えを考えていない時間にも、ちゃんと今日の発見があるんですね。','その出来事のどこが、いちばん面白かったですか。']
+ ],
+ fridge:[
+  [['konbini','leftovers','rest','brother'],'仕事の皿を片づけたあとも、自分の食卓や人とのやりとりは続きます。','自分のための時間は、どんなふうに過ごせましたか。']
+ ]
+};
+// Unlike a chapter-choice label, these are things the person actually wrote about.
+const LIFE_AXIS_DJ_4937={
+ cat:[['絵と仕事のあいだ','仕事の答えがまだ出なくても、絵との付き合い方は毎日同じではないんですね。'],['紙の余白を残す','書くことも描くことも、今夜ぜんぶ結論にしなくていいと思います。']],
+ driver:[['報告書にならない言葉','家族への言葉は、配送の報告と同じようには完了にできないんですね。'],['保留の欄を残す','主任への報告なら終わっても、家族への返事は急がなくていいですよ。']],
+ fish:[['ノートの別々の頁','友達との距離とこれからの希望を、同じ答えで決めなくていいんですね。'],['空欄を許す','ノートの答えを一度に埋めなくても、今夜書いたことは残りますね。']],
+ clock:[['昔と今の時刻','昔のお店を覚えていることと、今の暮らしを味わうことは両立しますね。'],['時計を急がせず','昔の思い出も今日の出来事も、無理に整理しなくてよいと思います。']],
+ terminal:[['駅の外の一日','駅の記憶を大切にしたまま、別の帰り道の話も書けるんですね。'],['行き先を決めずに','駅のことにも今日のことにも、今夜すぐ意味をつけなくていいと思います。']],
+ bread:[['焼き上がりの外側','パンの出来だけでは測れない時間が、店を出たあとにもあるんですね。'],['採点しない夜','毎日を成功と失敗の二つに分けなくてもいいと思います。']],
+ moon:[['月と地上の議案','月面議会が賑やかでも、地上の毎日まですべて採決する必要はありませんね。'],['非公開議事録','公開しない議題があっても、今夜の報告はちゃんと届いていますよ。']],
+ sugar:[['一杯ごとの違い','砂糖の数が同じでも、毎日考えることは同じにならないんですね。'],['冷める速さのまま','考えがまとまる前に、コーヒーを飲み終えてもいいと思います。']],
+ anon:[['名前を変えない声','名乗り方を変えなくても、違う日の話を聞かせてくれるんですね。'],['話す範囲を選ぶ','今日の出来事を送ることと、名前を明かすことは別の選択ですよね。']],
+ umbrella:[['店先と帰り道','花の様子を見守る仕事と、自分の気持ちを整える時間は違うものなんですね。'],['気持ちを切りそろえず','気持ちまで花束のようにそろえる必要はないと思います。']],
+ triangle:[['別々の解答欄','勉強の答えと、友達や将来の話では、答えの出方も違うんですね。'],['途中式のまま','今夜の考えを、まだ途中式のまま残しておいてもいいですね。']],
+ fridge:[['厨房と家の食卓','人の料理を作る時間と、自分が食べるものを選ぶ時間は違いますね。'],['自分の皿は自分で','誰かのための献立のように、自分の夜まで整えなくていいと思います。']]
+};
+const LIFE_AXIS_UNHEARD_END_4937={
+ cat:'今のところ、仕事と絵を同じ紙に書いても、答えは一つになりません。机の上はそれでいいと思っています。',
+ driver:'今日の配送分はこれで終了です。家族への言葉はまだ途中。主任への報告とは別便にします。',
+ fish:'今日のノートには二つのことを書きました。どちらにも、まだ小さな余白があります。',
+ clock:'昔の話を消さなくても、今日の針は進むものですね。今夜はそれだけを記しておきます。',
+ terminal:'駅の記憶を消したいわけではありません。ただ、今日の帰り道にも別の景色がありました。',
+ bread:'パンの焼き上がりとは違って、こちらの答えにはタイマーがありません。今夜はこれで閉店です。',
+ moon:'月面議会の新しい議題として記録します。以前の議事録を知らなくても、今夜分は単独で審議可能です。',
+ sugar:'今日の一杯は今日の一杯です。砂糖の数が同じでも、考えていたことは今夜のものですね。',
+ anon:'名前の欄は今日も同じです。けれど、送っておきたい出来事は今日のものです。',
+ umbrella:'花の名前は覚えていても、自分の気持ちはすぐには名前をつけられません。今夜はこのままにしておきます。',
+ triangle:'二つのことを一つの解答欄に入れなくていい。今夜はそういう途中式になりました。',
+ fridge:'今日も仕事と自分の食卓は別の皿です。片方の出来がよくなくても、もう片方まで採点はしません。'
+};
+function lifeCrossFirstAired4937(id,n,subject){
+ return (s.played||[]).some(x=>x.who===id&&x.night<n&&x.subject===subject);
+}
+function lifeCrossBridge4937(id,day){
+ return (LIFE_AXIS_BRIDGES_4937[id]||[]).find(x=>x[0].includes(day.actionId))||null;
+}
 function lifeCrossCompose4935(id,n){
  if(n<125||chapter3IsNight(n)||chapter4IsNight(n)||specialActive(n)||!s.regular)return null;
  const card=LIFE_AXES_4935[id],day=regularDayAction(id,n);
  if(!card||!day?.activity)return null;
+ // Decline an unrelated activity instead of forcing a decorative "on the other hand".
+ const scene=lifeCrossBridge4937(id,day);
+ if(!scene)return null;
  const heard=(s.played||[]).filter(x=>x.who===id&&x.night<n);
  if(heard.length<5)return null;
  const history=s.regular.lifeCross4935?.[id]||{};
@@ -2602,13 +2690,20 @@ function lifeCrossCompose4935(id,n){
  if(simHash('lifeCross4935:chance:'+id+':'+n)%100>=55)return null;
  const route=s.lifePaths?.outcomes?.[id]?.route;
  const axis=LIFE_ROUTE_AXES_4935[id]?.[route]||card.axis;
- const activity=letterPoliteActivity491(day.activity);
- const body=regularFirstSentence(id,n)+'\n\n'+(stage==='first'?axis:card.after)+'\n\nその一方で、昨日は'+activity+'。\n\n'+LIFE_AXES_ENDINGS_4935[id][stage==='first'?0:1];
+ const activity=letterPoliteActivity491(day.activity).replace(/今日の気持ち/g,'その日の気持ち');
+ const firstAired=stage==='second'&&lifeCrossFirstAired4937(id,n,card.subject[0]);
+ // The continuation is self-contained when the earlier letter was delivered but not aired.
+ const ending=stage==='first'?LIFE_AXES_ENDINGS_4935[id][0]
+   :firstAired?LIFE_AXES_ENDINGS_4935[id][1]:LIFE_AXIS_UNHEARD_END_4937[id];
+ const body=regularFirstSentence(id,n)+'\n\n'+(stage==='first'?axis:card.after)
+  +'\n\n'+scene[1]+' 昨日は、'+activity+'。'
+  +'\n\n'+ending;
+ const personReplies=LIFE_AXIS_DJ_4937[id];
  const choices=[
-  ['二つの話を受け取る','「'+card.image+'」を、同じ一通に書いてくれたんですね。どちらの時間も大切に聞いています。','empathy'],
-  ['昨日の出来事を尋ねる','昨日の出来事は、今夜のあなたにはどんなふうに残っていますか。','curiosity'],
-  ['違う速さを認める','暮らしの別々の部分が、同じ速さで変わる必要はありませんよね。','reflection'],
-  ['答えを急がせない','一通に書いたからといって、二つとも結論を出さなくてもいいと思います。','space']
+  ['昨日の一場面を受け取る','昨日は、'+activity+'。その場面も、この一通に残してくれたんですね。','empathy'],
+  ['そのときを尋ねる',scene[2],'curiosity'],
+  [personReplies[0][0],personReplies[0][1],'reflection'],
+  [personReplies[1][0],personReplies[1][1],'space']
  ];
  return {kind:'life-cross4935',tag:'life-cross4935:'+stage,subject:card.subject[stage==='first'?0:1],body,choices,lifeCrossStage4935:stage,lifeCrossActivity4935:day.actionId};
 }
