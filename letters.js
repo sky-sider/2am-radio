@@ -2223,11 +2223,48 @@ function continuingSpecialParts4928(l){
   ])}));
 }
 
+// v4.9.31: Do not equate a high trust number with permission to presume intimacy.
+// The particular programme must actually have aired, and the sender must have heard it.
+function longBroadcastReplies4931(l){
+ if(l.kind!=='broadcast'||s.night<95||l.special)return null;
+ const history=s.played||[],prior=history.filter(x=>x.who===l.who&&x.night<s.night);
+ if(prior.length<5)return null;
+ const meta=l.broadcastSource4931;
+ let source=meta?.sourceId?history.find(x=>x.id===meta.sourceId&&x.night===meta.sourceNight&&x.who===meta.sourceWho):null;
+ // Old saved mail has no source metadata. Only use a uniquely confirmed actual broadcast.
+ if(!source){
+  const matches=history.filter(x=>x.night===s.night-1&&String(l.body||'').includes('「'+x.subject+'」'));
+  if(matches.length===1)source=matches[0];
+ }
+ if(!source)return null;
+ const title='「'+source.subject+'」';
+ if(source.who===l.who)return [
+  R('届いたあとの朝を聞く',`${title}を読んだあとの朝のことも、こうして聞けるんですね。`, 'empathy'),
+  R('言葉の変化に耳を傾ける','書いたときと放送で聴いたときでは、何が違って聞こえたのでしょう。','curiosity'),
+  R('同じ一日を考える','放送で読んだことと、その後いつもの一日を過ごすこと。どちらもあなたの時間なんですね。','reflection'),
+  R('そのまま受け止める','今夜は、言葉にしたあとの時間についても聞けてよかったです。','space')
+ ];
+ const firstLines=[
+  `${title}の言葉を、今夜また聞かせてもらいました。ひとつの放送が、別の人の一日に続いていくんですね。`,
+  `${title}が、あなたの暮らしにも残っていたんですね。こうして別の角度から聞くと、また違う景色が見えてきます。`,
+  `今夜は${title}の続きを、あなたの声から受け取った気がします。声が違えば、残るところも違うんですね。`,
+  `${title}のことを思い出して書いてくれたんですね。今夜は、その言葉がどう残ったかを聞けてうれしいです。`
+ ];
+ const firstLine=firstLines[simHash('long-echo4931:'+l.who+':'+s.night+':'+source.id)%firstLines.length];
+ return [
+  R('残った一通に触れる',firstLine,'empathy'),
+  R('心に残ったところを尋ねる',`${title}の中で、どんなところが一番気になったのでしょう。`,'curiosity'),
+  R('離れた暮らしに思いを寄せる','違う場所で暮らしている人の言葉が、誰かの朝にも続いていくんですね。','reflection'),
+  R('続きを急がせない','その言葉を聴いて、何かをすぐ変えなくてもいいと思います。こうして思い出したことにも意味がありますね。','space')
+ ];
+}
 function replyTopicChoices(l){
  const authoredSpecial=specialProgramChoices4928(l);
  if(authoredSpecial)return authoredSpecial;
  const specialEcho=specialEchoChoices4928(l);
  if(specialEcho)return specialEcho;
+ const longBroadcast=longBroadcastReplies4931(l);
+ if(longBroadcast)return longBroadcast;
  if(['everyday47','laterlife4914'].includes(l.kind)&&Array.isArray(l.choices)&&l.choices.length>=3)return l.choices.map(x=>[...x]);
  if(l.kind==='variety'&&Array.isArray(l.choices)&&l.choices.length>=3)return l.choices.map(x=>[...x]);
  if(l.kind==='culture'&&l.culture){
