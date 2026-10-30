@@ -8,6 +8,7 @@ let activeProfile='main';
 try{if(localStorage.getItem(ACTIVE_PROFILE_KEY)==='reader'&&localStorage.getItem(READER_SAVE))activeProfile='reader'}catch(e){console.warn(e)}
 let readerBatch=false,readerSetupOpen=false,readerSaveWarning=false;
 let mainDataRevision=0; // 読書モードの表示操作とは独立した本編データの更新番号
+let saveRepairNotice=''; // 読み込み時に異常値を補正した場合だけ表示。セーブ本体には保存しない。
 let s=load();
 if(!s.simState)s.simState=createSimulationState();
 if(!s.microWorld)s.microWorld=createMicroWorldState();
@@ -29,6 +30,35 @@ if(!s.crossTalk4830)s.crossTalk4830=createCrossTalkState4830();
 if(!s.crossAfter4831)s.crossAfter4831=createCrossAfterState4831();
 if(!s.storyPrograms)s.storyPrograms=createStoryProgramsState();
 if(!s.climate)s.climate=createClimateState();
+// v4.9.36: 旧セーブの正常値はそのまま。無効な値だけを人物別の初期値へ戻すか、0〜100へ制限する。
+// 補正の記録は非列挙プロパティとし、放送内容・保存形式・乱数には影響させない。
+function repairCoreListenerMetrics(data,defaults){
+ const changed=[];
+ for(const [id,base] of Object.entries(defaults.listeners)){
+  const person=data.listeners[id];
+  if(!person||typeof person!=='object'||Array.isArray(person)){
+   data.listeners[id]=structuredClone(base);
+   changed.push(id+'（人物データ）');
+   continue;
+  }
+  for(const key of ['trust','reflection','agency','stress']){
+   const value=person[key];
+   const fixed=Number.isFinite(value)?Math.max(0,Math.min(100,value)):base[key];
+   if(!Object.is(value,fixed)){
+    person[key]=fixed;
+    changed.push(id+'.'+key);
+   }
+  }
+ }
+ if(changed.length){
+  Object.defineProperty(data,'__coreMetricRepair',{value:{count:changed.length,fields:changed},configurable:true,enumerable:false});
+ }
+ return changed;
+}
+function coreRepairMessage(data){
+ const n=data?.__coreMetricRepair?.count||0;
+ return n?`バックアップ内のリスナーの数値 ${n}項目を安全な範囲へ補正しました。元のバックアップファイルは変更していません。今の状態を別のバックアップとして保存することをおすすめします。`:'';
+}
 function migrateState(data){
   if(!data||data.version!==1||!data.listeners||!data.flags)return null;
   const defaults=defaultState();
@@ -88,8 +118,8 @@ function migrateState(data){
   data.guidance.seen ||= {};
   data.bookmarks=Array.isArray(data.bookmarks)?data.bookmarks:[];
   data.letterSets=data.letterSets||{};
+  repairCoreListenerMetrics(data,defaults);
   for(const [id,base] of Object.entries(defaults.listeners)){
-    if(!data.listeners[id])data.listeners[id]=structuredClone(base);
     if(!Array.isArray(data.listeners[id].memories))data.listeners[id].memories=[];
   }
   if((data.night===3||data.night===7)&&data.phase==='complete'){
@@ -260,7 +290,7 @@ function load(){
  try{
   const raw=localStorage.getItem(activeProfile==='reader'?READER_SAVE:SAVE);
   const data=raw?migrateState(activeProfile==='reader'?readerDecodeSaved(raw):mainDecodeSaved(raw)):null;
-  if(data&&(activeProfile!=='reader'||validateReaderState(data))){if(activeProfile==='reader')readerApplyPosition(data);else applyMainViewState(data);return data;}
+  if(data&&(activeProfile!=='reader'||validateReaderState(data))){saveRepairNotice=coreRepairMessage(data);if(activeProfile==='reader')readerApplyPosition(data);else applyMainViewState(data);return data;}
  }catch(e){console.warn('セーブデータの読込に失敗しました',e)}
  // 読書データが壊れても本編へ退避できるようにする。破損データ自体は消さない。
  if(activeProfile==='reader'){
@@ -268,7 +298,7 @@ function load(){
   try{localStorage.setItem(ACTIVE_PROFILE_KEY,'main')}catch(e){console.warn(e)}
   try{
    const raw=localStorage.getItem(SAVE),data=raw?migrateState(mainDecodeSaved(raw)):null;
-   if(data){applyMainViewState(data);return data;}
+   if(data){saveRepairNotice=coreRepairMessage(data);applyMainViewState(data);return data;}
   }catch(e){console.warn('本編セーブの読込に失敗しました',e)}
  }
  return defaultState();
@@ -361,7 +391,7 @@ function letter(id){
        l.choices=adjusted;result.choices=adjusted.map(row=>[...row]);
      }
    }
-   // v4.9.32: long-time listeners' broadcast reflections receive source-grounded replies.
+   // v4.9.31: long-time listeners' broadcast reflections receive source-grounded replies.
    // Preserve any choice already on air and all historical broadcast records.
    if(result.kind==='broadcast'&&!result.special&&!l.replyTune4931&&
       ['intro','prepare'].includes(s.phase)&&!(s.played||[]).some(p=>p.id===id)){
@@ -618,7 +648,7 @@ function beginRegular(){
 function resetGame(){
  if(!confirm('進行状況を最初からやり直しますか？ 現在のセーブは消えます。'))return;
  const old=s;
- s=defaultState();s.simState=createSimulationState();s.newListeners=createNewListenerState();s.chapter3=createChapter3State();s.quiet=createQuietState();s.radioCulture=createRadioCultureState();s.radioMemory=createRadioMemoryState39();s.longEcho43=createLongEchoState43();s.surprise46=createSurpriseState46();
+ s=defaultState();saveRepairNotice='';s.simState=createSimulationState();s.newListeners=createNewListenerState();s.chapter3=createChapter3State();s.quiet=createQuietState();s.radioCulture=createRadioCultureState();s.radioMemory=createRadioMemoryState39();s.longEcho43=createLongEchoState43();s.surprise46=createSurpriseState46();
  if(!save()){s=old;alert('保存できなかったため、リセットを取り消しました。保存領域を確認してください。');return}
  saveMainViewState();render();
 }
@@ -634,7 +664,7 @@ function importSave(input){
       // 復元先への保存を先に完了させ、失敗時は表示中の進行も元のままにする。
       try{mainSaveRaw(JSON.stringify(data))}
       catch(e){console.warn(e);alert('バックアップを保存できませんでした。現在の進行は変更していません。');return}
-      s=data;saveMainViewState();render();
+      s=data;saveRepairNotice=coreRepairMessage(data);saveMainViewState();render();if(saveRepairNotice)alert(saveRepairNotice);
     }catch(e){console.warn(e);alert('読み込めないセーブデータです。')}
   };
   reader.readAsText(file);
@@ -1225,7 +1255,7 @@ const CH4_READER_CODA='放送卓の隅には、次の放送のための白い紙
 
 
 
-function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete',done3=s.phase==='chapter3_complete',sp=specialActive(s.night);return `<header class="header"><div class="header-identity"><div class="brand">SOMEWHERE ON AIR</div><h1>午前二時の周波数</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':done3?'第3章 14夜 終了':s.phase==='chapter4_complete'?'第4章 14夜 終了':`第${s.night}夜　${s.finale?.status==='completed'?'閉局':s.phase.startsWith('final_')?'最終放送':regularDayTitle(s.night)}`}</div><div class="climate-meta">${esc(climateCaption(s.night))}</div></div><div class="header-tools" aria-label="放送の補助操作と状態"><button class="guide-launch" type="button" onclick="openGuide()" aria-label="あそび方・手引きを開く">${uiIcon('help')}<span>あそび方</span></button><div class="chip" role="status" aria-label="放送状態">${s.phase==='broadcast'||s.phase==='reply'||s.phase==='final_broadcast'?'● ON AIR':'◌ OFF AIR'}</div></div></header>${studioScene(s.tab!=='studio'||readerSetupOpen)}<div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}${readerEntry()}</div><div class="panel"><div class="overline">${sp?'特別放送':s.night>=15&&s.night<=28?'第2章':chapter3IsNight(s.night)?'第3章':chapter4IsNight(s.night)?'第4章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>放送スタイル</span><span>${s.phase==='intro'||s.phase==='prepare'?(s.broadcastModePref==='letters'?'おたより中心':'いつもの放送'):(isLettersMode()?'おたより中心':'いつもの放送')}</span></div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー">${UI_NAV.map(([id,icon,label])=>`<button type="button" class="${s.tab===id?'active':''}" ${s.tab===id?'aria-current="page"':''} onclick="setTab('${id}')">${uiIcon(icon)}<span class="nav-label">${label}</span></button>`).join('')}</nav><div class="footer">『午前二時の周波数』 · SOMEWHERE ON AIR · v4.9.32</div>`}
+function shell(content){let done=s.phase==='complete',done2=s.phase==='chapter2_complete',done3=s.phase==='chapter3_complete',sp=specialActive(s.night);return `<header class="header"><div class="header-identity"><div class="brand">SOMEWHERE ON AIR</div><h1>午前二時の周波数</h1><div class="small">${done?'第1章 14夜 終了':done2?'第2章 14夜 終了':done3?'第3章 14夜 終了':s.phase==='chapter4_complete'?'第4章 14夜 終了':`第${s.night}夜　${s.finale?.status==='completed'?'閉局':s.phase.startsWith('final_')?'最終放送':regularDayTitle(s.night)}`}</div><div class="climate-meta">${esc(climateCaption(s.night))}</div></div><div class="header-tools" aria-label="放送の補助操作と状態"><button class="guide-launch" type="button" onclick="openGuide()" aria-label="あそび方・手引きを開く">${uiIcon('help')}<span>あそび方</span></button><div class="chip" role="status" aria-label="放送状態">${s.phase==='broadcast'||s.phase==='reply'||s.phase==='final_broadcast'?'● ON AIR':'◌ OFF AIR'}</div></div></header>${studioScene(s.tab!=='studio'||readerSetupOpen)}<div class="layout"><main id="main">${content}</main><aside class="sidebar"><div class="panel"><div class="overline">BROADCAST DESK</div>${navButtons()}${readerEntry()}</div><div class="panel"><div class="overline">${sp?'特別放送':s.night>=15&&s.night<=28?'第2章':chapter3IsNight(s.night)?'第3章':chapter4IsNight(s.night)?'第4章':s.night>=29?'通常放送':'今夜の放送'}</div><div class="status"><span>放送スタイル</span><span>${s.phase==='intro'||s.phase==='prepare'?(s.broadcastModePref==='letters'?'おたより中心':'いつもの放送'):(isLettersMode()?'おたより中心':'いつもの放送')}</span></div><div class="status"><span>紹介枠</span><span>${s.chosen.length} / 3</span></div><div class="progress"><div style="width:${s.chosen.length/3*100}%"></div></div><div class="status"><span>放送済み</span><span>${s.played.filter(x=>x.night===s.night).length}通</span></div><div class="status"><span>保存</span><span>自動保存</span></div></div></aside></div><nav class="bottomnav" aria-label="メニュー">${UI_NAV.map(([id,icon,label])=>`<button type="button" class="${s.tab===id?'active':''}" ${s.tab===id?'aria-current="page"':''} onclick="setTab('${id}')">${uiIcon(icon)}<span class="nav-label">${label}</span></button>`).join('')}</nav><div class="footer">『午前二時の周波数』 · SOMEWHERE ON AIR · v4.9.36</div>`}
 function navButtons(){return UI_NAV.map(([id,icon,label])=>`<button type="button" class="navbtn ${s.tab===id?'active':''}" ${s.tab===id?'aria-current="page"':''} onclick="setTab('${id}')">${uiIcon(icon)}<span>${id==='journal'?'放送日誌':id==='settings'?'設定・セーブ':label}</span></button>`).join('')}
 
 function intro(){
@@ -1407,7 +1437,7 @@ function listeners(){
   const unknown=undiscovered.length?`<div class="archive-undiscovered"><h3>まだ出会っていない声</h3><p class="small">お便りを放送で紹介すると、その人の記録が開きます。まだ紹介していない人の名前や暮らしは、ここでは明かされません。</p><div class="archive-unknown-grid">${undiscovered.map(()=>`<div class="listener archive-unknown"><span class="archive-unknown-mark" aria-hidden="true">✧</span><span>まだよく知らないリスナー</span></div>`).join('')}</div></div>`:'';
   return `<section class="panel"><div class="overline">LISTENER ARCHIVE</div><h2>リスナーの記録</h2><p class="muted">放送で紹介したお便りからわかったことを記録します。お便りを紹介していない人の暮らしも、番組の外で続いています。</p>${published}${unknown}</section>`;
 }
-function settings(){return `<section class="panel"><div class="overline">SETTINGS</div><h2>設定・セーブデータ</h2><button class="btn secondary settings-guide-btn" type="button" onclick="openGuide()">${uiIcon('help')}<span>ラジオ局の手引きを読む</span></button><p class="settings-save-note">進行状況は、この端末のブラウザ内に自動保存されます。別の端末に引き継ぐ場合は、バックアップを書き出してください。「聴くだけの夜」の保存と復元は読書画面から別に行います。</p><div class="actions settings-backup-actions"><button class="btn" onclick="downloadSave()">バックアップを保存</button><label class="btn secondary" style="cursor:pointer">バックアップを読み込む<input class="screen-reader" type="file" accept=".json,application/json" onchange="importSave(this)"></label></div><hr class="divider"><h3>スタジオ演出</h3><p class="small">放送前後の静けさと、マイク横の小さなメーターです。効果音や音声はありません。</p><label class="studio-setting"><input type="checkbox" ${s.studioVisuals?.enabled!==false?'checked':''} onchange="setStudioVisuals('enabled',this.checked)"> スタジオ演出を表示する</label><div class="studio-setting-modes settings-motion-modes"><span class="small">アニメーション：</span>${[['normal','通常'],['reduced','控えめ'],['off','動きなし']].map(([id,name])=>`<label><input type="radio" name="studio-motion" value="${id}" ${s.studioVisuals?.motion===id?'checked':''} ${s.studioVisuals?.enabled===false?'disabled':''} onchange="setStudioVisuals('motion',this.value)"> ${name}</label>`).join('')}</div><p class="small settings-motion-note">動きを止めても、時計とON AIRの表示は残ります。端末で動きを減らす設定を使用している場合は、その設定が優先されます。</p><hr class="divider"><h3>最初から遊ぶ</h3><p class="small">現在のセーブデータを消して、第1夜からやり直します。必要なら先にバックアップしてください。</p><button class="btn secondary" onclick="${s.finale?.status==='completed'?'finaleRestart()':'resetGame()'}">進行状況をリセット</button><hr class="divider"><p class="small">バージョン 4.9.32</p></section>`}
+function settings(){return `<section class="panel"><div class="overline">SETTINGS</div><h2>設定・セーブデータ</h2><button class="btn secondary settings-guide-btn" type="button" onclick="openGuide()">${uiIcon('help')}<span>ラジオ局の手引きを読む</span></button>${saveRepairNotice?`<p class="notice" role="status">${esc(saveRepairNotice)}</p>`:''}<p class="settings-save-note">進行状況は、この端末のブラウザ内に自動保存されます。別の端末に引き継ぐ場合は、バックアップを書き出してください。「聴くだけの夜」の保存と復元は読書画面から別に行います。</p><div class="actions settings-backup-actions"><button class="btn" onclick="downloadSave()">バックアップを保存</button><label class="btn secondary" style="cursor:pointer">バックアップを読み込む<input class="screen-reader" type="file" accept=".json,application/json" onchange="importSave(this)"></label></div><hr class="divider"><h3>スタジオ演出</h3><p class="small">放送前後の静けさと、マイク横の小さなメーターです。効果音や音声はありません。</p><label class="studio-setting"><input type="checkbox" ${s.studioVisuals?.enabled!==false?'checked':''} onchange="setStudioVisuals('enabled',this.checked)"> スタジオ演出を表示する</label><div class="studio-setting-modes settings-motion-modes"><span class="small">アニメーション：</span>${[['normal','通常'],['reduced','控えめ'],['off','動きなし']].map(([id,name])=>`<label><input type="radio" name="studio-motion" value="${id}" ${s.studioVisuals?.motion===id?'checked':''} ${s.studioVisuals?.enabled===false?'disabled':''} onchange="setStudioVisuals('motion',this.value)"> ${name}</label>`).join('')}</div><p class="small settings-motion-note">動きを止めても、時計とON AIRの表示は残ります。端末で動きを減らす設定を使用している場合は、その設定が優先されます。</p><hr class="divider"><h3>最初から遊ぶ</h3><p class="small">現在のセーブデータを消して、第1夜からやり直します。必要なら先にバックアップしてください。</p><button class="btn secondary" onclick="${s.finale?.status==='completed'?'finaleRestart()':'resetGame()'}">進行状況をリセット</button><hr class="divider"><p class="small">バージョン 4.9.36</p></section>`}
 function specialPlanningPanel(){
  const n=s.night;
  const p=s.special?.planned;
@@ -1619,7 +1649,7 @@ function switchToReader(){
  try{data=migrateState(readerDecodeSaved(localStorage.getItem(READER_SAVE)||''))}catch(e){}
  if(!validateReaderState(data)){alert('読書用データを読み込めません。バックアップから復元してください。');return}
  try{localStorage.setItem(ACTIVE_PROFILE_KEY,'reader')}catch(e){alert('保存できないため切り替えられません。');return}
- activeProfile='reader';s=data;readerApplyPosition();readerSetupOpen=false;lastViewKey=null;readerRestoring=true;render();
+ activeProfile='reader';s=data;saveRepairNotice=coreRepairMessage(data);readerApplyPosition();readerSetupOpen=false;lastViewKey=null;readerRestoring=true;render();
 }
 function switchToMain(){
  if(activeProfile!=='reader')return;
@@ -1629,7 +1659,7 @@ function switchToMain(){
  try{data=migrateState(mainDecodeSaved(localStorage.getItem(SAVE)||'null'))}catch(e){}
  if(!data)data=defaultState();
  try{localStorage.setItem(ACTIVE_PROFILE_KEY,'main')}catch(e){alert('切り替え情報を保存できません。');return}
- activeProfile='main';s=data;applyMainViewState(s);lastViewKey=null;readerSetupOpen=false;render();
+ activeProfile='main';s=data;saveRepairNotice=coreRepairMessage(data);applyMainViewState(s);lastViewKey=null;readerSetupOpen=false;render();
 }
 function downloadReaderSave(){
  if(activeProfile!=='reader')return;
@@ -1645,7 +1675,7 @@ function importReaderSave(input){
    const data=migrateState(parsed.state);if(!validateReaderState(data))throw Error('読書記録が不足・破損しています');
    if(!confirm('既存の読書用データを上書きしますか？ 本編は変更しません。'))return;
    readerSaveRaw(JSON.stringify(data));localStorage.removeItem(READER_POSITION_KEY);
-   if(activeProfile==='reader'){s=data;readerRestoring=true;render()}else{render()}
+   const message=coreRepairMessage(data);if(activeProfile==='reader'){saveRepairNotice=message;s=data;readerRestoring=true;render()}else{render()}if(message)alert(message);
   }catch(e){console.warn(e);alert('読書用バックアップを読み込めませんでした。')}
  };reader.readAsText(file);
 }
@@ -2814,7 +2844,7 @@ function readerNightContents(entries){
  return `<details class="reader-contents"><summary><span class="reader-contents-title">${uiIcon('list')}今夜の目次</span><span class="reader-contents-summary-detail">おたより${entries.length}通・選曲・終幕</span></summary><nav class="reader-contents-links" aria-label="今夜の放送内を移動"><a href="#reader-introduction" onclick="readerJumpToSection('reader-introduction');return false"><span>OPENING</span><strong>放送のはじまり</strong></a>${items}<a href="#reader-ending" onclick="readerJumpToSection('reader-ending');return false"><span>FINAL SONG</span><strong>選曲と終幕</strong></a></nav></details>`;
 }
 function readerShell(content){
- return `<div class="reader-layout"><header class="reader-header"><div><div class="brand reader-brand">SOMEWHERE ON AIR</div><div class="reader-mode-label">${uiIcon('moon')}<span>ANOTHER FREQUENCY / 読書モード</span></div><h1>聴くだけの夜</h1><div class="small">誰かが選んだ言葉の、その先を読む</div></div><button class="btn secondary" type="button" onclick="switchToMain()">${uiIcon('radio')}<span>本編に戻る</span></button></header><main id="main" class="reader-main">${content}</main><footer class="reader-footer">本編の選択と記憶は変更されません · v4.9.32</footer></div>`;
+ return `<div class="reader-layout"><header class="reader-header"><div><div class="brand reader-brand">SOMEWHERE ON AIR</div><div class="reader-mode-label">${uiIcon('moon')}<span>ANOTHER FREQUENCY / 読書モード</span></div><h1>聴くだけの夜</h1><div class="small">誰かが選んだ言葉の、その先を読む</div></div><button class="btn secondary" type="button" onclick="switchToMain()">${uiIcon('radio')}<span>本編に戻る</span></button></header><main id="main" class="reader-main">${content}</main><footer class="reader-footer">本編の選択と記憶は変更されません · v4.9.36</footer></div>`;
 }
 function readerView(){
  const r=s.reader;
@@ -2835,7 +2865,7 @@ function readerView(){
  return `<div id="reader-page-top" class="reader-page-top"></div>${readerNightNavigation(r,i)}<section class="reader-paper">${readerNightContents(entries)}${content}<div class="reader-actions"><button class="btn secondary" ${i<=0?'disabled':''} onclick="readerGotoPage(${i-1})">← 前の夜</button><button class="btn" onclick="readerProduceNight()">${i<r.pages.length-1?'次の記録を読む':s.finale?.status==='announced'?'最終放送を読む →':'次の夜へ →'}</button></div><p class="reader-page-count">${i+1} / ${r.pages.length} 夜分の記録</p></section>${i===r.pages.length-1?finalePlanExplanation():''}${readerReaderTools()}`;
 }
 function readerReaderTools(){
- return `<section class="reader-tools"><h3>読書の記録</h3><p>この世界は本編とは独立しています。読書用バックアップは、こちらで保存してください。</p>${(localStorage.getItem(READER_SAVE)||'').startsWith('R20-LZW1:')?'<p class="small">保存容量を節約する形式で保管しています。書き出すバックアップは従来どおりのJSONです。</p>':''}${readerSaveWarning?'<p class="notice">保存に失敗しました。容量を確認し、バックアップを保存してください。</p>':''}<div class="actions"><button class="btn secondary" onclick="downloadReaderSave()">読書用バックアップを保存</button><label class="btn secondary" style="cursor:pointer">読書用を復元<input class="screen-reader" type="file" accept=".json,application/json" onchange="importReaderSave(this)"></label></div><button class="reader-return" onclick="switchToMain()">自分の放送に戻る</button></section>`;
+ return `<section class="reader-tools"><h3>読書の記録</h3>${saveRepairNotice?`<p class="notice" role="status">${esc(saveRepairNotice)}</p>`:''}<p>この世界は本編とは独立しています。読書用バックアップは、こちらで保存してください。</p>${(localStorage.getItem(READER_SAVE)||'').startsWith('R20-LZW1:')?'<p class="small">保存容量を節約する形式で保管しています。書き出すバックアップは従来どおりのJSONです。</p>':''}${readerSaveWarning?'<p class="notice">保存に失敗しました。容量を確認し、バックアップを保存してください。</p>':''}<div class="actions"><button class="btn secondary" onclick="downloadReaderSave()">読書用バックアップを保存</button><label class="btn secondary" style="cursor:pointer">読書用を復元<input class="screen-reader" type="file" accept=".json,application/json" onchange="importReaderSave(this)"></label></div><button class="reader-return" onclick="switchToMain()">自分の放送に戻る</button></section>`;
 }
 window.addEventListener('pagehide',()=>{if(activeProfile==='reader'&&s?.reader){s.reader.scrollY=window.scrollY;readerSavePosition()}});
 
@@ -3207,7 +3237,7 @@ function finaleRestart(){if(s.finale?.status!=='completed')return;if(!confirm('�
  const prior=JSON.stringify(s),r=activeProfile==='reader';
  if(r){const fresh=makeReaderState(defaultState());s=fresh;try{readerSaveRaw(JSON.stringify(s));localStorage.removeItem(READER_POSITION_KEY)}catch(e){s=JSON.parse(prior);alert('保存に失敗しました。元の記録を維持します。');return}}
  else{s=defaultState();s.guidance.welcomeSeen=true;if(!save()){s=JSON.parse(prior);alert('保存に失敗しました。元の記録を維持します。');return}}
- finaleView='complete';lastViewKey=null;render();
+ saveRepairNotice='';finaleView='complete';lastViewKey=null;render();
 }
 function finaleReaderCompletedPage(page){
  const snap=s.finale?.snapshot;if(!snap)return '<p>最終回の原稿を読み込めません。</p>';

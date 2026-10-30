@@ -1103,8 +1103,8 @@ function newListenerCompose(id,n){
  // 実際の行動・配達の条件を満たし、十分に時間がたった場合のみ優先。
  const age=oldEcho?n-(s.longEcho43?.sources?.[oldEcho.longEcho.sourceUid]?.sourceNight||n):0;
  if(arc&&!recent.some(x=>x.tag===arc.tag)&&!(oldEcho&&age>=85))return arc;
- const candidates=[newListenerPersonalNote(id,n),regularDayNote(id,n),regularContact(id,n),longLifeCompose4914(id,n),regularBroadcastEcho(id,n),regularThemeLetter(id,n),radioCultureCompose(id,n),radioVarietyCompose38(id,n),radioMemoryCompose39(id,n),oldEcho,everydayCompose4827(id,n)].filter(Boolean);
- const weighted=candidates.map(x=>({...x,weight:({contact:83,'new-life':76,daily:66,broadcast:55,theme:45,culture:115,variety:92,'radio-memory':128,'long-echo':164,'everyday47':120,'laterlife4914':178,'boundary4932':185})[x.kind]||45}));
+ const candidates=[newListenerPersonalNote(id,n),regularDayNote(id,n),regularContact(id,n),timeEchoCompose4933(id,n),longLifeCompose4914(id,n),regularBroadcastEcho(id,n),regularThemeLetter(id,n),radioCultureCompose(id,n),radioVarietyCompose38(id,n),radioMemoryCompose39(id,n),oldEcho,everydayCompose4827(id,n)].filter(Boolean);
+ const weighted=candidates.map(x=>({...x,weight:({contact:83,'new-life':76,daily:66,broadcast:55,theme:45,culture:115,variety:92,'radio-memory':128,'long-echo':164,'everyday47':120,'laterlife4914':178,'boundary4932':185,'time-echo4933':180,'life-cross4935':195})[x.kind]||45}));
  for(const item of weighted){
   if(recent.some(x=>x.tag===item.tag))item.weight-=60;
   if((s.regular?.voiceHistory45?.[id]||[]).some(h=>h.key===regularVoiceKey45(item)&&n-h.night<150))item.weight-=115;
@@ -1723,7 +1723,7 @@ function radioMemoryConfirmDelivered39(n,ids){
  }
 }
 
-function createRegularState(){return {schema:1,started:false,letterArchive:{},processedNights:[],latestThemes:{},lastMailed:{},mailHistory:[],varietyHistory:[],voiceHistory45:{},everydayHistory47:{},boundary4932:{},routeActions:[],phase:'between_chapters'}}
+function createRegularState(){return {schema:1,started:false,letterArchive:{},processedNights:[],latestThemes:{},lastMailed:{},mailHistory:[],varietyHistory:[],voiceHistory45:{},everydayHistory47:{},boundary4932:{},timeEcho4933:{},lifeCross4935:{},routeActions:[],phase:'between_chapters'}}
 function migrateRegular(data){
  const base=createRegularState(),old=data.regular&&typeof data.regular==='object'?data.regular:{};
  const r={...base,...old};
@@ -1736,6 +1736,8 @@ function migrateRegular(data){
  r.bodyHistory4931=old.bodyHistory4931&&typeof old.bodyHistory4931==='object'?old.bodyHistory4931:null;
  r.everydayHistory47=old.everydayHistory47&&typeof old.everydayHistory47==='object'?old.everydayHistory47:{};
  r.boundary4932=old.boundary4932&&typeof old.boundary4932==='object'?old.boundary4932:{};
+ r.timeEcho4933=old.timeEcho4933&&typeof old.timeEcho4933==='object'?old.timeEcho4933:{};
+ r.lifeCross4935=old.lifeCross4935&&typeof old.lifeCross4935==='object'?old.lifeCross4935:{};
  r.routeActions=Array.isArray(old.routeActions)?old.routeActions.slice(-120):[];
  r.started=Boolean(old.started||data.night>=15);
  data.regular=r;return data;
@@ -1818,7 +1820,20 @@ function regularDayTitle(n){
  if(chapter4IsNight(n))return CH4_DAYS[n-79][0];
  return `通常放送 · ${regularTheme(n)[0]}`;
 }
-function regularFirstSentence(id,n){const a=REGULAR_INTROS[id]||REGULAR_INTROS.anon;return a[simHash(`reg:intro:${n}:${id}`)%a.length]}
+// v4.9.33: 実際に紹介・配達された最近の書き出しを参照し、同じ挨拶の連続を抑える。
+// 下書き候補は履歴と見なさず、従来と同じ決定的ハッシュで選ぶ。
+function regularFirstSentence(id,n){
+ const options=REGULAR_INTROS[id]||REGULAR_INTROS.anon;
+ const recent=(s.played||[]).filter(x=>x.who===id&&x.night<n&&n-x.night<=40).slice(-9).map(x=>String(x.body||'').split('\n\n')[0]);
+ const mailed=(s.regular?.mailHistory||[]).filter(x=>x.who===id&&x.night<n&&n-x.night<=40).slice(-9)
+   .map(x=>s.regular?.letterArchive?.[`regular_${x.night}_${id}`]?.body?.split('\n\n')[0]).filter(Boolean);
+ const seen=[...recent,...mailed];
+ const ranked=options.map((line,i)=>{
+   const pos=seen.lastIndexOf(line);
+   return {line,score:(pos<0?100:Math.min(90,seen.length-1-pos)*9)+(simHash(`reg:intro4933:${n}:${id}:${i}`)%9)};
+ }).sort((x,y)=>y.score-x.score);
+ return ranked[0].line;
+}
 function regularDayAction(id,n){return s.simState?.people?.[id]?.daily?.find(d=>d.night===n-1)||null}
 // v4.8.6: 長期放送の進路別の「もう一つの日常」。
 // 分岐が確定している本人の選択だけに触れ、未発生の出来事を断定しない。
@@ -2492,12 +2507,118 @@ function boundaryCompose4932(id,n){
  return {kind:'boundary4932',tag:'boundary4932:'+stage,subject:scene.subject,body:scene.body,choices,boundaryStage4932:stage,boundaryMode4932:mode};
 }
 
+// v4.9.33: 「成長した」と決めつけず、実際に放送で読まれた自分の一通を、
+// その後の生活の事実と並べる。本人にしかわからない内面の秘密は作らない。
+const TIME_ECHO_VOICES_4933={
+ cat:'あの文章を今の自分が読むと、どんな色が浮かぶのでしょう。まだうまく決められません。',
+ clock:'時計の針はその後も進みました。書いた言葉のほうは、今もあの夜の場所にありますね。',
+ bread:'焼き上がりを待つ時間と違って、言葉の続きは何分でできるか決められませんね。',
+ moon:'月面資料室に古い報告を発見しました。改訂版かどうかは、今夜の会議でも未決です。',
+ driver:'主任なら前の報告を三秒で忘れそうですが、僕はまだ時々思い出します。',
+ fish:'あのときの言葉と今の言葉、どちらもそのときの自分が書いたものなんですよね。',
+ sugar:'前の一杯と今の一杯は、同じ配合でも同じ味とは限らないのでしょうね。',
+ anon:'名前を変えずに書いています。昔の言葉を今すぐ訂正する必要もない気がします。',
+ terminal:'過ぎた駅に戻るつもりはありません。ただ、窓から見た景色を覚えているような気がします。',
+ umbrella:'花の咲いた日の記録も、しおれた日の記録も、同じ帳面に残しておけますね。',
+ triangle:'今の自分なら、あのお便りの横にどんな注釈を書くでしょう。ひとつではない気がします。',
+ fridge:'前に書いた自分も、今日書いている自分も、どちらも仕事を終えたあとのひとりです。'
+};
+function timeEchoCompose4933(id,n){
+ if(n<115||chapter3IsNight(n)||chapter4IsNight(n)||specialActive(n)||!s.regular)return null;
+ const history=(s.regular.mailHistory||[]).filter(x=>x.kind==='time-echo4933');
+ const latest=Math.max(s.regular.timeEcho4933?.[id]||0,history.filter(x=>x.who===id).at(-1)?.night||0, (s.played||[]).filter(x=>x.who===id&&x.subject==='あのころの一通と、今夜').at(-1)?.night||0);
+ if(latest&&n-latest<90)return null;
+ if(history.some(x=>n-x.night<6))return null;
+ if(simHash(`timeEcho4933:chance:${id}:${n}`)%100>=45)return null;
+ const prior=(s.played||[]).filter(x=>x.who===id&&x.night>=15&&n-x.night>=70&&n-x.night<=160&&x.subject&&x.body);
+ if(!prior.length)return null;
+ const x=prior[simHash(`timeEcho4933:source:${id}:${n}`)%prior.length];
+ if(!x)return null;
+ const day=regularDayAction(id,n);
+ const today=day?.activity?'昨日は、'+letterPoliteActivity491(day.activity)+'。\n\n':'';
+ const voice=TIME_ECHO_VOICES_4933[id]||TIME_ECHO_VOICES_4933.anon;
+ const subject='あのころの一通と、今夜';
+ const body=regularFirstSentence(id,n)+'\n\n以前、番組で読んでもらった「'+x.subject+'」というお便りのことを思い出しました。\n\n'+today+voice+'\n\n前の文章を書き直すのではなく、今日は今日の一通として送ります。';
+ const choices=[
+  ['あの夜の声を受け取る','「'+x.subject+'」。以前のその一通と、今夜の言葉が並んでいるのがいいですね。','empathy'],
+  ['今の見え方を尋ねる','あのころの「'+x.subject+'」を、今はどんな気持ちで思い出しますか。','curiosity'],
+  ['違いを決めつけない','同じ人が書いた言葉でも、どこが変わったかを急いで決める必要はありませんね。','reflection'],
+  ['昔の言葉も残しておく','昔の一通も、今夜の一通も、どちらもその夜に書いた言葉のままで大切にしたいです。','space']
+ ];
+ return {kind:'time-echo4933',tag:'time-echo4933:'+x.id,subject,body,choices};
+}
+
+
+// v4.9.35 — A letter can contain two independent parts of one person's life.
+// Axis A is a confirmed long-standing concern (or the actual route chosen in chapter 1).
+// Axis B quotes a real, already-simulated activity from yesterday.
+// Neither a low relationship score nor an unfinished decision means the person has failed.
+const LIFE_AXES_4935={
+ cat:{subject:['同じ机の、二つの話','机の上の続き'],axis:'仕事のことを考える時間と、絵のために空けておきたい時間があります。どちらかがうまくいったからといって、もう片方まで片づくわけではありません。',after:'仕事のことはまだ決めきれません。でも、絵について考える時間まで同じ足踏みだとは思わなくなりました。',image:'仕事と絵'},
+ driver:{subject:['配送票の外側','帰り道の別欄'],axis:'配送の段取りには慣れていますが、家族への言葉は伝票のようには書けません。仕事の道順と、誰かに返す言葉の道順は違いますね。',after:'家族にどう言葉を返すかは、今夜も保留です。それでも、仕事を終えたあとの自分の時間まで保留にしなくていいと思いました。',image:'仕事と家族への言葉'},
+ fish:{subject:['同じノートの別の頁','ふたつの欄外'],axis:'友達との距離のことと、自分のこれからのことを考えています。片方に答えが出ても、もう片方が同じ形になるとは限らないんですよね。',after:'将来の欄は、まだ書きかけです。友達との距離についてもすぐに答えは出ませんが、別々に考えていい気がしてきました。',image:'友達と自分のこれから'},
+ clock:{subject:['時計の音と今朝の音','異なる時刻を暮らす'],axis:'古い店の思い出を大切にしております。一方で、今の暮らしには今の人との時間もあります。昔のことを忘れたから、新しい一日を過ごせるのではないのでしょう。',after:'昔の店のことは今でも思い出します。ただ、今日の暮らしの話をするために、その思い出をしまう必要もないようです。',image:'昔の店と今の暮らし'},
+ terminal:{subject:['駅ではない時間','切符と帰り道'],axis:'あの駅で考え続けてきたことがあります。それとは別に、毎日の暮らしも過ぎていきます。どちらか一方だけで私の一日を説明するのは、難しいですね。',after:'駅について考えなくなったわけではありません。でも、駅と関係のない一日にも書いておきたいことが残っています。',image:'駅の記憶と日々の暮らし'},
+ bread:{subject:['オーブンの外にも','焼き上がりと閉店後'],axis:'パンの焼き上がりなら毎日気にします。でも、店を出たあとの自分の時間まで、焼き上がりで採点するのは妙ですね。',after:'パンの調子は日によって違います。だからといって、仕事以外の一日も毎回成功か失敗かで分ける必要はないですよね。',image:'パン屋の仕事と店の外'},
+ moon:{subject:['月面議事録の欄外','公開議題と非公開議題'],axis:'月面議会では今日も議題が盛りだくさんです。ただし、地上の私が感じたことをすべて審議にかける規則はありません。',after:'月面議事録は相変わらず未決議案だらけですが、地上の一日まで議決を待つ必要はないですね。',image:'空想と地上の自分'},
+ sugar:{subject:['コーヒーと別の温度','違う味のまま'],axis:'コーヒーの甘さはいつも自分で決めています。でも、人との距離や気持ちのことは、砂糖を量るようには決められません。',after:'三杯の砂糖は今日も三杯です。それでも、考えごとの味までずっと同じとは限らないのかもしれません。',image:'日課と気持ちの変化'},
+ anon:{subject:['名前の欄と今日の欄','名乗らずに続く話'],axis:'このラジオネームのままで書いています。名前を明かすかどうかと、今日のことを誰かに話したいかどうかは、別の選択なんだと思います。',after:'今夜も名前はこのままにします。それでも、日々の話題は少しずつ変わっていくんですね。',image:'名前の選択と日々の声'},
+ umbrella:{subject:['店先と帰り道','花瓶の外の時間'],axis:'店先では花の様子をよく見ています。でも、閉店後の自分が何を感じているかは、花と同じようには測れません。',after:'今日も花の水は替えました。仕事が整っていることと、自分の気持ちまで整っていることは、違っていていいんですね。',image:'花屋の仕事と自分の気持ち'},
+ triangle:{subject:['正解と放課後','ノートにないもう一問'],axis:'勉強の問題には答えが用意されていることが多いです。でも、友達とのことや自分のこれからには、解答欄が一つとは限らないですね。',after:'ノートの問題は解ける日もあります。解けないままの考えごとも、同じ日に持っていていいのかもしれません。',image:'勉強と友達・将来'},
+ fridge:{subject:['誰かの皿、自分の皿','厨房と食卓のあいだ'],axis:'人に料理を作る仕事は続いています。でも、自分が何を食べたいかは、仕事の献立とは別に考えたい夜もあります。',after:'誰かに出す皿は今日も考えました。自分の食事のことは、まだうまく決められない日があります。それも同じ一日の話です。',image:'仕事の料理と自分の食卓'}
+};
+const LIFE_ROUTE_AXES_4935={
+ cat:{create:'絵を描く時間を取り戻したい気持ちは、仕事の予定とは別に残っています。',change:'転職先を探すとき、仕事の条件だけでなく絵に使える夜のことも考えます。',leave:'退職も含めて相談する道を考えましたが、生活費の不安がなくなったわけではありません。絵のことも別に気にかかっています。',stay:'今の職場に残る道を選びましたが、会社の外で絵に向き合う時間も自分のものです。'},
+ driver:{talk:'家族と話す道を選んでも、仕事が終わったあとの気持ちが毎回すぐ言葉になるわけではありません。',letter:'家族に文章を送ることと、今日の仕事を終えることは違う種類の区切りですね。',pause:'家族への返事を少し休むことにしても、仕事の日々は止まりません。',avoid:'家族との距離を保つ選択をしました。配送の仕事の話なら、それとは別に書けます。'},
+ fish:{speak:'自分の希望を伝える道を考えましたが、友達との距離も将来のことも、一度で答えが出るわけではありません。',explore:'気になる仕事を調べる時間と、友達との距離を考える時間があります。',conform:'友達と同じ道を考えても、自分の感想が同じになるとは限りません。',wait:'希望欄を空けておく選択をしましたが、友達とのことまで考えていないわけではありません。'},
+ clock:{visit:'海辺の駅へ行くことを考えながら、今の日々の時間も大切に過ごしております。',community:'図書室の人たちと過ごす時間が増えても、昔の店の思い出が薄れるわけではありません。',ordinary:'いつもの暮らしを大切にすることと、昔の店のことを思い出すことは別々にできます。'},
+ terminal:{contact:'手紙を書くことを考えても、駅の外の一日が止まるわけではありません。',stay:'あの駅へ行くことを続けていても、そこで過ごさない時間も私の暮らしです。',move:'駅とは違う道を歩く選択をしました。でも駅の記憶が消えたわけではありません。'}
+};
+// Each listener closes the two-axis letter in their own language, not a shared moral.
+const LIFE_AXES_ENDINGS_4935={
+ cat:['仕事の予定表はまだ埋まりません。でも、昨日の一日まで空欄だったことにはしたくないんです。','前に送った二つの話は、まだ別々の紙の上にあります。今夜はそのまま机に並べておきます。'],
+ driver:['仕事の報告なら、ここで完了印です。家族の件は、まだ未処理の欄があってもいいですよね。','前にも別々の報告を同じ便箋に書きました。今日も主任には回覧せず、ここへ送ります。'],
+ fish:['ノートのページは続いているのに、問いごとの答えは同時には出ないんですね。今日はそう書いておきます。','前にも、違う問題を並べて送った気がします。今夜もまだ、片方をもう片方の正解にしたくありません。'],
+ clock:['古い時計と今日の散歩は、同じ棚に置けるでしょう。どちらにもそれぞれの時刻があるのですから。','以前にも違う時間を一通に書きましたね。今日のことは今日の針で、ゆっくり見ておきたいと思います。'],
+ terminal:['駅のことだけでも、昨日のことだけでもない一日でした。あえて行き先を決めずに書き終えます。','前の手紙に書いた駅の話は消しません。今日の暮らしにも、別の一行があるだけです。'],
+ bread:['パンは焼き上がりの時間が決まっていますが、こちらはタイマーが鳴りません。しばらくそのままにしておきます。','前の報告も、今回の報告も、焼き直すつもりはありません。店長にはやっぱり内緒です。'],
+ moon:['議案を一つにまとめると月面議会が混乱しますので、今回は別紙扱いといたします。','以前の議事録はそのまま保存。今夜の地上案件には、新しい番号だけ振っておきます。採決は不要です。'],
+ sugar:['コーヒーが冷める速さと、考えがまとまる速さも違いますね。まずは今夜の一杯を飲みます。','前の一杯と同じ答えにはなりませんでした。砂糖は三杯のままですが、それで十分でしょう。'],
+ anon:['両方のことを書きました。片方を説明するために、もう片方を使わなくてもよさそうです。','前にも二つの話を書きました。今日も名前は変えずに、話題だけ少し変えておきます。'],
+ umbrella:['店の花を並べるみたいに、気持ちまで同じ長さに切りそろえなくてもいいのかもしれません。','前に二つの話を送ったあとも、花は咲いたりしおれたりしました。私の答えは、まだ別の速さです。'],
+ triangle:['一つの答えで二問とも採点したら、たぶん先生に注意されますよね。今日は二つの欄を残します。','この前の二問は、まだどちらも解き終わっていません。別々の途中式として、ノートに残しておきます。'],
+ fridge:['店の献立なら順番を決めます。でも、自分の時間にはメニュー表がないんですよね。今日はそこまでです。','前に二皿分の話を送りました。今日も一つの皿で全部を説明しようとは思いません。']
+};
+function lifeCrossCompose4935(id,n){
+ if(n<125||chapter3IsNight(n)||chapter4IsNight(n)||specialActive(n)||!s.regular)return null;
+ const card=LIFE_AXES_4935[id],day=regularDayAction(id,n);
+ if(!card||!day?.activity)return null;
+ const heard=(s.played||[]).filter(x=>x.who===id&&x.night<n);
+ if(heard.length<5)return null;
+ const history=s.regular.lifeCross4935?.[id]||{};
+ const stage=!history.first?'first':(!history.second&&n-history.first>=65&&heard.length>=9?'second':null);
+ if(!stage||n<130+(simHash('lifeCross4935:begin:'+id)%55))return null;
+ if((s.regular.mailHistory||[]).some(x=>x.kind==='life-cross4935'&&n-x.night<7))return null;
+ if(simHash('lifeCross4935:chance:'+id+':'+n)%100>=55)return null;
+ const route=s.lifePaths?.outcomes?.[id]?.route;
+ const axis=LIFE_ROUTE_AXES_4935[id]?.[route]||card.axis;
+ const activity=letterPoliteActivity491(day.activity);
+ const body=regularFirstSentence(id,n)+'\n\n'+(stage==='first'?axis:card.after)+'\n\nその一方で、昨日は'+activity+'。\n\n'+LIFE_AXES_ENDINGS_4935[id][stage==='first'?0:1];
+ const choices=[
+  ['二つの話を受け取る','「'+card.image+'」を、同じ一通に書いてくれたんですね。どちらの時間も大切に聞いています。','empathy'],
+  ['昨日の出来事を尋ねる','昨日の出来事は、今夜のあなたにはどんなふうに残っていますか。','curiosity'],
+  ['違う速さを認める','暮らしの別々の部分が、同じ速さで変わる必要はありませんよね。','reflection'],
+  ['答えを急がせない','一通に書いたからといって、二つとも結論を出さなくてもいいと思います。','space']
+ ];
+ return {kind:'life-cross4935',tag:'life-cross4935:'+stage,subject:card.subject[stage==='first'?0:1],body,choices,lifeCrossStage4935:stage,lifeCrossActivity4935:day.actionId};
+}
+
 function regularCompose(id,n){
  const history=(s.regular.mailHistory||[]).filter(h=>h.who===id&&h.night<n);
  const recent=history.filter(h=>h.night>=n-6);
  const options=[
-  regularRoute(id,n),regularDayNote(id,n),regularContact(id,n),boundaryCompose4932(id,n),longLifeCompose4914(id,n),regularBroadcastEcho(id,n),regularThemeLetter(id,n),radioCultureCompose(id,n),radioVarietyCompose38(id,n),radioMemoryCompose39(id,n),longEchoCompose43(id,n),everydayCompose4827(id,n)
- ].filter(Boolean).map(x=>({...x,weight:({route:89,daily:69,contact:91,broadcast:38,theme:34,culture:115,variety:92,'radio-memory':128,'long-echo':164,'everyday47':130,'laterlife4914':178,'boundary4932':185})[x.kind]||45}));
+  regularRoute(id,n),regularDayNote(id,n),regularContact(id,n),boundaryCompose4932(id,n),lifeCrossCompose4935(id,n),timeEchoCompose4933(id,n),longLifeCompose4914(id,n),regularBroadcastEcho(id,n),regularThemeLetter(id,n),radioCultureCompose(id,n),radioVarietyCompose38(id,n),radioMemoryCompose39(id,n),longEchoCompose43(id,n),everydayCompose4827(id,n)
+ ].filter(Boolean).map(x=>({...x,weight:({route:89,daily:69,contact:91,broadcast:38,theme:34,culture:115,variety:92,'radio-memory':128,'long-echo':164,'everyday47':130,'laterlife4914':178,'boundary4932':185,'time-echo4933':180,'life-cross4935':195})[x.kind]||45}));
  const everydayKinds=new Set(['route','daily','contact','broadcast','theme','everyday47']);
  for(const o of options){
   const sameTag=history.filter(h=>h.tag===o.tag&&h.night>=n-40);
@@ -2539,7 +2660,7 @@ const LETTER_VOICE_33={
  fridge:{daily:['厨房では片づけて帰るのに、家の台所は別問題ですね。','仕事の段取りなら得意なのに、自分の夜はうまくいきません。'],contact:['料理の話以外で誰かと話すのは、まだ少し慣れません。'],theme:['明日の仕込みの前に、こんなことを考えています。'],default:['自分用の皿も、たまには使うことにします。']}
 };
 function v33VoiceLetter(id,n,note){
- if(!note||!note.body||['new-intro','culture','variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831','laterlife4914','boundary4932'].includes(note.kind)||note.absenceReturn)return note;
+ if(!note||!note.body||['new-intro','culture','variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831','laterlife4914','boundary4932','time-echo4933','life-cross4935'].includes(note.kind)||note.absenceReturn)return note;
  const data=LETTER_VOICE_33[id]||LETTER_VOICE_33.anon;
  const group=note.kind==='new-life'?'daily':(data[note.kind]?note.kind:'default');
  const lines=data[group]||data.default||[];
@@ -3074,18 +3195,18 @@ function createRegularLetters(n){
   // 各エピソードの続きが常に最優先にならないよう、夜ごとに順番を変える。
   const everyday=candidates.length?candidates[simHash(`surprise46:balance:${id}:${n}:${s.rng}`)%candidates.length]:null;
   const quietReturn=quietWaitingToReturn(id,n)&&n-quietLastActualMail461(id,n)>=3;
-  const note=quietReturn?quietReturnNote(id,n):first?newListenerFirstLetter(id,n):crossTalk||crossAfter||everyday|| (REGULAR_NEW.includes(id)?(boundaryCompose4932(id,n)||newListenerCompose(id,n)):
-    id===support[(n%2)%support.length]?.id?(longLifeCompose4914(id,n)||radioVarietyCompose38(id,n)||regularThemeLetter(id,n)):regularCompose(id,n));
+  const note=quietReturn?quietReturnNote(id,n):first?newListenerFirstLetter(id,n):crossTalk||crossAfter||everyday|| (REGULAR_NEW.includes(id)?(lifeCrossCompose4935(id,n)||boundaryCompose4932(id,n)||newListenerCompose(id,n)):
+    id===support[(n%2)%support.length]?.id?(lifeCrossCompose4935(id,n)||longLifeCompose4914(id,n)||radioVarietyCompose38(id,n)||regularThemeLetter(id,n)):regularCompose(id,n));
   // Repeatable notes may choose a new real-life subject instead of repeating an identical body.
   // Author-controlled chapter, cross-listener, special and return letters are not rewritten.
   let voiced=v33VoiceLetter(id,n,note);
   if(!first&&!quietReturn&&['route','daily','contact','broadcast','theme','variety','new-life','laterlife4914'].includes(voiced.kind))
    voiced=regularFreshBody4931(id,n,voiced);
   const uuid=`regular_${n}_${id}`;
-  const special=!['culture','variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831','laterlife4914','boundary4932'].includes(voiced.kind)&&n>=21&&(n-21)%7===0&&REGULAR_MAIN.includes(id)&&id===main[0]?.id;
-  archive[uuid]={who:id,subject:voiced.subject,body:voiced.body,special,regular:true,kind:voiced.kind,tag:voiced.tag,voiceVersion:voiced.voiceVersion||0,absenceReturn:Boolean(voiced.absenceReturn),culture:voiced.culture||null,variety:voiced.variety||null,radioMemory:voiced.radioMemory||null,longEcho:voiced.longEcho||null,surprise46:voiced.surprise46||null,crossTalk:voiced.crossTalk||null,crossAfter:voiced.crossAfter||null,thread:voiced.thread||null,relationThread:voiced.relationThread||null,arcSummary45:voiced.arcSummary45||null,longLife4914:Number.isInteger(voiced.longLife4914)?voiced.longLife4914:null,broadcastSource4931:voiced.broadcastSource4931||null,boundaryStage4932:voiced.boundaryStage4932||null,boundaryMode4932:voiced.boundaryMode4932||null,replyVersion:['variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831','laterlife4914','boundary4932'].includes(voiced.kind)?(voiced.kind==='boundary4932'?32:31):0,
+  const special=!['culture','variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831','laterlife4914','boundary4932','time-echo4933','life-cross4935'].includes(voiced.kind)&&n>=21&&(n-21)%7===0&&REGULAR_MAIN.includes(id)&&id===main[0]?.id;
+  archive[uuid]={who:id,subject:voiced.subject,body:voiced.body,special,regular:true,kind:voiced.kind,tag:voiced.tag,voiceVersion:voiced.voiceVersion||0,absenceReturn:Boolean(voiced.absenceReturn),culture:voiced.culture||null,variety:voiced.variety||null,radioMemory:voiced.radioMemory||null,longEcho:voiced.longEcho||null,surprise46:voiced.surprise46||null,crossTalk:voiced.crossTalk||null,crossAfter:voiced.crossAfter||null,thread:voiced.thread||null,relationThread:voiced.relationThread||null,arcSummary45:voiced.arcSummary45||null,longLife4914:Number.isInteger(voiced.longLife4914)?voiced.longLife4914:null,broadcastSource4931:voiced.broadcastSource4931||null,boundaryStage4932:voiced.boundaryStage4932||null,boundaryMode4932:voiced.boundaryMode4932||null,lifeCrossStage4935:voiced.lifeCrossStage4935||null,lifeCrossActivity4935:voiced.lifeCrossActivity4935||null,replyVersion:['variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831','laterlife4914','boundary4932','time-echo4933','life-cross4935'].includes(voiced.kind)?(['boundary4932','time-echo4933','life-cross4935'].includes(voiced.kind)?REPLY_CONTENT_VERSION:31):0,
    replyTune4928:special,
-   choices:(['variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831','laterlife4914','boundary4932'].includes(voiced.kind)?voiced.choices:REGULAR_CHOICES).map(x=>[...x])};
+   choices:(['variety','radio-memory','daily-thread','relation-thread','long-echo','surprise46','everyday47','crossTalk4830','crossAfter4831','laterlife4914','boundary4932','time-echo4933','life-cross4935'].includes(voiced.kind)?voiced.choices:REGULAR_CHOICES).map(x=>[...x])};
   // v4.0: ここでは「候補」を書いただけ。実際に届いたかは夜の最終確定時に決まる。
   ids.push(uuid);
  }
@@ -3128,6 +3249,8 @@ function regularConfirmDelivered40(n,ids){
    const marks=r.boundary4932 ||= {},state=marks[l.who] ||= {};
    state[l.boundaryStage4932]=n;
   }
+  if(l.kind==='life-cross4935'&&['first','second'].includes(l.lifeCrossStage4935)){const marks=r.lifeCross4935 ||= {},record=marks[l.who] ||= {};record[l.lifeCrossStage4935]=n;}
+  if(l.kind==='time-echo4933'){r.timeEcho4933 ||= {};r.timeEcho4933[l.who]=Math.max(r.timeEcho4933[l.who]||0,n);}
   if(l.kind==='laterlife4914' && Number.isInteger(l.longLife4914)){
    const markers=r.longLife4914 ||= {};const entries=markers[l.who] ||= [];
    if(!entries.includes(l.longLife4914))entries.push(l.longLife4914);
@@ -3153,14 +3276,20 @@ function regularAfterWorld(n){
  if(outcome&&p&&n%4===0){
   const options=lifePossibleConsequences(personId,outcome.route);
   if(options.length){
-   const idx=(Math.floor((n-15)/5))%options.length;
+   // v4.9.34: 5人が20夜ごとに順番を迎えるため、夜数/5では
+   // 2種類の予定の片方だけが選ばれ続けていた。本人の周期で交替する。
+   // 第100夜以降は同じ予定を繰り返し「新しい一歩」と数えない。
+   const idx=(n>=100?Math.floor((n-15)/20):Math.floor((n-15)/5))%options.length;
    const step=options[idx];
-   // 行動の手がかりとして記録する。送信や対人交流を勝手に確定させない。
-   simMemory(p,{night:n,kind:'continuation',tag:'life',importance:2,summary:'これからの予定として「'+step+'」を考えた'});
-   privateRemember(personId,'次の一歩として「'+step+'」を考えた');
-   simAdjust(p.emotion,'hope',1);simAdjust(p.emotion,'anxiety',1);
-   s.regular.routeActions.push({night:n,id:personId,step});
-   s.regular.routeActions=s.regular.routeActions.slice(-120);
+   const repeated=n>=100&&s.regular.routeActions.some(x=>x.id===personId&&x.step===step&&n-x.night<100);
+   if(!repeated){
+    // 考えた予定であり、送信・訪問・達成を勝手に確定させない。
+    simMemory(p,{night:n,kind:'continuation',tag:'life',importance:2,summary:'これからの予定として「'+step+'」を考えた'});
+    privateRemember(personId,'次の一歩として「'+step+'」を考えた');
+    simAdjust(p.emotion,'hope',1);simAdjust(p.emotion,'anxiety',1);
+    s.regular.routeActions.push({night:n,id:personId,step});
+    s.regular.routeActions=s.regular.routeActions.slice(-120);
+   }
   }
  }
  s.regular.processedNights.push(n);
@@ -3458,8 +3587,9 @@ function specialSubmitBody(themeId,id,n){
  if(!src)return null;
  const outcome=s.lifePaths?.outcomes?.[id];
  let ending='';
- if(outcome&&REGULAR_MAIN.includes(id)&&!WHIMSICAL_SPECIAL_CHOICES[themeId]&&!MILESTONE_SPECIAL_CHOICES[themeId]){
-  // 将来の予定として保持している目標を「達成した」とは書かない。
+ if(n<=50&&outcome&&REGULAR_MAIN.includes(id)&&!WHIMSICAL_SPECIAL_CHOICES[themeId]&&!MILESTONE_SPECIAL_CHOICES[themeId]){
+  // v4.9.34: 初期の目標を長期間「最近」の出来事として扱わない。
+  // 第50夜までの初期目標の補足だけを残す。達成したとは書かない。
   const goal=(outcome.nextGoal||'').replace(/[。]+$/,'');
   if(goal)ending='\n\n最近は、'+goal+'ことも少しずつ考えています。';
  }
