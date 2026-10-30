@@ -232,10 +232,42 @@ function simReplyTopic(letterId){
  if(/^terminal/.test(letterId))return 'reconnect';
  return 'everyday';
 }
-function simReplyImpact(id,choice,assembled,letterId){
+// v4.9.29: 3段階返答の各選択で指定された意味と、実際の感情変化を一致させる。
+// 本編の効果タグや分岐を変更せず、紹介されたその時点の選択だけを読む。
+function selectedReplyPartImpact(l){
+ if(!l?.special||!Array.isArray(s.replyParts))return null;
+ const parts=partsForLetter(l);
+ if(!Array.isArray(parts)||parts.length!==3)return null;
+ const impact={};
+ for(let i=0;i<parts.length;i++){
+  const ix=s.replyParts[i];
+  if(!Number.isInteger(ix)||!parts[i]?.options?.[ix])return null;
+  const raw=parts[i].options[ix][2];
+  if(!raw||typeof raw!=='object')return null;
+  for(const [k,v] of Object.entries(raw))if(typeof v==='number'&&Number.isFinite(v))impact[k]=(impact[k]||0)+v;
+ }
+ return impact;
+}
+function replyPartEmotionDelta(impact){
+ const v=k=>Math.max(0,Number(impact?.[k]||0));
+ const trust=v('trust'),comfort=v('comfort'),relation=v('relationship');
+ const agency=v('agency'),reflection=v('reflection');
+ return [
+  Math.min(3,Math.round((trust+comfort+relation)/3)),
+  -Math.min(3,Math.ceil(comfort/2)),
+  0,
+  -Math.min(2,Math.ceil((trust+relation)/3)),
+  Math.min(3,Math.max(1,Math.ceil((agency+reflection+comfort)/3)))
+ ];
+}
+function simReplyImpact(id,choice,assembled,letterId,l){
  const p=s.simState?.people?.[id];if(!p)return;
- const effects={empathy:[2,-2,0,-1,1],humor:[3,-1,0,-1,1],caution:[0,-3,0,0,1],agency:[1,0,0,0,3],reflection:[0,1,0,0,2],space:[1,-2,0,-1,1],curiosity:[1,0,0,-1,2],past:[1,1,0,-1,1],honesty:[0,0,-1,0,2]};
- const mood=effects[choice]||[1,-1,0,0,1];
+ // 値の順序: 喜び、不安、怒り、孤独感、希望。
+ // 基本9種の効果は維持。従来「その他」に一括されていた語り口だけ区別する。
+ const effects={empathy:[2,-2,0,-1,1],humor:[3,-1,0,-1,1],caution:[0,-3,0,0,1],agency:[1,0,0,0,3],reflection:[0,1,0,0,2],space:[1,-2,0,-1,1],curiosity:[1,0,0,-1,2],past:[1,1,0,-1,1],honesty:[0,0,-1,0,2],
+  celebrate:[2,-1,0,-1,2],wonder:[1,0,0,0,2],question:[0,0,0,0,2],followup:[1,-1,0,-1,2],art:[0,0,0,0,2]};
+ const impact=choice==='special'?selectedReplyPartImpact(l):null;
+ const mood=impact?replyPartEmotionDelta(impact):(effects[choice]||[1,-1,0,0,1]);
  MOOD_KEYS.forEach((k,i)=>simAdjust(p.emotion,k,mood[i]));
  if(assembled&&/嫌|つら|苦し|怖/.test(assembled))simAdjust(p.emotion,'anxiety',-1);
  const topic=(letterId||'').startsWith('regular_')?({cat:'creative',driver:'reconnect',fish:'boundaries',clock:'memories',terminal:'reconnect',bread:'creative',moon:'everyday',umbrella:'creative',triangle:'creative',fridge:'everyday'}[id]||'everyday'):simReplyTopic(letterId||'');
@@ -379,6 +411,9 @@ function simulateDailyLives(n){
   if(e.joy>55&&l.leisure>50)simAdjust(e,'hope',1);
   if(activity.category==='social')simAdjust(e,'loneliness',-1);
   if(activity.category==='rest')simAdjust(e,'anxiety',-1);
+  // v4.9.30: 長期放送で希望が100に張り付き続けないよう、強い高揚だけが少しずつ落ち着く。
+  // 68以下の希望は減らさず、DJの返答・本人の行動が残す前向きさを維持する。
+  if(e.hope>68)simAdjust(e,'hope',e.hope>85?-2:-1);
   // 感情は複数並存する。希望が増えたからといって、不安を自動でゼロにしない。
   for(const key of Object.keys(p.signals)){
    p.signals[key]=Math.max(0,p.signals[key]-1);
